@@ -1,0 +1,18 @@
+<package>
+    <name>autoscrubber_client</name>
+    <version>1.0.0</version>
+    <description>
+        This node controls autoscrubber node.
+    </description>
+    <author>chenkan</author>
+    <maintainer email="chenkan@gs-robot.com">Chen Kan</maintainer>
+    <license>No License, Gaussian Automation reserves all rights.</license>
+
+    <buildtool_depend>catkin</buildtool_depend>
+
+    <build_depend>roscpp</build_depend>
+    <build_depend>autoscrubber_services</build_depend>
+
+    <run_depend>roscpp</run_depend>
+    <run_depend>autoscrubber_services</run_depend>
+</package>
