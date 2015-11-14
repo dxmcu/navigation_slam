@@ -15,6 +15,7 @@ find_package(catkin REQUIRED
     autoscrubber_services
     gslib
     fixpattern_path
+    path_recorder
     search_based_global_planner
     base_local_planner
     fixpattern_local_planner

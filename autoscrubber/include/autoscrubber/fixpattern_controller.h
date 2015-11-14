@@ -44,11 +44,12 @@ struct FixPatternControlOption : BaseControlOption {
   double stop_duration;
   double max_offroad_dis;
   double front_safe_check_dis;
+  int* fixpattern_reached_goal;
   double fixpattern_footprint_padding;
   fixpattern_path::Path* fixpattern_path;
   std::vector<geometry_msgs::Point> circle_center_points;
   boost::shared_ptr<fixpattern_local_planner::FixPatternTrajectoryPlannerROS> fixpattern_local_planner;
-
+  geometry_msgs::PoseStamped* global_planner_goal;
   FixPatternControlOption(tf::TransformListener* tf,
                           costmap_2d::Costmap2DROS* planner_costmap_ros,
                           costmap_2d::Costmap2DROS* controller_costmap_ros,
@@ -157,12 +158,14 @@ class FixPatternController : public BaseController {
 
   ros::Time last_valid_control_, last_oscillation_reset_;
   geometry_msgs::PoseStamped oscillation_pose_;
+  geometry_msgs::PoseStamped planner_goal_;
 
   // global options given by autoscrubber
   FixPatternControlOption* co_;
   ControlEnvironment* env_;
 
   bool switch_controller_;
+  bool first_run_flag_;
 };
 
 };  // namespace autoscrubber

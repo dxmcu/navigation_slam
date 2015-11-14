@@ -17,19 +17,19 @@
 #include <vector>
 #include <cmath>
 
-//#include "autoscrubber/fixpattern_controller.h"
+#include "autoscrubber/fixpattern_controller.h"
 #include "autoscrubber/astar_controller.h"
 
 namespace autoscrubber {
 
 AutoScrubber::AutoScrubber(tf::TransformListener* tf)
-    : tf_(*tf), options_(NULL), controllers_(NULL),
+    : tf_(*tf), nav_mode_(FIX_PATTERN), options_{2}, controllers_{2},
       planner_costmap_ros_(NULL), controller_costmap_ros_(NULL),
       bgp_loader_("nav_core", "nav_core::BaseGlobalPlanner"),
       blp_loader_("nav_core", "nav_core::BaseLocalPlanner"),
       recovery_loader_("nav_core", "nav_core::RecoveryBehavior"),
       planner_plan_(NULL), latest_plan_(NULL), controller_plan_(NULL),
-      new_global_plan_(false) {
+      new_global_plan_(false), fixpattern_reached_goal_(0) {
   ros::NodeHandle private_nh("~");
   ros::NodeHandle sbpl_nh("~/sbpl_global_planner");
   ros::NodeHandle nh;
@@ -50,7 +50,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   private_nh.param("oscillation_distance", oscillation_distance_, 0.5);
   private_nh.param("stop_duration", stop_duration_, 4.0);
 
-  private_nh.param("max_offroad_dis", max_offroad_dis_, 0.6); //0.7 Lee
+  private_nh.param("max_offroad_dis", max_offroad_dis_, 0.7); //0.7 Lee
   private_nh.param("front_safe_check_dis", front_safe_check_dis_, 1.0);
   private_nh.param("goal_safe_dis_a", goal_safe_dis_a_, 0.5);	// distance after goal poin
   private_nh.param("goal_safe_dis_b", goal_safe_dis_b_, 0.3); // distance before goal point
@@ -115,28 +115,42 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   astar_path_ = new fixpattern_path::Path();
 
   // create controller option and intialize controllers
-  options_ = new AStarControlOption(&tf_, planner_costmap_ros_, controller_costmap_ros_,
+  options_[FIX_PATTERN] = new FixPatternControlOption(&tf_, planner_costmap_ros_, controller_costmap_ros_,
+                                                      robot_base_frame_, global_frame_, planner_frequency_,
+                                                      controller_frequency_, inscribed_radius_, planner_patience_,
+                                                      controller_patience_, oscillation_timeout_,
+                                                      oscillation_distance_, &vel_pub_);
+  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->stop_duration = stop_duration_;
+  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->max_offroad_dis = max_offroad_dis_;
+  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->front_safe_check_dis = front_safe_check_dis_;
+  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->fixpattern_path = fixpattern_path_;
+  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->fixpattern_local_planner = fixpattern_local_planner_;
+  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->circle_center_points = circle_center_points_;
+  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->fixpattern_footprint_padding = fixpattern_footprint_padding_;
+  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->global_planner_goal = &global_planner_goal_;
+  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->fixpattern_reached_goal = &fixpattern_reached_goal_;
+  options_[AUTO_NAV] = new AStarControlOption(&tf_, planner_costmap_ros_, controller_costmap_ros_,
                                               robot_base_frame_, global_frame_, planner_frequency_,
                                               controller_frequency_, inscribed_radius_, planner_patience_,
                                               controller_patience_, oscillation_timeout_,
                                               oscillation_distance_, &vel_pub_);
-  reinterpret_cast<AStarControlOption*>(options_)->stop_duration = stop_duration_;
-  reinterpret_cast<AStarControlOption*>(options_)->max_offroad_dis = max_offroad_dis_;
-  reinterpret_cast<AStarControlOption*>(options_)->front_safe_check_dis = front_safe_check_dis_;
-  reinterpret_cast<AStarControlOption*>(options_)->sbpl_max_distance = sbpl_max_distance_;
-  reinterpret_cast<AStarControlOption*>(options_)->goal_safe_dis_a = goal_safe_dis_a_;
-  reinterpret_cast<AStarControlOption*>(options_)->goal_safe_dis_b = goal_safe_dis_b_;
-  reinterpret_cast<AStarControlOption*>(options_)->goal_safe_check_dis = goal_safe_check_dis_;
-  reinterpret_cast<AStarControlOption*>(options_)->goal_safe_check_duration = goal_safe_check_duration_;
-  reinterpret_cast<AStarControlOption*>(options_)->fixpattern_path = fixpattern_path_;
-  reinterpret_cast<AStarControlOption*>(options_)->astar_global_planner = astar_global_planner_;
-  reinterpret_cast<AStarControlOption*>(options_)->sbpl_global_planner = sbpl_global_planner_;
-  reinterpret_cast<AStarControlOption*>(options_)->fixpattern_local_planner = fixpattern_local_planner_;
-  reinterpret_cast<AStarControlOption*>(options_)->circle_center_points = circle_center_points_;
-  reinterpret_cast<AStarControlOption*>(options_)->sbpl_footprint_padding = sbpl_footprint_padding_;
-  reinterpret_cast<AStarControlOption*>(options_)->global_planner_goal = &global_planner_goal_;
-
-  controllers_ = new AStarController(&tf_, planner_costmap_ros_, controller_costmap_ros_);
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->stop_duration = stop_duration_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->max_offroad_dis = max_offroad_dis_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->front_safe_check_dis = front_safe_check_dis_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->sbpl_max_distance = sbpl_max_distance_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->goal_safe_dis_a = goal_safe_dis_a_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->goal_safe_dis_b = goal_safe_dis_b_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->goal_safe_check_dis = goal_safe_check_dis_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->goal_safe_check_duration = goal_safe_check_duration_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->fixpattern_path = fixpattern_path_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->astar_global_planner = astar_global_planner_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->sbpl_global_planner = sbpl_global_planner_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->fixpattern_local_planner = fixpattern_local_planner_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->circle_center_points = circle_center_points_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->sbpl_footprint_padding = sbpl_footprint_padding_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->global_planner_goal = &global_planner_goal_;
+  controllers_[FIX_PATTERN] = new FixPatternController(&tf_, planner_costmap_ros_, controller_costmap_ros_);
+  controllers_[AUTO_NAV] = new AStarController(&tf_, planner_costmap_ros_, controller_costmap_ros_);
 
   // initialize environment_
   environment_.launch_scrubber = false;
@@ -213,8 +227,8 @@ AutoScrubber::~AutoScrubber() {
   delete latest_plan_;
   delete controller_plan_;
 
-//  delete controllers_[FIX_PATTERN];
-  delete controllers_;
+  delete controllers_[FIX_PATTERN];
+  delete controllers_[AUTO_NAV];
 
   delete fixpattern_path_;
   delete astar_path_;
@@ -281,8 +295,17 @@ void AutoScrubber::ControlThread() {
       continue;
     }
 
+    // do some intialize things
+    nav_mode_ = FIX_PATTERN;
+
     // loop below quits when navigation finishes
-    while (!controllers_->Control(options_, &environment_));
+    while (!controllers_[nav_mode_]->Control(options_[nav_mode_], &environment_)) {
+      if (nav_mode_ == FIX_PATTERN) {
+        nav_mode_ = AUTO_NAV;
+      } else {
+        nav_mode_ = FIX_PATTERN;
+      }
+    }
 
     // notify GUI that goal is reached
     std_msgs::UInt32 msg;

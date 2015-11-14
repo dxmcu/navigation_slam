@@ -54,6 +54,7 @@ struct AStarControlOption : BaseControlOption {
   double goal_safe_check_dis;	
   double goal_safe_check_duration;
   double sbpl_footprint_padding;
+  int* fixpattern_reached_goal;
   fixpattern_path::Path* fixpattern_path;
   geometry_msgs::PoseStamped* global_planner_goal;
   std::vector<geometry_msgs::Point> circle_center_points;
@@ -106,7 +107,7 @@ class AStarController : public BaseController {
    * @param  plan Will be filled in with the plan made by the planner
    * @return  True if planning succeeds, false otherwise
    */
-  bool MakePlan(const geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>* plan);
+  bool MakePlan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>* plan);
   /**
    * @brief  Publishes a velocity command of zero to the base
    */
@@ -138,6 +139,8 @@ class AStarController : public BaseController {
   void HandleGoingBack(geometry_msgs::PoseStamped current_position);
   void PlanThread();
   double PoseStampedDistance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2);
+  std::vector<fixpattern_path::PathPoint> CalculateStartCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path);
+  std::vector<fixpattern_path::PathPoint> CalculateGoalCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path);
 
   // rotate recovery
   bool CanRotate(double x, double y, double yaw, int dir);
@@ -184,6 +187,7 @@ class AStarController : public BaseController {
 
   // set up the planner's thread
   bool runPlanner_;
+  bool sbpl_reached_goal_;
   boost::mutex planner_mutex_;
   boost::condition_variable planner_cond_;
   geometry_msgs::PoseStamped planner_goal_;

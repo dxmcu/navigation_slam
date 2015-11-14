@@ -10,7 +10,7 @@
  */
 
 #include "autoscrubber/fixpattern_controller.h"
-
+#include <path_recorder/path_recorder.h>
 #include <nav_msgs/Path.h>
 #include <angles/angles.h>
 
@@ -36,6 +36,7 @@ FixPatternController::FixPatternController(tf::TransformListener* tf,
 
   // we'll not switch controller when start
   switch_controller_ = false;
+  first_run_flag_ = true;
 }
 
 FixPatternController::~FixPatternController() {
@@ -53,10 +54,10 @@ void FixPatternController::PublishZeroVelocity() {
 bool FixPatternController::Control(BaseControlOption* option, ControlEnvironment* environment) {
   co_ = reinterpret_cast<FixPatternControlOption*>(option);
   env_ = environment;
-
+  planner_goal_.pose = co_->global_planner_goal->pose;
   // reset fixpattern_local_planner
   co_->fixpattern_local_planner->reset_planner();
-
+  ROS_INFO("[FIXPATTERN_PATH_CTRL] Switch to Fixpattern_Path Controller!");
   ros::Rate r(co_->controller_frequency);
 
   // we want to make sure that we reset the last time we had a valid plan and control
@@ -149,7 +150,41 @@ bool FixPatternController::ExecuteCycle() {
     PublishZeroVelocity();
     return false;
   }
-  // we'll handle if just started
+  // we'll switch to astar controller to remake a fixpattern_path and smooth it if just started
+  if(first_run_flag_) {
+    first_run_flag_ = false;
+    tf::Stamped<tf::Pose> global_pose;
+    if (controller_costmap_ros_->getRobotPose(global_pose)/*|| planner_costmap_ros_->getRobotPose(global_pose)*/) {
+      geometry_msgs::PoseStamped start;
+      tf::poseStampedTFToMsg(global_pose, start);
+      start.header.frame_id = co_->global_frame;
+      start = PoseStampedToGlobalFrame(start);
+      co_->fixpattern_path->PruneFromStartToGoal(fixpattern_path::GeometryPoseToPathPoint(start.pose), fixpattern_path::GeometryPoseToPathPoint(planner_goal_.pose));
+      std::vector<geometry_msgs::PoseStamped> plan = co_->fixpattern_path->GeometryPath();
+      for (auto&& p : plan) {  // NOLINT
+        p.header.frame_id = co_->global_frame;
+        p.header.stamp = ros::Time::now();
+      }
+      PublishPlan(fixpattern_pub_, plan); 
+
+      switch_controller_ = true;
+      co_->fixpattern_path->fixpattern_path_reached_goal_ = false;
+      co_->fixpattern_path->fixpattern_path_first_run_ = true;
+      return true;
+    } else {
+      ROS_WARN("[MOVE BASE] Unable to get robot pose, unable to cut path bettewn start and goal");
+    }
+  } else
+    co_->fixpattern_path->fixpattern_path_first_run_ = false;
+
+    if(co_->fixpattern_path->fixpattern_path_start_updated_) {
+      co_->fixpattern_path->fixpattern_path_start_updated_ = false;
+      //std::vector<fixpattern_path::PathPoint> pathpoint = co_->fixpattern_path->path(); 
+      //path_recorder::PathRecorder recorder;
+      //recorder.CalculatePath(&pathpoint);
+      //co_->fixpattern_path->set_fix_path(pathpoint);
+    }
+/*
   if (co_->fixpattern_path->total_point_count() == path.size()) {
     // if position or orientation are far from frist point, we'll plan to start
     double pose_diff = PoseStampedDistance(current_position, path.front());
@@ -160,7 +195,7 @@ bool FixPatternController::ExecuteCycle() {
       return true;
     }
   }
-
+*/
   // the move_base state machine, handles the control logic for navigation
   switch (state_) {
     // if we're controlling, we'll attempt to find valid velocity commands
@@ -175,14 +210,24 @@ bool FixPatternController::ExecuteCycle() {
         ResetState();
 
         // reset fixpattern_local_planner
-        co_->fixpattern_local_planner->reset_planner();
-
+        co_->fixpattern_local_planner->reset_planner();	
+        co_->fixpattern_path->fixpattern_path_reached_goal_ = true;
+        first_run_flag_ = true;
+				
         // we need to notify fixpattern_path
         co_->fixpattern_path->FinishPath();
 
         // Goal reached
-        return true;
+        if(co_->fixpattern_path->fixpattern_path_goal_updated_) {
+          co_->fixpattern_path->fixpattern_path_goal_updated_ = false;
+          switch_controller_ = false;
+        } else  {
+        switch_controller_ = true;
+        }
+          return true;  //(lee)
       }
+        if(co_->fixpattern_path->fixpattern_path_reached_goal_)	
+          co_->fixpattern_path->fixpattern_path_reached_goal_ = false;
 
       {
         boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
@@ -253,8 +298,8 @@ bool FixPatternController::ExecuteCycle() {
             recovery_trigger_ = F_CONTROLLING_R;
           } else {
             // otherwise, if we can't find a valid control, we'll retry, until
-            // reach controller_patience
             ROS_INFO("[FIXPATTERN CONTROLLER] wait for a valid control");
+            // reach controller_patience
             state_ = F_CONTROLLING;
             PublishZeroVelocity();
           }
@@ -321,7 +366,7 @@ geometry_msgs::PoseStamped FixPatternController::PoseStampedToGlobalFrame(const 
   try {
     co_->tf->transformPose(global_frame, goal_pose, global_pose);
   } catch(tf::TransformException& ex) {
-    ROS_WARN("Failed to transform the goal pose from %s into the %s frame: %s",
+    ROS_WARN("[Fixpattern_path]Failed to transform the goal pose from %s into the %s frame: %s",
              goal_pose.frame_id_.c_str(), global_frame.c_str(), ex.what());
     return pose_msg;
   }
@@ -399,7 +444,7 @@ void FixPatternController::PublishPlan(const ros::Publisher& pub, const std::vec
 }
 
 void FixPatternController::MakePlan() {
-  if (!co_->fixpattern_path->IsRunning()) {
+  if (!co_->fixpattern_path->IsRunning() || co_->fixpattern_path->fixpattern_path_reached_goal_) {
     std::string file_name = "/home/gaussian/record.path";
     const char* runtime_dir = ::getenv("GAUSSIAN_RUNTIME_DIR");
     if (runtime_dir != NULL) {
