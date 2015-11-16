@@ -304,6 +304,9 @@ unsigned int CalculatePathLengthIndex(const std::vector<fixpattern_path::PathPoi
 void AStarController::CalculateStartCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path) {
   std::vector<fixpattern_path::PathPoint> path = astar_path;
   std::vector<fixpattern_path::PathPoint> fix_path = co_->fixpattern_path->path();
+  fix_path.insert(fix_path.begin(), astar_path.begin(), astar_path.end() - 1);
+  co_->fixpattern_path->set_fix_path(fix_path);
+/*
   unsigned int index = CalculatePathLengthIndex(fix_path, 0.5, 1);
   path.insert(path.end(), fix_path.begin(), fix_path.begin() + index);
   ROS_INFO("[Astar Controller]Fix_start_smooth_index=%d, before smooth_path_size=%d", index, (int)path.size());
@@ -312,12 +315,16 @@ void AStarController::CalculateStartCurvePath(const std::vector<fixpattern_path:
   ROS_INFO("[Astar Controller]After start_smooth_path_size=%d", (int)path.size());
   path.insert(path.end(), fix_path.begin() + index + 1, fix_path.end());
   co_->fixpattern_path->set_fix_path(path);
+*/
   ROS_INFO("[Astar Controller]set start fix_path s");
 }
 
 void AStarController::CalculateGoalCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path) {
   std::vector<fixpattern_path::PathPoint> path = astar_path;
   std::vector<fixpattern_path::PathPoint> fix_path = co_->fixpattern_path->path();
+  fix_path.insert(fix_path.end(), astar_path.begin() + 1, astar_path.end());
+  co_->fixpattern_path->set_fix_path(fix_path);
+/*
   unsigned int index = CalculatePathLengthIndex(fix_path, 0.5, 0);
   ROS_INFO("[Astar Controller]Fix_goal_smooth_index=%d, before smooth_path_size=%d", index, (int)path.size());
   path.insert(path.begin(), fix_path.begin() + index, fix_path.end());
@@ -327,6 +334,7 @@ void AStarController::CalculateGoalCurvePath(const std::vector<fixpattern_path::
   ROS_INFO("[Astar Controller]After goal_smooth_path_size=%d", (int)path.size());
   path.insert(path.begin(), fix_path.begin(), fix_path.begin() + index - 1);
   co_->fixpattern_path->set_fix_path(path);
+*/
   ROS_INFO("[Astar Controller]set goal fix_path s");
 }
 
