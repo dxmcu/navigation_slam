@@ -301,47 +301,51 @@ unsigned int CalculatePathLengthIndex(const std::vector<fixpattern_path::PathPoi
   return path_index;
 }
 
-std::vector<fixpattern_path::PathPoint> AStarController::CalculateStartCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path) {
+void AStarController::CalculateStartCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path) {
   std::vector<fixpattern_path::PathPoint> path = astar_path;
   std::vector<fixpattern_path::PathPoint> fix_path = co_->fixpattern_path->path();
   unsigned int index = CalculatePathLengthIndex(fix_path, 0.5, 1);
   path.insert(path.end(), fix_path.begin(), fix_path.begin() + index);
-
+  ROS_INFO("[Astar Controller]Fix_start_smooth_index=%d, before smooth_path_size=%d", index, (int)path.size());
   path_recorder::PathRecorder recorder;
-  recorder.CalculatePath(&path);
+ // recorder.CalculateCurvePath(&path);
+  ROS_INFO("[Astar Controller]After start_smooth_path_size=%d", (int)path.size());
   path.insert(path.end(), fix_path.begin() + index + 1, fix_path.end());
   co_->fixpattern_path->set_fix_path(path);
+  ROS_INFO("[Astar Controller]set start fix_path s");
 }
 
-std::vector<fixpattern_path::PathPoint> AStarController::CalculateGoalCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path) {
+void AStarController::CalculateGoalCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path) {
   std::vector<fixpattern_path::PathPoint> path = astar_path;
   std::vector<fixpattern_path::PathPoint> fix_path = co_->fixpattern_path->path();
   unsigned int index = CalculatePathLengthIndex(fix_path, 0.5, 0);
+  ROS_INFO("[Astar Controller]Fix_goal_smooth_index=%d, before smooth_path_size=%d", index, (int)path.size());
   path.insert(path.begin(), fix_path.begin() + index, fix_path.end());
 
   path_recorder::PathRecorder recorder;
-  recorder.CalculatePath(&path);
+ // recorder.CalculateCurvePath(&path);
+  ROS_INFO("[Astar Controller]After goal_smooth_path_size=%d", (int)path.size());
   path.insert(path.begin(), fix_path.begin(), fix_path.begin() + index - 1);
   co_->fixpattern_path->set_fix_path(path);
+  ROS_INFO("[Astar Controller]set goal fix_path s");
 }
 
 bool AStarController::Control(BaseControlOption* option, ControlEnvironment* environment) {
+  ROS_INFO("[ASTAR_CTRL] Switch to Astar Controller!");
   co_ = reinterpret_cast<AStarControlOption*>(option);
   env_ = environment;
-  ROS_INFO("[ASTAR_CTRL] Switch to Astar Controller!");
   // first run: just get Astar Path, and insert to fixpattern_path, then switch controllor 
   if(co_->fixpattern_path->fixpattern_path_first_run_) {
     co_->fixpattern_path->fixpattern_path_first_run_ = false;
     geometry_msgs::PoseStamped start;
     geometry_msgs::PoseStamped goal;
-    std::vector<geometry_msgs::PoseStamped> path;
     tf::Stamped<tf::Pose> global_pose;
     bool gotPlan = false;
     if (!planner_costmap_ros_->getRobotPose(global_pose)) {
       ROS_WARN("Unable to get starting pose of robot, unable to create global plan");
     } else {
       tf::poseStampedTFToMsg(global_pose, start);
-      path = co_->fixpattern_path->GeometryPath();
+      std::vector<geometry_msgs::PoseStamped> path = co_->fixpattern_path->GeometryPath(); 
       goal.pose = path.front().pose;
       goal.header.frame_id = co_->global_frame;
       ROS_INFO("[ASTAR CONTROLLOR]Start Path Planning ...");
@@ -360,7 +364,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
       //co_->fixpattern_path->fixpattern_path_start_updated_ = true;
       CalculateStartCurvePath(astar_path_.path());
       // get astar path from (end point of fixpattern_path) to the real goal point
-      path = co_->fixpattern_path->GeometryPath();
+      std::vector<geometry_msgs::PoseStamped> path = co_->fixpattern_path->GeometryPath(); 
       start.pose = path.back().pose; 
       start.header.frame_id = co_->global_frame;
       goal.pose = co_->global_planner_goal->pose;
@@ -380,11 +384,11 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
         //co_->fixpattern_path->insert_end_path(astar_path_.path());
         //co_->fixpattern_path->insert_to_path(astar_path_.path().back());
         co_->fixpattern_path->fixpattern_path_goal_updated_ = true;
+        ROS_INFO("[ASTAR CONTROLLOR]Set Curve Goal Path s");
       }
-
-        return false;
+      return false;
     } else {
-      path = co_->fixpattern_path->GeometryPath();
+      std::vector<geometry_msgs::PoseStamped> path = co_->fixpattern_path->GeometryPath(); 
       planner_goal_.pose = path.front().pose;
       planner_goal_.header.frame_id = co_->global_frame;
       co_->fixpattern_local_planner->reset_planner();

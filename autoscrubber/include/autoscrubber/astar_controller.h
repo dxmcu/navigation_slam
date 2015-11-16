@@ -139,8 +139,8 @@ class AStarController : public BaseController {
   void HandleGoingBack(geometry_msgs::PoseStamped current_position);
   void PlanThread();
   double PoseStampedDistance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2);
-  std::vector<fixpattern_path::PathPoint> CalculateStartCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path);
-  std::vector<fixpattern_path::PathPoint> CalculateGoalCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path);
+  void CalculateStartCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path);
+  void CalculateGoalCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path);
 
   // rotate recovery
   bool CanRotate(double x, double y, double yaw, int dir);

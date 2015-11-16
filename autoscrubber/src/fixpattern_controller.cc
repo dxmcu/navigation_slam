@@ -52,12 +52,12 @@ void FixPatternController::PublishZeroVelocity() {
 }
 
 bool FixPatternController::Control(BaseControlOption* option, ControlEnvironment* environment) {
+  ROS_INFO("[FIXPATTERN_PATH_CTRL] Switch to Fixpattern_Path Controller!");
   co_ = reinterpret_cast<FixPatternControlOption*>(option);
   env_ = environment;
   planner_goal_.pose = co_->global_planner_goal->pose;
   // reset fixpattern_local_planner
   co_->fixpattern_local_planner->reset_planner();
-  ROS_INFO("[FIXPATTERN_PATH_CTRL] Switch to Fixpattern_Path Controller!");
   ros::Rate r(co_->controller_frequency);
 
   // we want to make sure that we reset the last time we had a valid plan and control
@@ -160,6 +160,7 @@ bool FixPatternController::ExecuteCycle() {
       start.header.frame_id = co_->global_frame;
       start = PoseStampedToGlobalFrame(start);
       co_->fixpattern_path->PruneFromStartToGoal(fixpattern_path::GeometryPoseToPathPoint(start.pose), fixpattern_path::GeometryPoseToPathPoint(planner_goal_.pose));
+
       std::vector<geometry_msgs::PoseStamped> plan = co_->fixpattern_path->GeometryPath();
       for (auto&& p : plan) {  // NOLINT
         p.header.frame_id = co_->global_frame;
@@ -179,6 +180,10 @@ bool FixPatternController::ExecuteCycle() {
 
     if(co_->fixpattern_path->fixpattern_path_start_updated_) {
       co_->fixpattern_path->fixpattern_path_start_updated_ = false;
+      std::vector<fixpattern_path::PathPoint> fix_path = co_->fixpattern_path->path();
+      path_recorder::PathRecorder recorder;
+      recorder.CalculateCurvePath(&fix_path);
+      co_->fixpattern_path->set_fix_path(fix_path);
       //std::vector<fixpattern_path::PathPoint> pathpoint = co_->fixpattern_path->path(); 
       //path_recorder::PathRecorder recorder;
       //recorder.CalculatePath(&pathpoint);
@@ -205,7 +210,7 @@ bool FixPatternController::ExecuteCycle() {
 
       // check to see if we've reached our goal
       if (co_->fixpattern_local_planner->isGoalReached()) {
-        ROS_INFO("[FIXPATTERN CONTROLLER] fixpattern goal reached");
+        ROS_WARN("[FIXPATTERN CONTROLLER] fixpattern goal reached");
         ROS_DEBUG_NAMED("autoscrubber", "Goal reached!");
         ResetState();
 
@@ -222,9 +227,9 @@ bool FixPatternController::ExecuteCycle() {
           co_->fixpattern_path->fixpattern_path_goal_updated_ = false;
           switch_controller_ = false;
         } else  {
-        switch_controller_ = true;
+          switch_controller_ = true;
         }
-          return true;  //(lee)
+        return true;  //(lee)
       }
         if(co_->fixpattern_path->fixpattern_path_reached_goal_)	
           co_->fixpattern_path->fixpattern_path_reached_goal_ = false;
