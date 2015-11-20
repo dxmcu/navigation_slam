@@ -150,7 +150,7 @@ bool FixPatternController::ExecuteCycle() {
     PublishZeroVelocity();
     return false;
   }
-  // we'll switch to astar controller to remake a fixpattern_path and smooth it if just started
+  //if just started, we'll switch to astar controller to add sbpl_path and remake fixpattern_path and smooth it 
   if(first_run_flag_) {
     first_run_flag_ = false;
     tf::Stamped<tf::Pose> global_pose;
@@ -173,22 +173,22 @@ bool FixPatternController::ExecuteCycle() {
       co_->fixpattern_path->fixpattern_path_first_run_ = true;
       return true;
     } else {
-      ROS_WARN("[MOVE BASE] Unable to get robot pose, unable to cut path bettewn start and goal");
+      ROS_WARN("[MOVE BASE] Unable to get robot pose, unable to cut path between start and goal");
     }
   } else
     co_->fixpattern_path->fixpattern_path_first_run_ = false;
 
-    if(co_->fixpattern_path->fixpattern_path_start_updated_) {
-      co_->fixpattern_path->fixpattern_path_start_updated_ = false;
-      std::vector<fixpattern_path::PathPoint> fix_path = co_->fixpattern_path->path();
-      path_recorder::PathRecorder recorder;
-      recorder.CalculateCurvePath(&fix_path);
-      co_->fixpattern_path->set_fix_path(fix_path);
-      //std::vector<fixpattern_path::PathPoint> pathpoint = co_->fixpattern_path->path(); 
-      //path_recorder::PathRecorder recorder;
-      //recorder.CalculatePath(&pathpoint);
-      //co_->fixpattern_path->set_fix_path(pathpoint);
-    }
+  if(co_->fixpattern_path->fixpattern_path_start_updated_) {
+    co_->fixpattern_path->fixpattern_path_start_updated_ = false;
+    std::vector<fixpattern_path::PathPoint> fix_path = co_->fixpattern_path->path();
+    path_recorder::PathRecorder recorder;
+    recorder.CalculateCurvePath(&fix_path);
+    co_->fixpattern_path->set_fix_path(fix_path);
+    //std::vector<fixpattern_path::PathPoint> pathpoint = co_->fixpattern_path->path(); 
+    //path_recorder::PathRecorder recorder;
+    //recorder.CalculatePath(&pathpoint);
+    //co_->fixpattern_path->set_fix_path(pathpoint);
+  }
 /*
   if (co_->fixpattern_path->total_point_count() == path.size()) {
     // if position or orientation are far from frist point, we'll plan to start
@@ -213,20 +213,26 @@ bool FixPatternController::ExecuteCycle() {
         ROS_WARN("[FIXPATTERN CONTROLLER] fixpattern goal reached");
         ROS_DEBUG_NAMED("autoscrubber", "Goal reached!");
         ResetState();
-
         // reset fixpattern_local_planner
         co_->fixpattern_local_planner->reset_planner();	
-        co_->fixpattern_path->fixpattern_path_reached_goal_ = true;
         first_run_flag_ = true;
 				
         // we need to notify fixpattern_path
         co_->fixpattern_path->FinishPath();
 
+				co_->fixpattern_path->fixpattern_path_reached_goal_ = true;
+
         // Goal reached
-        if(co_->fixpattern_path->fixpattern_path_goal_updated_) {
+        if(co_->fixpattern_path->fixpattern_path_goal_updated_ ) {
           co_->fixpattern_path->fixpattern_path_goal_updated_ = false;
-          switch_controller_ = false;
-        } else  {
+          double pose_diff = PoseStampedDistance(current_position, planner_goal_);
+          double yaw_diff = angles::shortest_angular_distance(tf::getYaw(current_position.pose.orientation), tf::getYaw(planner_goal_.pose.orientation));
+          if (pose_diff < 0.1 && fabs(yaw_diff) < M_PI / 10.0) {
+            switch_controller_ = false;
+          } else  {
+            switch_controller_ = true;
+          }
+        } else {
           switch_controller_ = true;
         }
         return true;  //(lee)

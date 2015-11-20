@@ -401,8 +401,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
       planner_goal_.header.frame_id = co_->global_frame;
       co_->fixpattern_local_planner->reset_planner();
     }
-  } else if(!co_->fixpattern_path->fixpattern_path_goal_updated_ 
-      && co_->fixpattern_path->fixpattern_path_reached_goal_) { 
+  } else if (co_->fixpattern_path->fixpattern_path_reached_goal_) { 
     //insert astar goal path fail and now fixpattern_reached goal
     planner_goal_.pose = co_->global_planner_goal->pose;
     planner_goal_.header.frame_id = co_->global_frame;
@@ -759,12 +758,14 @@ bool AStarController::ExecuteCycle() {
 
         // TODO(chenkan): check if this is needed
         co_->fixpattern_local_planner->reset_planner();
-        if(co_->fixpattern_path->fixpattern_path_reached_goal_ 
-            && !co_->fixpattern_path->fixpattern_path_goal_updated_)
-        //if(co_->fixpattern_reached_goal[0])
+        if(co_->fixpattern_path->fixpattern_path_reached_goal_
+            && PoseStampedDistance(current_position, planner_goal_) < 0.1) {
+        // Sbpl Goal reached, and fix_pattern Goal reached, all path done 
+          co_->fixpattern_path->fixpattern_path_reached_goal_ = false;
           sbpl_reached_goal_ = true;
-        else
+				} else {
           sbpl_reached_goal_ = false;
+        }
         // Goal reached, switch to fixpattern controller
         return true;
       }else
