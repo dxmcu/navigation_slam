@@ -78,7 +78,7 @@ namespace fixpattern_local_planner
       double x_diff = global_pose.getOrigin().x() - w.pose.position.x;
       double y_diff = global_pose.getOrigin().y() - w.pose.position.y;
       double distance_sq = x_diff * x_diff + y_diff * y_diff;
-      if(distance_sq < 1){
+      if(distance_sq < 0.25){
         ROS_DEBUG("Nearest waypoint to <%f, %f> is <%f, %f>\n", global_pose.getOrigin().x(), global_pose.getOrigin().y(), w.pose.position.x, w.pose.position.y);
         break;
       }

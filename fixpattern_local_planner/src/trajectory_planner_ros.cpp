@@ -81,6 +81,7 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
     double stop_time_buffer;
     std::string world_model_type;
     rotating_to_goal_ = false;
+    rotating_to_route_direction_ = false;
 
     // initialize the copy of the costmap the controller will use
     costmap_ = costmap_ros_->getCostmap();
@@ -435,6 +436,10 @@ bool FixPatternTrajectoryPlannerROS::needBackward(PlannerType planner_type, cons
     return true;
   }
 }
+
+double getPoseDistance(geometry_msgs::PoseStamped start_pose, geometry_msgs::PoseStamped end_pose) {
+    return hypot(start_pose.pose.position.x- end_pose.pose.position.x, start_pose.pose.position.y- end_pose.pose.position.y);
+}
 bool FixPatternTrajectoryPlannerROS::setPlan(const std::vector<fixpattern_path::PathPoint>& orig_global_plan, const std::string& orig_frame_id) {
   if (!isInitialized()) {
     ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
@@ -625,9 +630,10 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
      end_t = end.tv_sec + double(end.tv_usec) / 1e6;
      t_diff = end_t - start_t;
      ROS_INFO("Cycle time: %.9f", t_diff);
-     */
+ */
 
   // ROS_INFO("[FIXPATTERN LOCAL PLANNER] fixpattern_path_.size(): %d", fixpattern_path_.size());
+
   if (fixpattern_path_.front().IsCornerPoint()) {
     if (needBackward(planner_type, global_pose, robot_vel, cmd_vel)) {
       publishPlan(transformed_plan, g_plan_pub_);
@@ -658,6 +664,35 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
       // we don't actually want to run the controller when we're just rotating to goal
       return true;
     }
+  } else {
+    if ((robot_vel.getOrigin().getX() < 0.00001 && tf::getYaw(robot_vel.getRotation()) < 0.00001) || rotating_to_route_direction_) {
+	double yaw = tf::getYaw(global_pose.getRotation());
+	unsigned int index = 0;
+	double acc_dis = 0.0;
+	for (; index < transformed_plan.size() - 2; index++) {
+		acc_dis += fixpattern_path_.at(index).DistanceToPoint(fixpattern_path_.at(index + 1));
+		//acc_dis += fgetPoseDistance(transformed_plan.at(index), tranformed_plan.at(index + 1));
+		if (acc_dis > 0.1) break;
+	}	
+	double target_yaw = fixpattern_path::CalculateDirection(fixpattern_path_.front(), fixpattern_path_.at(index - 1)); 
+	double angle_diff = angles::shortest_angular_distance(yaw, target_yaw);
+	ROS_INFO("[FIXPATTERN LOCAL PLANNER] start point rotating to goal, yaw: %lf, target_yaw: %lf, angle_diff: %lf", yaw, target_yaw, angle_diff);
+	// if target_yaw changed during rotation, don't follow last dir
+	if (fabs(angle_diff) > 0.26) {
+		if (!rotateToGoal(planner_type, global_pose, robot_vel, target_yaw, cmd_vel)) {
+			ROS_INFO("[FIXPATTERN LOCAL PLANNER] try_rotate_: %d", try_rotate_);
+			return false;
+		  }
+		rotating_to_route_direction_ = true;
+		ROS_INFO("[FIXPATTERN LOCAL PLANNER] rotating to goal");
+		publishPlan(transformed_plan, g_plan_pub_);
+		publishPlan(local_plan, l_plan_pub_);
+		// we don't actually want to run the controller when we're just rotating to goal
+		return true;
+	} else {
+		rotating_to_route_direction_ = false;	
+	}
+     }
   }
   last_target_yaw_ = 0.0;
   last_rotate_to_goal_dir_ = 0;
@@ -746,6 +781,7 @@ bool FixPatternTrajectoryPlannerROS::isGoalReached() {
 void FixPatternTrajectoryPlannerROS::reset_planner() {
    reached_goal_ = false;
    xy_tolerance_latch_ = false;
+   rotating_to_route_direction_ = false;
 
    last_target_yaw_ = 0.0;
    last_rotate_to_goal_dir_ = 0;

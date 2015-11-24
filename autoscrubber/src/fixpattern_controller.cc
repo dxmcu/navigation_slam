@@ -121,7 +121,6 @@ double FixPatternController::PoseStampedDistance(const geometry_msgs::PoseStampe
 
 bool FixPatternController::ExecuteCycle() {
   // we need to be able to publish velocity commands
-  geometry_msgs::Twist cmd_vel;
 
   // get our curent position
   tf::Stamped<tf::Pose> global_pose;
@@ -171,6 +170,9 @@ bool FixPatternController::ExecuteCycle() {
       switch_controller_ = true;
       co_->fixpattern_path->fixpattern_path_reached_goal_ = false;
       co_->fixpattern_path->fixpattern_path_first_run_ = true;
+      cmd_vel_.linear.x = 0.0;
+      cmd_vel_.linear.y = 0.0;
+      cmd_vel_.angular.z = 0.0;
       return true;
     } else {
       ROS_WARN("[MOVE BASE] Unable to get robot pose, unable to cut path between start and goal");
@@ -219,18 +221,16 @@ bool FixPatternController::ExecuteCycle() {
 				
         // we need to notify fixpattern_path
         co_->fixpattern_path->FinishPath();
-
-				co_->fixpattern_path->fixpattern_path_reached_goal_ = true;
-
+	co_->fixpattern_path->fixpattern_path_reached_goal_ = true;
         // Goal reached
         if(co_->fixpattern_path->fixpattern_path_goal_updated_ ) {
           co_->fixpattern_path->fixpattern_path_goal_updated_ = false;
           double pose_diff = PoseStampedDistance(current_position, planner_goal_);
           double yaw_diff = angles::shortest_angular_distance(tf::getYaw(current_position.pose.orientation), tf::getYaw(planner_goal_.pose.orientation));
-          if (pose_diff < 0.1 && fabs(yaw_diff) < M_PI / 10.0) {
-            switch_controller_ = false;
-          } else  {
+          if (pose_diff > 0.1 || fabs(yaw_diff) > 0.1) {
             switch_controller_ = true;
+          } else  {
+            switch_controller_ = false;
           }
         } else {
           switch_controller_ = true;
@@ -287,12 +287,12 @@ bool FixPatternController::ExecuteCycle() {
           return true;
         }
 
-        if (co_->fixpattern_local_planner->computeVelocityCommands(fixpattern_local_planner::TRAJECTORY_PLANNER, &cmd_vel)) {
+        if (co_->fixpattern_local_planner->computeVelocityCommands(fixpattern_local_planner::TRAJECTORY_PLANNER, &cmd_vel_)) {
           ROS_DEBUG_NAMED("autoscrubber", "Got a valid command from the local planner: %.3lf, %.3lf, %.3lf",
-                          cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z);
+                          cmd_vel_.linear.x, cmd_vel_.linear.y, cmd_vel_.angular.z);
           last_valid_control_ = ros::Time::now();
           // make sure that we send the velocity command to the base
-          co_->vel_pub->publish(cmd_vel);
+          co_->vel_pub->publish(cmd_vel_);
 
           // notify chassis to launch scrubber
           env_->launch_scrubber = true;

@@ -164,6 +164,7 @@ class FixPatternController : public BaseController {
   FixPatternControlOption* co_;
   ControlEnvironment* env_;
 
+  geometry_msgs::Twist cmd_vel_;
   bool switch_controller_;
   bool first_run_flag_;
 };

@@ -183,6 +183,7 @@ class FixPatternTrajectoryPlannerROS {
   std::vector<geometry_msgs::PoseStamped> global_plan_;
   std::vector<fixpattern_path::PathPoint> fixpattern_path_;
   bool prune_plan_;
+  bool rotating_to_route_direction_;
   boost::recursive_mutex odom_lock_;
 
   double max_vel_th_, min_vel_th_;

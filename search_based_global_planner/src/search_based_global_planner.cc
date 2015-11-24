@@ -745,8 +745,10 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
     if (path_info[i].is_corner) {
       unsigned int corner_size = 1;
       for (unsigned int j = i + 1; j < plan.size() - 1; ++j) {
-        if (path_info[j].is_corner) corner_size++;
-        else break;
+        if (path_info[j].is_corner) 
+          corner_size++;
+        else
+          break;
       }
       unsigned int corner_end_index = i + (corner_size - 1);
       if (corner_size >= 27) {
