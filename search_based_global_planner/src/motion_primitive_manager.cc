@@ -183,8 +183,8 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
         // length of straight line
         double l = S(0);
         // radius of turn
-        double tv_over_rv = S(1);
-        double rv = base_end_cell.theta * 2 * M_PI / num_of_angles_ + l / tv_over_rv;
+        double tv_over_rv = S(1); // radius of circle
+        double rv = base_end_cell.theta * 2 * M_PI / num_of_angles_ + l / tv_over_rv; 
         // total length
         double tv = tv_over_rv * rv;
         if (l < 0) {
@@ -194,7 +194,7 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
         // generate samples
         for (int i = 0; i < num_of_interm_pts; ++i) {
           double dt = static_cast<double>(i) / (num_of_interm_pts - 1);
-          if (dt * tv < l) {
+          if (dt * tv < l) { // straight length
             interm_pts[i].x = start_point.x + dt * tv * cos(start_point.theta);
             interm_pts[i].y = start_point.y + dt * tv * sin(start_point.theta);
             interm_pts[i].theta = start_point.theta;
@@ -203,8 +203,8 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
             interm_struct[i].is_corner = false;
             interm_struct[i].theta_out = 0.0;
             interm_struct[i].rotate_direction = 0;
-          } else {
-            double dtheta = rv * (dt - l / tv) + start_point.theta;
+          } else { //circle length
+            double dtheta = rv * (dt - l / tv) + start_point.theta; //change of theta
             interm_pts[i].x = start_point.x + l * cos(start_point.theta) + tv_over_rv * (sin(dtheta) - sin(start_point.theta));
             interm_pts[i].y = start_point.y + l * sin(start_point.theta) - tv_over_rv * (cos(dtheta) - cos(start_point.theta));
             interm_pts[i].theta = dtheta;
@@ -254,7 +254,7 @@ Action* MPrimitiveManager::CreateAction(const MotionPrimitive& mprim) {
   action->dx = mprim.end_cell.x;
   action->dy = mprim.end_cell.y;
   // compute and store interm points as well as intersecting cells
-  action->intersecting_cells.clear();
+  action->intersecting_cells.clear(); //footprint
   action->interm_cells_3d.clear();
   action->interm_pts = mprim.interm_pts;
   action->interm_struct = mprim.interm_struct;

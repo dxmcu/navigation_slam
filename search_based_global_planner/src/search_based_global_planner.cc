@@ -632,7 +632,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
   unsigned int cell_x, cell_y;
   if (!costmap_ros_->getCostmap()->worldToMap(start.pose.position.x,
                             start.pose.position.y, cell_x, cell_y)) {
-    ROS_ERROR("[SBPL LATTICE PLANNER] world to map failed");
+    ROS_ERROR("[SBPL LATTICE PLANNER]start_point: world to map failed");
     return false;
   }
 
@@ -751,7 +751,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
           break;
       }
       unsigned int corner_end_index = i + (corner_size - 1);
-      if (corner_size >= 27) {
+      if (corner_size >= 18) { //27
         for (unsigned int j = i; j <= corner_end_index; ++j) {
           fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[j].pose);
           point.radius = path_info[j].radius;
