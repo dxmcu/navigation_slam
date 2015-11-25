@@ -47,13 +47,16 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
   mprim_cell_0[0] = {1, 0, 0, forward_cost_mult_};
   mprim_cell_0[1] = {8, 0, 0, forward_cost_mult_};
   mprim_cell_0[2] = {16, 0, 0, forward_cost_mult_};
-  // 1/16 theta change
+/*  // 1/16 theta change
   mprim_cell_0[3] = {8, 1, 1, forward_and_turn_cost_mult_};
   mprim_cell_0[4] = {8, -1, -1, forward_and_turn_cost_mult_};
   // turn in place
   mprim_cell_0[5] = {0, 0, 1, turn_in_place_cost_mult_};
   mprim_cell_0[6] = {0, 0, -1, turn_in_place_cost_mult_};
-
+*/
+  // turn in place
+  mprim_cell_0[3] = {0, 0, 1, turn_in_place_cost_mult_};
+  mprim_cell_0[4] = {0, 0, -1, turn_in_place_cost_mult_};
   // 45 degrees
   std::vector<std::vector<int>> mprim_cell_45;
   mprim_cell_45.resize(num_of_prims_per_angle_);
@@ -63,12 +66,16 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
   mprim_cell_45[0] = {1, 1, 0, forward_cost_mult_};
   mprim_cell_45[1] = {6, 6, 0, forward_cost_mult_};
   mprim_cell_45[2] = {12, 12, 0, forward_cost_mult_};
-  // 1/16 theta change
+/*  // 1/16 theta change
   mprim_cell_45[3] = {5, 7, 1, forward_and_turn_cost_mult_};
   mprim_cell_45[4] = {7, 5, -1, forward_and_turn_cost_mult_};
   // turn in place
   mprim_cell_45[5] = {0, 0, 1, turn_in_place_cost_mult_};
   mprim_cell_45[6] = {0, 0, -1, turn_in_place_cost_mult_};
+*/
+  // turn in place
+  mprim_cell_45[3] = {0, 0, 1, turn_in_place_cost_mult_};
+  mprim_cell_45[4] = {0, 0, -1, turn_in_place_cost_mult_};
 
   // 22.5 degrees
   std::vector<std::vector<int>> mprim_cell_22p5;
@@ -79,12 +86,16 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
   mprim_cell_22p5[0] = {2, 1, 0, forward_cost_mult_};
   mprim_cell_22p5[1] = {6, 3, 0, forward_cost_mult_};
   mprim_cell_22p5[2] = {14, 6, 0, forward_cost_mult_};
-  // 1/16 theta change
+/*  // 1/16 theta change
   mprim_cell_22p5[3] = {5, 4, 1, forward_and_turn_cost_mult_};
   mprim_cell_22p5[4] = {7, 2, -1, forward_and_turn_cost_mult_};
   // turn in place
   mprim_cell_22p5[5] = {0, 0, 1, turn_in_place_cost_mult_};
   mprim_cell_22p5[6] = {0, 0, -1, turn_in_place_cost_mult_};
+*/
+  // turn in place
+  mprim_cell_22p5[3] = {0, 0, 1, turn_in_place_cost_mult_};
+  mprim_cell_22p5[4] = {0, 0, -1, turn_in_place_cost_mult_};
 
   env_->actions_.resize(num_of_angles_);
   env_->pred_actions_.resize(num_of_angles_);
