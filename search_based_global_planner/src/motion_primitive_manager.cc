@@ -44,38 +44,32 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
   // x aligned with the heading of the robot, angles are positive
   // counterclockwise
   // 0 theta change
-  mprim_cell_0[0] = {1, 0, 0, forward_cost_mult_};
-  mprim_cell_0[1] = {8, 0, 0, forward_cost_mult_};
-  mprim_cell_0[2] = {16, 0, 0, forward_cost_mult_};
+  mprim_cell_0[SHORT_FORWARD] = {1, 0, 0, forward_cost_mult_};
+  mprim_cell_0[NORMAL_FORWARD] = {8, 0, 0, forward_cost_mult_};
+  mprim_cell_0[LONG_FORWARD] = {16, 0, 0, forward_cost_mult_};
 /*  // 1/16 theta change
-  mprim_cell_0[3] = {8, 1, 1, forward_and_turn_cost_mult_};
-  mprim_cell_0[4] = {8, -1, -1, forward_and_turn_cost_mult_};
-  // turn in place
-  mprim_cell_0[5] = {0, 0, 1, turn_in_place_cost_mult_};
-  mprim_cell_0[6] = {0, 0, -1, turn_in_place_cost_mult_};
+  mprim_cell_0[FORWARD_TURN_LEFT] = {8, 1, 1, forward_and_turn_cost_mult_};
+  mprim_cell_0[FORWARD_TURN_RIGHT] = {8, -1, -1, forward_and_turn_cost_mult_};
 */
   // turn in place
-  mprim_cell_0[3] = {0, 0, 1, turn_in_place_cost_mult_};
-  mprim_cell_0[4] = {0, 0, -1, turn_in_place_cost_mult_};
+  mprim_cell_0[IN_PLACE_ROTATE_LEFT] = {0, 0, 1, turn_in_place_cost_mult_};
+  mprim_cell_0[IN_PLACE_ROTATE_RIGHT] = {0, 0, -1, turn_in_place_cost_mult_};
   // 45 degrees
   std::vector<std::vector<int>> mprim_cell_45;
   mprim_cell_45.resize(num_of_prims_per_angle_);
   // x aligned with the heading of the robot, angles are positive
   // counterclockwise
   // 0 theta change
-  mprim_cell_45[0] = {1, 1, 0, forward_cost_mult_};
-  mprim_cell_45[1] = {6, 6, 0, forward_cost_mult_};
-  mprim_cell_45[2] = {12, 12, 0, forward_cost_mult_};
+  mprim_cell_45[SHORT_FORWARD] = {1, 1, 0, forward_cost_mult_};
+  mprim_cell_45[NORMAL_FORWARD] = {6, 6, 0, forward_cost_mult_};
+  mprim_cell_45[LONG_FORWARD] = {12, 12, 0, forward_cost_mult_};
 /*  // 1/16 theta change
-  mprim_cell_45[3] = {5, 7, 1, forward_and_turn_cost_mult_};
-  mprim_cell_45[4] = {7, 5, -1, forward_and_turn_cost_mult_};
-  // turn in place
-  mprim_cell_45[5] = {0, 0, 1, turn_in_place_cost_mult_};
-  mprim_cell_45[6] = {0, 0, -1, turn_in_place_cost_mult_};
+  mprim_cell_45[FORWARD_TURN_LEFT] = {5, 7, 1, forward_and_turn_cost_mult_};
+  mprim_cell_45[FORWARD_TURN_RIGHT] = {7, 5, -1, forward_and_turn_cost_mult_};
 */
   // turn in place
-  mprim_cell_45[3] = {0, 0, 1, turn_in_place_cost_mult_};
-  mprim_cell_45[4] = {0, 0, -1, turn_in_place_cost_mult_};
+  mprim_cell_45[IN_PLACE_ROTATE_LEFT] = {0, 0, 1, turn_in_place_cost_mult_};
+  mprim_cell_45[IN_PLACE_ROTATE_RIGHT] = {0, 0, -1, turn_in_place_cost_mult_};
 
   // 22.5 degrees
   std::vector<std::vector<int>> mprim_cell_22p5;
@@ -83,19 +77,16 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
   // x aligned with the heading of the robot, angles are positive
   // counterclockwise
   // 0 theta change
-  mprim_cell_22p5[0] = {2, 1, 0, forward_cost_mult_};
-  mprim_cell_22p5[1] = {6, 3, 0, forward_cost_mult_};
-  mprim_cell_22p5[2] = {14, 6, 0, forward_cost_mult_};
+  mprim_cell_22p5[SHORT_FORWARD] = {2, 1, 0, forward_cost_mult_};
+  mprim_cell_22p5[NORMAL_FORWARD] = {6, 3, 0, forward_cost_mult_};
+  mprim_cell_22p5[LONG_FORWARD] = {14, 6, 0, forward_cost_mult_};
 /*  // 1/16 theta change
-  mprim_cell_22p5[3] = {5, 4, 1, forward_and_turn_cost_mult_};
-  mprim_cell_22p5[4] = {7, 2, -1, forward_and_turn_cost_mult_};
-  // turn in place
-  mprim_cell_22p5[5] = {0, 0, 1, turn_in_place_cost_mult_};
-  mprim_cell_22p5[6] = {0, 0, -1, turn_in_place_cost_mult_};
+  mprim_cell_22p5[FORWARD_TURN_LEFT] = {5, 4, 1, forward_and_turn_cost_mult_};
+  mprim_cell_22p5[FORWARD_TURN_RIGHT] = {7, 2, -1, forward_and_turn_cost_mult_};
 */
   // turn in place
-  mprim_cell_22p5[3] = {0, 0, 1, turn_in_place_cost_mult_};
-  mprim_cell_22p5[4] = {0, 0, -1, turn_in_place_cost_mult_};
+  mprim_cell_22p5[IN_PLACE_ROTATE_LEFT] = {0, 0, 1, turn_in_place_cost_mult_};
+  mprim_cell_22p5[IN_PLACE_ROTATE_RIGHT] = {0, 0, -1, turn_in_place_cost_mult_};
 
   env_->actions_.resize(num_of_angles_);
   env_->pred_actions_.resize(num_of_angles_);
@@ -177,6 +168,16 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
             interm_struct[i].is_corner = false;
             interm_struct[i].theta_out = 0.0;  // shouldn't be used
             interm_struct[i].rotate_direction = 0;
+						if(mprim_index == SHORT_FORWARD) { // linear primitive 1
+						  interm_struct[i].max_vel = 0.2;
+						  //interm_struct[i].highlight = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE;
+						} else if(mprim_index == NORMAL_FORWARD) { // linear primitive 1
+						  interm_struct[i].max_vel = 0.4;
+						  //interm_struct[i].highlight = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE;
+						} else if(mprim_index == LONG_FORWARD) { // linear primitive 1
+						  interm_struct[i].max_vel = 0.6;
+						  //interm_struct[i].highlight = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE;
+						}
           }
         }
       } else {  // unicycle-based move forward or backward
@@ -312,7 +313,9 @@ Action* MPrimitiveManager::CreateAction(const MotionPrimitive& mprim) {
     double y1 = action->interm_pts[i].y;
     double dx = x1 - x0;
     double dy = y1 - y0;
-    linear_distance += sqrt(dx * dx + dy * dy);
+		double distance = sqrt(dx * dx + dy * dy); 
+    linear_distance += distance;
+    action->interm_struct[i - 1].distance = distance;
   }
   double linear_time = linear_distance / nominalvel_mpersec_;
   double angular_distance = fabs(MinUnsignedAngleDiff(DiscTheta2Cont(action->end_theta, num_of_angles_),
@@ -322,7 +325,8 @@ Action* MPrimitiveManager::CreateAction(const MotionPrimitive& mprim) {
   action->cost = static_cast<int>(ceil(COSTMULT_MTOMM * std::max(linear_time, angular_time)));
   // use any additional cost multiplier
   action->cost *= mprim.cost_mult;
-
+  
+	action->distance = linear_distance; 
   // now compute the intersecting cells for this motion (including ignoring the source footprint)
   Get2DMotionCells(footprint_, mprim.interm_pts, &action->intersecting_cells, resolution_);
   Get2DMotionCellsCircleCenter(circle_center_, mprim.interm_pts, &action->circle_center_cells, resolution_);
