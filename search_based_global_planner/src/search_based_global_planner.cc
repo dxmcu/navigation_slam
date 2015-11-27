@@ -124,7 +124,7 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
     ROS_INFO("[SEARCH BASED GLOBAL PLANNER] cost_possibly_circumscribed_thresh: %d", static_cast<int>(cost_possibly_circumscribed_thresh));
 
     const int num_of_angles = 16;
-//    const int num_of_prims_per_angle = 7;
+ //   const int num_of_prims_per_angle = 7;
     const int num_of_prims_per_angle = 5;
     int forward_cost_mult, forward_and_turn_cost_mult, turn_in_place_cost_mult;
     private_nh.param("forward_cost_mult", forward_cost_mult, 1);

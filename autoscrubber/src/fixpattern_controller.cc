@@ -186,10 +186,6 @@ bool FixPatternController::ExecuteCycle() {
     path_recorder::PathRecorder recorder;
     recorder.CalculateCurvePath(&fix_path);
     co_->fixpattern_path->set_fix_path(fix_path);
-    //std::vector<fixpattern_path::PathPoint> pathpoint = co_->fixpattern_path->path(); 
-    //path_recorder::PathRecorder recorder;
-    //recorder.CalculatePath(&pathpoint);
-    //co_->fixpattern_path->set_fix_path(pathpoint);
   }
 /*
   if (co_->fixpattern_path->total_point_count() == path.size()) {
