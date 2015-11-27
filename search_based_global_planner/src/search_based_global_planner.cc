@@ -12,6 +12,12 @@
 #include "search_based_global_planner/utils.h"
 
 #define COMPUTEKEY(entry) (entry)->ComputeKey(eps_, env_->GetHeuristic((entry)->x, (entry)->y))
+#define CHECK_INPLACE_ROTATE(action) (action.action_index == IN_PLACE_ROTATE_LEFT || action.action_index == IN_PLACE_ROTATE_RIGHT)
+#define CHECK_SHORT_FORWARD(action) (action.action_index == SHORT_FORWARD)
+
+//const double MAX_VEL = 0.6; 
+//const double LOW_VEL = 0.4; 
+//const double MIN_VEL = 0.0; 
 
 namespace search_based_global_planner {
 
@@ -83,6 +89,9 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
     private_nh.param("allocated_time", allocated_time_, 4.0);
     private_nh.param("initial_epsilon", initial_epsilon_, 3.0);
     private_nh.param("force_scratch_limit", force_scratch_limit_, 500);
+    private_nh.param("sbpl_max_vel", sbpl_max_vel_, 0.6);
+    private_nh.param("sbpl_low_vel", sbpl_low_vel_, 0.45);
+    private_nh.param("sbpl_min_vel", sbpl_min_vel_, 0.0);
 
     double nominalvel_mpersec, timetoturn45degsinplace_secs;
     private_nh.param("nominalvel_mpersecs", nominalvel_mpersec, 0.4);
@@ -124,8 +133,8 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
     ROS_INFO("[SEARCH BASED GLOBAL PLANNER] cost_possibly_circumscribed_thresh: %d", static_cast<int>(cost_possibly_circumscribed_thresh));
 
     const int num_of_angles = 16;
- //   const int num_of_prims_per_angle = 7;
-    const int num_of_prims_per_angle = 5;
+//    const int num_of_prims_per_angle = 7;
+    const int num_of_prims_per_angle = MAX_MPRIM_INDEX;
     int forward_cost_mult, forward_and_turn_cost_mult, turn_in_place_cost_mult;
     private_nh.param("forward_cost_mult", forward_cost_mult, 1);
     private_nh.param("forward_and_turn_cost_mult", forward_and_turn_cost_mult, 2);
@@ -383,6 +392,8 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
   std::vector<EnvironmentEntry3D*> succ_entries;
   std::vector<int> costs;
   std::vector<Action*> actions;
+  std::vector<Action> actions_path;
+//  std::vector<Actions_Path> actions_path;
 
   point_path->clear();
   path_info->clear();
@@ -415,22 +426,105 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
       path_info->clear();
       return;
     }
-
     // now push in the actual path
     double source_x = DISCXY2CONT(source_entry->x, resolution_);
     double source_y = DISCXY2CONT(source_entry->y, resolution_);
-
     for (int ipind = 0; ipind < static_cast<int>(actions[best_index]->interm_pts.size()) - 1; ++ipind) {
-      // translate appropriately
+		// translate appropriately
       XYThetaPoint interm_point = actions[best_index]->interm_pts[ipind];
       interm_point.x += source_x;
       interm_point.y += source_y;
-
       // store
       point_path->push_back(interm_point);
-      path_info->push_back(actions[best_index]->interm_struct[ipind]);
-    }
+  //    path_info->push_back(actions[best_index]->interm_struct[ipind]);
+		}
+    actions_path.push_back(*actions.at(best_index));
   }
+  ComputeHighlightAndVelocity(actions_path, path_info);
+}
+
+void setHighlightandVelocity(Action* action, double highlight, double max_vel) {
+	for (int ipind = 0; ipind < static_cast<int>(action->interm_pts.size()) - 1; ++ipind) {
+		IntermPointStruct point_info = action->interm_struct[ipind];
+		action->interm_struct[ipind].highlight = highlight;
+		action->interm_struct[ipind].max_vel = max_vel;
+    ROS_INFO("[SBPL] point[%d]set max_vel = %lf", ipind, max_vel);
+	}
+}	
+
+void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(std::vector<Action> actions_path, 
+                                                         std::vector<IntermPointStruct>* path_info) {
+  std::vector<unsigned int> mprim_sequence;
+	unsigned int num_point_in_prim = 9;
+  // check corner and set max_vel and highlight of action 
+  for (unsigned int pind = 0; pind < actions_path.size(); ++pind) {
+    unsigned int corner_size = 0;
+		double highlight= fixpattern_path::Path::MIN_HIGHLIGHT_DISTANCE;
+		double max_vel = sbpl_min_vel_;
+    if (CHECK_INPLACE_ROTATE(actions_path[pind])) {
+      corner_size = 1;
+      for (unsigned int i = pind + 1; i < actions_path.size(); ++i) {
+        if (CHECK_INPLACE_ROTATE(actions_path[i])) 
+          ++corner_size;
+        else {
+          break;
+        }
+      }
+      ROS_INFO("[SBPL] corner size = %d", corner_size);
+			if(corner_size == 1) {  // 22p5 digree
+			  max_vel = sbpl_max_vel_;	
+			} else if(corner_size == 2) { //45 digree
+			  max_vel = sbpl_low_vel_;	
+			} else if(corner_size > 2) { // > 45 digree
+			  max_vel = sbpl_min_vel_;	
+			}
+			for(unsigned int i = pind; i < pind + corner_size; ++i) {
+			  actions_path[i].max_vel = max_vel;
+			  actions_path[i].highlight = highlight;
+				setHighlightandVelocity(&actions_path[i], highlight, max_vel);
+			}
+			pind += corner_size - 1;
+    } else if(CHECK_SHORT_FORWARD(actions_path[pind])) {
+      max_vel = sbpl_low_vel_;
+		  actions_path[pind].max_vel = sbpl_low_vel_;
+			setHighlightandVelocity(&actions_path[pind], highlight, max_vel);
+		} else {
+      max_vel = sbpl_max_vel_;
+		  actions_path[pind].max_vel = sbpl_max_vel_;
+			setHighlightandVelocity(&actions_path[pind], highlight, max_vel);
+		}
+  }
+ 
+	// push action:interm_struct to path_info(including highlight and max_vel) 
+  for (unsigned int pind = 0; pind < actions_path.size(); ++pind) {
+    for (int ipind = 0; ipind < actions_path[pind].interm_struct.size() - 1; ++ipind) {
+      path_info->push_back(actions_path[pind].interm_struct[ipind]);
+		}
+	}
+	
+	// calculate hightlight based on max_vel of each point in path_info
+	double sum_highlight;
+  for (unsigned int i = 0; i < path_info->size() - 1; ++i) {
+		if(path_info->at(i).max_vel != sbpl_min_vel_) {
+			sum_highlight = 0.0;
+			for(unsigned int j = i; j < path_info->size() - 1; ++j) {
+				sum_highlight += path_info->at(j).distance;
+				if(sum_highlight > fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE) {
+					sum_highlight = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE;
+					break;
+				}
+				if(path_info->at(j).max_vel == sbpl_min_vel_) {
+					break;
+				}
+			}
+			if(sum_highlight > fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE) {
+				sum_highlight = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE;
+			} else if(sum_highlight < fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE) {
+				sum_highlight = fixpattern_path::Path::MIN_HIGHLIGHT_DISTANCE;
+			}
+			path_info->at(i).highlight = sum_highlight;
+		}
+	}	
 }
 
 void SearchBasedGlobalPlanner::ReInitializeSearchEnvironment() {
@@ -755,6 +849,8 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
       if (corner_size >= 18) { //27
         for (unsigned int j = i; j <= corner_end_index; ++j) {
           fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[j].pose);
+          point.highlight = path_info[i].highlight;
+          point.max_vel = path_info[i].max_vel;
           point.radius = path_info[j].radius;
           point.corner_struct.corner_point = true;
           point.corner_struct.theta_out = path_info[corner_end_index].theta_out;
@@ -765,6 +861,8 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
       } else {
         for (unsigned int j = i; j <= corner_end_index; ++j) {
           fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[j].pose);
+          point.highlight = path_info[i].highlight;
+          point.max_vel = path_info[i].max_vel;
           point.radius = path_info[j].radius;
           point.corner_struct.corner_point = false;
           point.corner_struct.theta_out = 0.0;
@@ -775,6 +873,8 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
       i = corner_end_index;
     } else {
       fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[i].pose);
+      point.highlight = path_info[i].highlight;
+      point.max_vel = path_info[i].max_vel;
       point.radius = path_info[i].radius;
       point.corner_struct.corner_point = false;
       point.corner_struct.theta_out = 0.0;

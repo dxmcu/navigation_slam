@@ -31,6 +31,17 @@ namespace search_based_global_planner {
 #define PI_CONST 3.141592653589793238462643383279502884
 #define COSTMULT_MTOMM 1000
 
+typedef enum {
+  SHORT_FORWARD = 0,
+  NORMAL_FORWARD, 
+	LONG_FORWARD,
+	//FORWARD_TURN_LEFT,
+	//FORWARD_TURN_RIGHT,
+	IN_PLACE_ROTATE_LEFT,
+	IN_PLACE_ROTATE_RIGHT,
+	MAX_MPRIM_INDEX
+} MprimIndex;
+
 typedef struct _XYPoint {
   double x;
   double y;
@@ -43,7 +54,6 @@ typedef struct _XYThetaPoint {
   double x;
   double y;
   double theta;
-
   _XYThetaPoint() { }
   _XYThetaPoint(double x, double y, double theta) : x(x), y(y), theta(theta) { }
 } XYThetaPoint;
@@ -80,6 +90,9 @@ typedef struct _IntermPointStruct {
   double theta_out;  // only useful if is_corner is true, represent out theta of corner
   int rotate_direction;  // only useful if is_corner is true, represent which direction should turn to
                          // 1 represents turning left, -1 represents turnint right, 0 represents no turn
+  double highlight;      // calculate highlight and max_vel based on combination of mprims sequence
+	double max_vel;
+	double distance;  // distance bettween this point and next
 } IntermPointStruct;
 
 typedef struct _MPrimitive {
@@ -98,6 +111,7 @@ typedef struct _MPrimitive {
       cost_mult(cost_mult), interm_pts(interm_pts), interm_struct(interm_struct) { }
 } MotionPrimitive;
 
+
 typedef struct _Action {
   unsigned char action_index;  // index of the action (unique for given starttheta)
   int8_t start_theta;
@@ -105,6 +119,11 @@ typedef struct _Action {
   int8_t dy;
   int8_t end_theta;
   unsigned int cost;
+  double source_x;
+  double source_y;
+	double distance;
+	double highlight;
+	double max_vel;
   std::vector<XYCell> intersecting_cells;
   std::vector<XYCell> circle_center_cells;
   // start at 0,0,starttheta and end at endcell in continuous domain with half-bin less to account for 0,0 start
@@ -114,6 +133,12 @@ typedef struct _Action {
   // record some useful info of intermedia points
   std::vector<IntermPointStruct> interm_struct;
 } Action;
+
+typedef struct _Actions_Path {
+  Action action;
+  double source_x;
+  double source_y;
+} Actions_Path;
 
 // input angle should be in radians
 // counterclockwise is positive

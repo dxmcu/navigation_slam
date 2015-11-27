@@ -71,6 +71,8 @@ class SearchBasedGlobalPlanner {
   void PublishPlan(const std::vector<geometry_msgs::PoseStamped>& plan);
   void GetPointPathFromEntryPath(const std::vector<EnvironmentEntry3D*>& entry_path,
                                  std::vector<XYThetaPoint>* point_path, std::vector<IntermPointStruct>* path_info);
+  void ComputeHighlightAndVelocity(std::vector<Action> actions_path, 
+                                 std::vector<IntermPointStruct>* path_info); 
   void ReInitializeSearchEnvironment();
   unsigned char TransformCostmapCost(unsigned char cost);
   bool CostsChanged(const std::vector<XYCell>& changed_cells);
@@ -98,7 +100,7 @@ class SearchBasedGlobalPlanner {
   unsigned int environment_iteration_, iteration_;
   double allocated_time_, start_time_;
   double initial_epsilon_, eps_, epsilon_satisfied_;
-
+  double sbpl_max_vel_, sbpl_low_vel_, sbpl_min_vel_;
   ros::Publisher plan_pub_;
   bool initialized_;
   bool broader_start_and_goal_;
