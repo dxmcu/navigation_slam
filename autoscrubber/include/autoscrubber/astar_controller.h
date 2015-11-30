@@ -54,7 +54,6 @@ struct AStarControlOption : BaseControlOption {
   double goal_safe_check_dis;	
   double goal_safe_check_duration;
   double sbpl_footprint_padding;
-  double sbpl_max_offgoal_dis;
   int* fixpattern_reached_goal;
   fixpattern_path::Path* fixpattern_path;
   geometry_msgs::PoseStamped* global_planner_goal;
