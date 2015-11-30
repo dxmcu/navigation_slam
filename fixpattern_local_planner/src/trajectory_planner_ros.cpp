@@ -549,6 +549,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
     }
 
     double angle = getGoalOrientationAngleDifference(global_pose, goal_th);
+    ROS_INFO("[FIXPATTERN LOCAL PLANNER]yaw_goal_tolerance = %lf, yaw_goal_diff = %lf", yaw_goal_tolerance_, angle);
     // check to see if the goal orientation has been reached
     if (fabs(angle) <= yaw_goal_tolerance_) {
       // set the velocity command to zero
@@ -606,7 +607,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
     // we don't actually want to run the controller when we're just rotating to goal
     return true;
   }
-
+  // normal path trajectory 
   if (planner_type == TRAJECTORY_PLANNER) {
     tc_->updatePlan(transformed_plan);
   } else if (planner_type == LOOKAHEAD_PLANNER) {
@@ -664,7 +665,9 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
 
       // we don't actually want to run the controller when we're just rotating to goal
       return true;
-    }
+    } else {
+      rotating_to_path_done_ = true;
+		}
   } /*else {
 		if ((robot_vel.getOrigin().getX() < 0.00001 && tf::getYaw(robot_vel.getRotation()) < 0.00001) || rotating_to_route_direction_) {
 			double yaw = tf::getYaw(global_pose.getRotation());
@@ -778,6 +781,15 @@ bool FixPatternTrajectoryPlannerROS::isGoalReached() {
   }
   // return flag set in controller
   return reached_goal_;
+}
+
+bool FixPatternTrajectoryPlannerROS::isPathRotateDone() {
+  if (!isInitialized()) {
+    ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
+    return false;
+  }
+  // return flag set in controller
+  return rotating_to_path_done_;
 }
 
 void FixPatternTrajectoryPlannerROS::reset_planner() {

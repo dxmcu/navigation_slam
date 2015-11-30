@@ -343,16 +343,24 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
   co_ = reinterpret_cast<AStarControlOption*>(option);
   env_ = environment;
   // first run: just get Astar Path, and insert to fixpattern_path, then switch controllor 
+  bool gotStartPoint = false;
+  geometry_msgs::PoseStamped start;
+  geometry_msgs::PoseStamped goal;
+  tf::Stamped<tf::Pose> global_pose;
+	double start_goal_distance;
+  if (!planner_costmap_ros_->getRobotPose(global_pose)) {
+    ROS_WARN("Unable to get starting pose of robot, unable to create sbpl plan");
+  } else {
+		gotStartPoint = true;
+    tf::poseStampedTFToMsg(global_pose, start);
+    goal.pose = co_->global_planner_goal->pose;
+    goal.header.frame_id = co_->global_frame;
+		start_goal_distance = PoseStampedDistance(start, goal); 
+  }
   if(co_->fixpattern_path->fixpattern_path_first_run_) {
     co_->fixpattern_path->fixpattern_path_first_run_ = false;
-    geometry_msgs::PoseStamped start;
-    geometry_msgs::PoseStamped goal;
-    tf::Stamped<tf::Pose> global_pose;
     bool gotPlan = false;
-    if (!planner_costmap_ros_->getRobotPose(global_pose)) {
-      ROS_WARN("Unable to get starting pose of robot, unable to create global plan");
-    } else {
-      tf::poseStampedTFToMsg(global_pose, start);
+    if (gotStartPoint) {
       std::vector<geometry_msgs::PoseStamped> path = co_->fixpattern_path->GeometryPath(); 
       goal.pose = path.front().pose;
       goal.header.frame_id = co_->global_frame;
@@ -401,7 +409,8 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
       planner_goal_.header.frame_id = co_->global_frame;
       co_->fixpattern_local_planner->reset_planner();
     }
-  } else if (co_->fixpattern_path->fixpattern_path_reached_goal_) { 
+  } else if (start_goal_distance <= co_->sbpl_max_distance || 
+             co_->fixpattern_path->fixpattern_path_reached_goal_) { 
     //insert astar goal path fail and now fixpattern_reached goal
     planner_goal_.pose = co_->global_planner_goal->pose;
     planner_goal_.header.frame_id = co_->global_frame;
@@ -781,6 +790,9 @@ bool AStarController::ExecuteCycle() {
           tf::poseStampedTFToMsg(global_pose, start);
           start = PoseStampedToGlobalFrame(start);
           astar_path_.Prune(fixpattern_path::GeometryPoseToPathPoint(start.pose), co_->max_offroad_dis);
+          if(co_->fixpattern_local_planner->isPathRotateDone()) {
+            astar_path_.PruneCornerOnStart();
+          }
         } else {
           ROS_WARN("[MOVE BASE] Unable to get robot pose, unable to calculate highlight length");
         }
