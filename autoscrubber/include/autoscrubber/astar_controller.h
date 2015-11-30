@@ -136,7 +136,7 @@ class AStarController : public BaseController {
   bool IsGoalFootprintSafe(double goal_check_safe_dis, double goal_safe_dis_a, double goal_safe_dis_b, const geometry_msgs::PoseStamped& current_pose);
   bool NeedBackward(const geometry_msgs::PoseStamped& pose, double distance);
   bool GetAStarGoal(int begin_index = 0);
-  void HandleGoingBack(geometry_msgs::PoseStamped current_position);
+  bool HandleGoingBack(geometry_msgs::PoseStamped current_position);
   void PlanThread();
   double PoseStampedDistance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2);
   void CalculateStartCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path);

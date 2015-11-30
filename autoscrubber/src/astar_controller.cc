@@ -802,9 +802,9 @@ bool AStarController::ExecuteCycle() {
         return false;
       }
       // check if need going back
-      HandleGoingBack(current_position);
+      ;
       // check if footprint hits something alongside the road, in a limited distance
-      if (!IsPathFootprintSafe(astar_path_, co_->front_safe_check_dis)) {
+      if (HandleGoingBack(current_position) || !IsPathFootprintSafe(astar_path_, co_->front_safe_check_dis)) {
         // just restart the planner, and we'll not stop during this time
         // boost::unique_lock<boost::mutex> lock(planner_mutex_);
         // runPlanner_ = true;
@@ -814,7 +814,7 @@ bool AStarController::ExecuteCycle() {
         PublishZeroVelocity();
         state_ = A_PLANNING;
         recovery_trigger_ = A_PLANNING_R;
-        ROS_ERROR("[ASTAR CONTROLLER] !IsPathFootprintSafe, entering A_PLANNING state");
+        ROS_ERROR("[ASTAR CONTROLLER] HandleGoingBack or !IsPathFootprintSafe, entering A_PLANNING state");
 
         // continue the planner
         boost::unique_lock<boost::mutex> lock(planner_mutex_);
@@ -1154,7 +1154,7 @@ bool AStarController::GetAStarGoal(int begin_index) {
   return true;
 }
 
-void AStarController::HandleGoingBack(geometry_msgs::PoseStamped current_position) {
+bool AStarController::HandleGoingBack(geometry_msgs::PoseStamped current_position) {
   geometry_msgs::Twist cmd_vel;
 
   // check if need backward
@@ -1187,6 +1187,7 @@ void AStarController::HandleGoingBack(geometry_msgs::PoseStamped current_positio
     last_valid_control_ = ros::Time::now();
     control_rate.sleep();
   }
+  return need_backward;
 }
 
 bool AStarController::CanRotate(double x, double y, double yaw, int dir) {

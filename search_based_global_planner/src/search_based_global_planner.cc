@@ -473,9 +473,9 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(std::vector<Action> a
       ROS_INFO("[SBPL] corner size = %d", corner_size);
 			if(corner_size == 1) {  // 22p5 digree
 			  max_vel = sbpl_max_vel_;	
-			} else if(corner_size == 2) { //45 digree
+			} else if(corner_size <= 3) { //45 digree
 			  max_vel = sbpl_low_vel_;	
-			} else if(corner_size > 2) { // > 45 digree
+			} else if(corner_size > 3) { // > 45 digree
 			  max_vel = sbpl_min_vel_;	
 			}
 			for(unsigned int i = pind; i < pind + corner_size; ++i) {
@@ -846,7 +846,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
           break;
       }
       unsigned int corner_end_index = i + (corner_size - 1);
-      if (corner_size >= 18) { //27
+      if (corner_size > 18) { //27
         for (unsigned int j = i; j <= corner_end_index; ++j) {
           fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[j].pose);
           point.highlight = path_info[i].highlight;
