@@ -471,7 +471,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
         return true;
       else
         return false;
-      }
+    }
     // check if execution of the goal has completed in some way
 
     ros::WallDuration t_diff = ros::WallTime::now() - start;
@@ -798,7 +798,7 @@ bool AStarController::ExecuteCycle() {
         PublishZeroVelocity();
         state_ = A_CLEARING;
         recovery_trigger_ = A_GOALSAFE_R;
-        ROS_INFO("[ASTAR CONTROLLER] !IsPoseFootprintSafe, entering GOALSAFE_R");
+        ROS_ERROR("[ASTAR CONTROLLER] !IsPoseFootprintSafe, entering GOALSAFE_R");
         return false;
       }
       // check if need going back
@@ -814,7 +814,7 @@ bool AStarController::ExecuteCycle() {
         PublishZeroVelocity();
         state_ = A_PLANNING;
         recovery_trigger_ = A_PLANNING_R;
-        ROS_INFO("[ASTAR CONTROLLER] !IsPathFootprintSafe, entering A_PLANNING state");
+        ROS_ERROR("[ASTAR CONTROLLER] !IsPathFootprintSafe, entering A_PLANNING state");
 
         // continue the planner
         boost::unique_lock<boost::mutex> lock(planner_mutex_);
