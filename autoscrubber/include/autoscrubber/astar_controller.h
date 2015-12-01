@@ -162,6 +162,7 @@ class AStarController : public BaseController {
 
   tf::Stamped<tf::Pose> global_pose_;
 
+  geometry_msgs::Twist last_valid_cmd_vel_;
   AStarState state_;
   AStarRecoveryTrigger recovery_trigger_;
 
@@ -188,6 +189,8 @@ class AStarController : public BaseController {
   // set up the planner's thread
   bool runPlanner_;
   bool sbpl_reached_goal_;
+  bool taken_global_goal_;
+  unsigned int local_planner_error_cnt_;
   boost::mutex planner_mutex_;
   boost::condition_variable planner_cond_;
   geometry_msgs::PoseStamped planner_goal_;

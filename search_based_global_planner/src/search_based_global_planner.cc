@@ -448,7 +448,7 @@ void setHighlightandVelocity(Action* action, double highlight, double max_vel) {
 		IntermPointStruct point_info = action->interm_struct[ipind];
 		action->interm_struct[ipind].highlight = highlight;
 		action->interm_struct[ipind].max_vel = max_vel;
-    ROS_INFO("[SBPL] point[%d]set max_vel = %lf", ipind, max_vel);
+  //  ROS_INFO("[SBPL] point[%d]set max_vel = %lf", ipind, max_vel);
 	}
 }	
 
@@ -544,7 +544,7 @@ void SearchBasedGlobalPlanner::ReInitializeSearchEnvironment() {
   if (broader_start_and_goal_) {
     std::vector<int> delta_x{-3, -2, -1, 0, 1, 2, 3};
     std::vector<int> delta_y{-3, -2, -1, 0, 1, 2, 3};
-    std::vector<int> delta_theta{-1, 0, 1};
+    std::vector<int> delta_theta{0}; // -1, 0, 1
     int goal_x = goal_entry_->x;
     int goal_y = goal_entry_->y;
     uint8_t goal_theta = goal_entry_->theta;
@@ -836,7 +836,9 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
 
   // assign to fixpattern_path::Path
   std::vector<fixpattern_path::PathPoint> tmp_path;
+  if(plan.size() > 0)
   for (unsigned int i = 0; i < plan.size() - 1; ++i) {
+    ROS_INFO("[SBPL] path_info[%d]", i);
     if (path_info[i].is_corner) {
       unsigned int corner_size = 1;
       for (unsigned int j = i + 1; j < plan.size() - 1; ++j) {
@@ -846,7 +848,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
           break;
       }
       unsigned int corner_end_index = i + (corner_size - 1);
-      if (corner_size > 18) { //27
+      if (corner_size >= 12) { //27
         for (unsigned int j = i; j <= corner_end_index; ++j) {
           fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[j].pose);
           point.highlight = path_info[i].highlight;

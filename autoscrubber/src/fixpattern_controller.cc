@@ -287,6 +287,8 @@ bool FixPatternController::ExecuteCycle() {
           ROS_DEBUG_NAMED("autoscrubber", "Got a valid command from the local planner: %.3lf, %.3lf, %.3lf",
                           cmd_vel_.linear.x, cmd_vel_.linear.y, cmd_vel_.angular.z);
           last_valid_control_ = ros::Time::now();
+					
+          cmd_vel_.linear.x += 0.2;
           // make sure that we send the velocity command to the base
           co_->vel_pub->publish(cmd_vel_);
 

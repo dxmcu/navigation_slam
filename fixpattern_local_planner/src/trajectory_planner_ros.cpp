@@ -81,6 +81,7 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
     double stop_time_buffer;
     std::string world_model_type;
     rotating_to_goal_ = false;
+    rotating_to_path_done_ = false;
     rotating_to_route_direction_ = false;
 
     // initialize the copy of the costmap the controller will use
@@ -637,12 +638,13 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
   // ROS_INFO("[FIXPATTERN LOCAL PLANNER] fixpattern_path_.size(): %d", fixpattern_path_.size());
 
   if (fixpattern_path_.front().IsCornerPoint()) {
-    if (needBackward(planner_type, global_pose, robot_vel, cmd_vel)) {
+/*    if (needBackward(planner_type, global_pose, robot_vel, cmd_vel)) {
       publishPlan(transformed_plan, g_plan_pub_);
       publishPlan(local_plan, l_plan_pub_);
       // we don't actually want to run the controller when we're just moving backward
       return true;
     }
+*/
     double yaw = tf::getYaw(global_pose.getRotation());
     double target_yaw = fixpattern_path_.front().corner_struct.theta_out;
     double angle_diff = angles::shortest_angular_distance(yaw, target_yaw);
@@ -654,6 +656,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
       last_target_yaw_ = target_yaw;
     }
     if (fabs(angle_diff) > 0.1) {
+      rotating_to_path_done_ = false;
       if (!rotateToGoal(planner_type, global_pose, robot_vel, target_yaw, cmd_vel)) {
         ROS_INFO("[FIXPATTERN LOCAL PLANNER] try_rotate_: %d", try_rotate_);
         return false;
