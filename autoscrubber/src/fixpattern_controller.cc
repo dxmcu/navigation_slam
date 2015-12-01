@@ -223,7 +223,7 @@ bool FixPatternController::ExecuteCycle() {
           co_->fixpattern_path->fixpattern_path_goal_updated_ = false;
           double pose_diff = PoseStampedDistance(current_position, planner_goal_);
           double yaw_diff = angles::shortest_angular_distance(tf::getYaw(current_position.pose.orientation), tf::getYaw(planner_goal_.pose.orientation));
-          if (pose_diff > 0.1 || fabs(yaw_diff) > 0.1) {
+          if (pose_diff > co_->fixpattern_local_planner->xy_goal_tolerance_ || fabs(yaw_diff) > co_->fixpattern_local_planner->yaw_goal_tolerance_) {
             switch_controller_ = true;
           } else  {
             switch_controller_ = false;
