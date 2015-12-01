@@ -838,7 +838,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
   std::vector<fixpattern_path::PathPoint> tmp_path;
   if(plan.size() > 0)
   for (unsigned int i = 0; i < plan.size() - 1; ++i) {
-    ROS_INFO("[SBPL] path_info[%d]", i);
+  //  ROS_INFO("[SBPL] path_info[%d]", i);
     if (path_info[i].is_corner) {
       unsigned int corner_size = 1;
       for (unsigned int j = i + 1; j < plan.size() - 1; ++j) {

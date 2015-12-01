@@ -350,7 +350,8 @@ bool FixPatternTrajectoryPlannerROS::rotateToGoal(PlannerType planner_type, cons
   double max_speed_to_stop = sqrt(2 * acc_lim_theta_ * fabs(ang_diff));
 
   v_theta_samp = sign(v_theta_samp) * std::min(max_speed_to_stop, fabs(v_theta_samp));
-
+  if(ang_diff < 0.2) v_theta_samp *= 0.5;
+  if(ang_diff < 0.1) v_theta_samp *= 0.2;
   // Re-enforce min_in_place_vel_th_.  It is more important than the acceleration limits.
   v_theta_samp = v_theta_samp > 0.0
       ? std::min(max_vel_th_, std::max(min_in_place_vel_th_, v_theta_samp))

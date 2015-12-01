@@ -410,7 +410,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
       planner_goal_.header.frame_id = co_->global_frame;
       co_->fixpattern_local_planner->reset_planner();
     }
-  } else if (start_goal_distance <= co_->sbpl_max_distance || 
+  } else if (start_goal_distance <= 1.50 ||  //co_->sbpl_max_distance
              co_->fixpattern_path->fixpattern_path_reached_goal_) { 
     taken_global_goal_ = true;
     //insert astar goal path fail and now fixpattern_reached goal
@@ -774,6 +774,7 @@ bool AStarController::ExecuteCycle() {
             || taken_global_goal_) {
         // Sbpl Goal reached, and fix_pattern Goal reached, all path done 
           co_->fixpattern_path->fixpattern_path_reached_goal_ = false;
+          ROS_WARN("[ASTAR CONTROLLER] Final Goal reached!");
           sbpl_reached_goal_ = true;
 				} else {
           sbpl_reached_goal_ = false;
@@ -1013,8 +1014,11 @@ bool AStarController::ExecuteCycle() {
         boost::unique_lock<boost::mutex> lock(planner_mutex_);
         runPlanner_ = false;
         lock.unlock();
-
+        //HandleGoingBack(current_position);
         RotateRecovery();
+        state_ = A_PLANNING;
+        recovery_trigger_ = A_PLANNING_R;
+        break;
       }
 
       {
@@ -1196,7 +1200,8 @@ bool AStarController::HandleGoingBack(geometry_msgs::PoseStamped current_positio
     r.sleep();
   }
   ros::Rate control_rate(co_->controller_frequency);
-  while (need_backward && NeedBackward(current_position, 0.20) && CanBackward(0.30)) {
+//  while (need_backward && NeedBackward(current_position, 0.15) && CanBackward(0.25)) {
+  while (need_backward && NeedBackward(current_position, 0.20)) {
     ROS_INFO("[ASTAR CONTROLLER] going back");
     // get curent position
     tf::Stamped<tf::Pose> global_pose;
@@ -1278,7 +1283,7 @@ bool AStarController::CanBackward(double distance) {
     double new_y = y - i * resolution * sin(yaw);
     if (footprint_checker_->CircleCenterCost(new_x, new_y, yaw,
                                              co_->circle_center_points) < 0) {
-      ROS_INFO("[ASTAR CONTROLLER] CanBackward: false");
+      ROS_WARN("[ASTAR CONTROLLER] CanBackward: false");
       return false;
     }
   }
