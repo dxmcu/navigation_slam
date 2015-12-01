@@ -242,15 +242,20 @@ bool FixPatternController::ExecuteCycle() {
         // we'll Prune the path first as we don't want to navigate back when
         // trigger front_safe while robot still moves
         // get current pose of the vehicle && prune fixpattern path
-        tf::Stamped<tf::Pose> global_pose;
-        if (controller_costmap_ros_->getRobotPose(global_pose) ||
-            planner_costmap_ros_->getRobotPose(global_pose)) {
-          geometry_msgs::PoseStamped start;
-          tf::poseStampedTFToMsg(global_pose, start);
-          start = PoseStampedToGlobalFrame(start);
-          co_->fixpattern_path->Prune(fixpattern_path::GeometryPoseToPathPoint(start.pose), co_->max_offroad_dis);
+        if(co_->fixpattern_local_planner->isPathRotateDone()) {
+          co_->fixpattern_path->PruneCornerOnStart();
+          ROS_INFO("[Astar Controller] Prune Corner Point On Start");  
         } else {
-          ROS_WARN("[MOVE BASE] Unable to get robot pose, unable to calculate highlight length");
+          tf::Stamped<tf::Pose> global_pose;
+          if (controller_costmap_ros_->getRobotPose(global_pose) ||
+              planner_costmap_ros_->getRobotPose(global_pose)) {
+            geometry_msgs::PoseStamped start;
+            tf::poseStampedTFToMsg(global_pose, start);
+            start = PoseStampedToGlobalFrame(start);
+            co_->fixpattern_path->Prune(fixpattern_path::GeometryPoseToPathPoint(start.pose), co_->max_offroad_dis);
+          } else {
+            ROS_WARN("[MOVE BASE] Unable to get robot pose, unable to calculate highlight length");
+          }
         }
       }
 
@@ -288,7 +293,10 @@ bool FixPatternController::ExecuteCycle() {
                           cmd_vel_.linear.x, cmd_vel_.linear.y, cmd_vel_.angular.z);
           last_valid_control_ = ros::Time::now();
 					
-          cmd_vel_.linear.x += 0.2;
+					if(cmd_vel_.linear.x > 0.2)
+            cmd_vel_.linear.x += 0.2;
+					else if(cmd_vel_.linear.x > 0.1)
+            cmd_vel_.linear.x += 0.1;
           // make sure that we send the velocity command to the base
           co_->vel_pub->publish(cmd_vel_);
 

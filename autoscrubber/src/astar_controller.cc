@@ -1186,7 +1186,7 @@ bool AStarController::HandleGoingBack(geometry_msgs::PoseStamped current_positio
   bool need_backward = true;
   ros::Rate r(10);
   while (ros::Time::now() < end_time) {
-    if (!NeedBackward(current_position, 0.15)) {
+    if (!NeedBackward(current_position, 0.20)) {
       need_backward = false;
       break;
     }
@@ -1196,7 +1196,7 @@ bool AStarController::HandleGoingBack(geometry_msgs::PoseStamped current_positio
     r.sleep();
   }
   ros::Rate control_rate(co_->controller_frequency);
-  while (need_backward && NeedBackward(current_position, 0.15) && CanBackward(0.25)) {
+  while (need_backward && NeedBackward(current_position, 0.20) && CanBackward(0.30)) {
     ROS_INFO("[ASTAR CONTROLLER] going back");
     // get curent position
     tf::Stamped<tf::Pose> global_pose;

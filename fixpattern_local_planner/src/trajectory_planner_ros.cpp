@@ -671,7 +671,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
     } else {
       rotating_to_path_done_ = true;
 		}
-  } /*else {
+  } else {
 		if ((robot_vel.getOrigin().getX() < 0.00001 && tf::getYaw(robot_vel.getRotation()) < 0.00001) || rotating_to_route_direction_) {
 			double yaw = tf::getYaw(global_pose.getRotation());
 			unsigned int index = 0;
@@ -685,7 +685,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
 			double angle_diff = angles::shortest_angular_distance(yaw, target_yaw);
 			ROS_INFO("[FIXPATTERN LOCAL PLANNER] start point rotating to goal, yaw: %lf, target_yaw: %lf, angle_diff: %lf", yaw, target_yaw, angle_diff);
 			// if target_yaw changed during rotation, don't follow last dir
-			if (fabs(angle_diff) > 0.26) {
+			if (fabs(angle_diff) > 0.6) {
 				if (!rotateToGoal(planner_type, global_pose, robot_vel, target_yaw, cmd_vel)) {
 					ROS_INFO("[FIXPATTERN LOCAL PLANNER] try_rotate_: %d", try_rotate_);
 					return false;
@@ -701,7 +701,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
 			}
 		}
   }
-*/
+
   last_target_yaw_ = 0.0;
   last_rotate_to_goal_dir_ = 0;
   try_rotate_ = 0;
