@@ -443,11 +443,12 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
   ComputeHighlightAndVelocity(actions_path, path_info);
 }
 
-void setHighlightandVelocity(Action* action, double highlight, double max_vel) {
+void setActionIntermStruct(Action* action, double highlight, double max_vel, bool is_corner) {
 	for (int ipind = 0; ipind < static_cast<int>(action->interm_pts.size()) - 1; ++ipind) {
 		IntermPointStruct point_info = action->interm_struct[ipind];
 		action->interm_struct[ipind].highlight = highlight;
 		action->interm_struct[ipind].max_vel = max_vel;
+		action->interm_struct[ipind].is_corner = is_corner;
   //  ROS_INFO("[SBPL] point[%d]set max_vel = %lf", ipind, max_vel);
 	}
 }	
@@ -461,6 +462,7 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(std::vector<Action> a
     unsigned int corner_size = 0;
 		double highlight= fixpattern_path::Path::MIN_HIGHLIGHT_DISTANCE;
 		double max_vel = sbpl_min_vel_;
+		bool is_corner = false;
     if (CHECK_INPLACE_ROTATE(actions_path[pind])) {
       corner_size = 1;
       for (unsigned int i = pind + 1; i < actions_path.size(); ++i) {
@@ -473,25 +475,28 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(std::vector<Action> a
       ROS_INFO("[SBPL] corner size = %d", corner_size);
 			if(corner_size == 1) {  // 22p5 digree
 			  max_vel = sbpl_max_vel_;	
-			} else if(corner_size <= 3) { //45 digree
+        is_corner = false;
+			} else if(corner_size <= 3) { //45 and 67.5 digree
 			  max_vel = sbpl_low_vel_;	
-			} else if(corner_size > 3) { // > 45 digree
+        is_corner = false;
+			} else if(corner_size > 3) { // > 67.5 digree
 			  max_vel = sbpl_min_vel_;	
+        is_corner = true;
 			}
 			for(unsigned int i = pind; i < pind + corner_size; ++i) {
 			  actions_path[i].max_vel = max_vel;
 			  actions_path[i].highlight = highlight;
-				setHighlightandVelocity(&actions_path[i], highlight, max_vel);
+				setActionIntermStruct(&actions_path[i], highlight, max_vel, is_corner);
 			}
 			pind += corner_size - 1;
     } else if(CHECK_SHORT_FORWARD(actions_path[pind])) {
       max_vel = sbpl_low_vel_;
 		  actions_path[pind].max_vel = sbpl_low_vel_;
-			setHighlightandVelocity(&actions_path[pind], highlight, max_vel);
+			setActionIntermStruct(&actions_path[pind], highlight, max_vel, is_corner);
 		} else {
       max_vel = sbpl_max_vel_;
 		  actions_path[pind].max_vel = sbpl_max_vel_;
-			setHighlightandVelocity(&actions_path[pind], highlight, max_vel);
+			setActionIntermStruct(&actions_path[pind], highlight, max_vel, is_corner);
 		}
   }
  
@@ -804,6 +809,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
   std::vector<IntermPointStruct> path_info;
   search(&point_path, &path_info);
 
+  ROS_INFO("[SEARCH BASED GLOBAL PLANNER] point_path size = %d; path_info size = %d", (int)point_path.size(), (int)path_info.size());
   if (point_path.size() == 0)
     return false;
 
@@ -836,9 +842,9 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
 
   // assign to fixpattern_path::Path
   std::vector<fixpattern_path::PathPoint> tmp_path;
-  if(plan.size() > 0)
+//  if(plan.size() > 0)
   for (unsigned int i = 0; i < plan.size() - 1; ++i) {
-  //  ROS_INFO("[SBPL] path_info[%d]", i);
+    //ROS_INFO("[SBPL] path_info[%d]", i);
     if (path_info[i].is_corner) {
       unsigned int corner_size = 1;
       for (unsigned int j = i + 1; j < plan.size() - 1; ++j) {
@@ -848,31 +854,30 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
           break;
       }
       unsigned int corner_end_index = i + (corner_size - 1);
-      if (corner_size >= 12) { //27
-        for (unsigned int j = i; j <= corner_end_index; ++j) {
-          fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[j].pose);
-          point.highlight = path_info[i].highlight;
-          point.max_vel = path_info[i].max_vel;
-          point.radius = path_info[j].radius;
-          point.corner_struct.corner_point = true;
-          point.corner_struct.theta_out = path_info[corner_end_index].theta_out;
-          point.corner_struct.rotate_direction = path_info[corner_end_index].rotate_direction;
-          tmp_path.push_back(point);
-          ROS_INFO("[SEARCH BASED GLOBAL PLANNER] corner_point index: %d, size: %d, real theta_out: %lf, dir: %d", j, (int)path_info.size(), path_info[j].theta_out, path_info[j].rotate_direction);
-        }
-      } else {
-        for (unsigned int j = i; j <= corner_end_index; ++j) {
-          fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[j].pose);
-          point.highlight = path_info[i].highlight;
-          point.max_vel = path_info[i].max_vel;
-          point.radius = path_info[j].radius;
-          point.corner_struct.corner_point = false;
-          point.corner_struct.theta_out = 0.0;
-          point.corner_struct.rotate_direction = 0;
-          tmp_path.push_back(point);
-        }
+			if(corner_size >= 18) {  // >67.5
+        fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[i].pose);
+        point.highlight = path_info[i].highlight;
+        point.max_vel = path_info[i].max_vel;
+        point.radius = path_info[i].radius;
+        point.corner_struct.corner_point = true;
+        point.corner_struct.theta_out = path_info[corner_end_index].theta_out;
+        point.corner_struct.rotate_direction = path_info[corner_end_index].rotate_direction;
+        tmp_path.push_back(point);
+        ROS_INFO("[SEARCH BASED GLOBAL PLANNER] corner_point index: %d, real theta_out: %lf, dir: %d", i, path_info[corner_end_index].theta_out, path_info[corner_end_index].rotate_direction);
+/*    for (unsigned int j = i; j <= corner_end_index; ++j) {
+        fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[j].pose);
+        point.highlight = path_info[i].highlight;
+        point.max_vel = path_info[i].max_vel;
+        point.radius = path_info[j].radius;
+        point.corner_struct.corner_point = true;
+        point.corner_struct.theta_out = path_info[corner_end_index].theta_out;
+        point.corner_struct.rotate_direction = path_info[corner_end_index].rotate_direction;
+        tmp_path.push_back(point);
+        ROS_INFO("[SEARCH BASED GLOBAL PLANNER] corner_point index: %d, size: %d, real theta_out: %lf, dir: %d", j, (int)path_info.size(), path_info[j].theta_out, path_info[j].rotate_direction);
       }
-      i = corner_end_index;
+*/
+			}
+     i = corner_end_index;
     } else {
       fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[i].pose);
       point.highlight = path_info[i].highlight;
@@ -884,12 +889,23 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
       tmp_path.push_back(point);
     }
   }
+
+  // if (!broader_start_and_goal_) {
+    fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan.back().pose);
+    point.highlight = fixpattern_path::Path::MIN_HIGHLIGHT_DISTANCE;
+    point.max_vel = 0.0;
+    point.radius = 0.5;
+    point.corner_struct.corner_point = false;
+    point.corner_struct.theta_out = 0.0;
+    tmp_path.push_back(point);
+  // }
+	
   int corner_size = 0;
   for (int i = 0; i < tmp_path.size(); ++i) {
     if (tmp_path[i].corner_struct.corner_point) corner_size++;
   }
   ROS_INFO("[SBPL] total_size: %d, corner_size: %d", (int)tmp_path.size(), corner_size);
-
+/*
   // mark points before and after corner as corner_point
   for (unsigned int i = 0; i < tmp_path.size(); ++i) {
     if (tmp_path[i].corner_struct.corner_point) {
@@ -904,7 +920,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
       }
       dis_accu = 0.0;
       // we don't want to use MIN_AFTER_CORNER_LENGTH directly, as sbpl plan are always curve after corner, so we want it to be short
-      while (end < tmp_path.size() - 1 && dis_accu < fixpattern_path::Path::MIN_AFTER_CORNER_LENGTH * 0.25) {
+      while (false && end < tmp_path.size() - 1 && dis_accu < fixpattern_path::Path::MIN_AFTER_CORNER_LENGTH * 0.25) {
         dis_accu += tmp_path[end].DistanceToPoint(tmp_path[end + 1]);
         end++;
       }
@@ -916,29 +932,18 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
       i = end;
     }
   }
+*/
   // TODO(chenkan): what if two corner are too close?
 
-  // if (!broader_start_and_goal_) {
-    fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan.back().pose);
-    point.radius = 0.5;
-    point.corner_struct.corner_point = false;
-    point.corner_struct.theta_out = 0.0;
-    tmp_path.push_back(point);
-  // }
-
-  if (extend_path) {
+  path.set_sbpl_path(tmp_path);
+/*  if (extend_path) {
     fixpattern_path::Path temp_sbpl_path;
     temp_sbpl_path.set_sbpl_path(tmp_path);
     path.ExtendPath(temp_sbpl_path.path());
   } else {
     path.set_sbpl_path(tmp_path);
   }
-
-  corner_size = 0;
-  for (int i = 0; i < tmp_path.size(); ++i) {
-    if (tmp_path[i].corner_struct.corner_point) corner_size++;
-  }
-  ROS_INFO("[SBPL] total_size: %d, corner_size: %d", (int)tmp_path.size(), corner_size);
+*/
 
 #ifdef DEBUG
   ProfilerStop();

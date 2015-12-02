@@ -37,6 +37,7 @@ FixPatternController::FixPatternController(tf::TransformListener* tf,
   // we'll not switch controller when start
   switch_controller_ = false;
   first_run_flag_ = true;
+  first_run_controller_flag_ = true;
 }
 
 FixPatternController::~FixPatternController() {
@@ -214,10 +215,11 @@ bool FixPatternController::ExecuteCycle() {
         // reset fixpattern_local_planner
         co_->fixpattern_local_planner->reset_planner();	
         first_run_flag_ = true;
-				
+        first_run_controller_flag_ = true;
+
         // we need to notify fixpattern_path
         co_->fixpattern_path->FinishPath();
-	co_->fixpattern_path->fixpattern_path_reached_goal_ = true;
+	      co_->fixpattern_path->fixpattern_path_reached_goal_ = true;
         // Goal reached
         if(co_->fixpattern_path->fixpattern_path_goal_updated_ ) {
           co_->fixpattern_path->fixpattern_path_goal_updated_ = false;
@@ -238,23 +240,27 @@ bool FixPatternController::ExecuteCycle() {
 
       {
         boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
-
         // we'll Prune the path first as we don't want to navigate back when
         // trigger front_safe while robot still moves
         // get current pose of the vehicle && prune fixpattern path
         if(co_->fixpattern_local_planner->isPathRotateDone()) {
           co_->fixpattern_path->PruneCornerOnStart();
+          co_->fixpattern_local_planner->resetPathRotateDone();
           ROS_INFO("[Astar Controller] Prune Corner Point On Start");  
         } else {
-          tf::Stamped<tf::Pose> global_pose;
-          if (controller_costmap_ros_->getRobotPose(global_pose) ||
-              planner_costmap_ros_->getRobotPose(global_pose)) {
-            geometry_msgs::PoseStamped start;
-            tf::poseStampedTFToMsg(global_pose, start);
-            start = PoseStampedToGlobalFrame(start);
-            co_->fixpattern_path->Prune(fixpattern_path::GeometryPoseToPathPoint(start.pose), co_->max_offroad_dis);
+          if(first_run_controller_flag_) {
+            first_run_controller_flag_ = false;
           } else {
-            ROS_WARN("[MOVE BASE] Unable to get robot pose, unable to calculate highlight length");
+            tf::Stamped<tf::Pose> global_pose;
+            if (controller_costmap_ros_->getRobotPose(global_pose) ||
+                planner_costmap_ros_->getRobotPose(global_pose)) {
+              geometry_msgs::PoseStamped start;
+              tf::poseStampedTFToMsg(global_pose, start);
+              start = PoseStampedToGlobalFrame(start);
+              co_->fixpattern_path->Prune(fixpattern_path::GeometryPoseToPathPoint(start.pose), co_->max_offroad_dis);
+            } else {
+              ROS_WARN("[MOVE BASE] Unable to get robot pose, unable to calculate highlight length");
+            }
           }
         }
       }

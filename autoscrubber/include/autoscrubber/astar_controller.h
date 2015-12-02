@@ -200,6 +200,7 @@ class AStarController : public BaseController {
   bool using_sbpl_directly_;
   // broader sbpl start and goal entry
   bool sbpl_broader_;
+  bool first_run_controller_flag_;
   geometry_msgs::PoseStamped success_broader_goal_;
 
   AStarControlOption* co_;

@@ -167,6 +167,7 @@ class FixPatternController : public BaseController {
   geometry_msgs::Twist cmd_vel_;
   bool switch_controller_;
   bool first_run_flag_;
+  bool first_run_controller_flag_;
 };
 
 };  // namespace autoscrubber

@@ -20,7 +20,7 @@ AStarController::AStarController(tf::TransformListener* tf,
     : tf_(*tf),
       planner_costmap_ros_(planner_costmap_ros), controller_costmap_ros_(controller_costmap_ros),
       planner_plan_(NULL), latest_plan_(NULL), controller_plan_(NULL), sbpl_reached_goal_(false),
-      planner_goal_index_(0), runPlanner_(false), new_global_plan_(false), first_run_controller_flag_(true),
+      planner_goal_index_(0), runPlanner_(false), new_global_plan_(false),
       using_sbpl_directly_(false), sbpl_broader_(false), local_planner_error_cnt_(0){
   // set up plan triple buffer
   planner_plan_ = new std::vector<geometry_msgs::PoseStamped>();
@@ -168,7 +168,6 @@ void AStarController::PublishZeroVelocity() {
   cmd_vel.linear.y = 0.0;
   cmd_vel.angular.z = 0.0;
   co_->vel_pub->publish(cmd_vel);
-  ROS_WARN("[ASTAR CONTROLLER] Publish Zero Velocity!");
 }
 
 void AStarController::WakePlanner(const ros::TimerEvent& event) {
@@ -244,10 +243,8 @@ void AStarController::PlanThread() {
       ROS_DEBUG_NAMED("move_base_plan_thread", "Generated a plan from the base_global_planner");
 
       // make sure we only start the controller if we still haven't reached the goal
-      if (runPlanner_) {
+      if (runPlanner_)
         state_ = A_CONTROLLING;
-        first_run_controller_flag_ = true;
-      }
       if (co_->planner_frequency <= 0)
         runPlanner_ = false;
       lock.unlock();
@@ -792,22 +789,17 @@ bool AStarController::ExecuteCycle() {
 
         if(co_->fixpattern_local_planner->isPathRotateDone()) {
           astar_path_.PruneCornerOnStart();
-          co_->fixpattern_local_planner->resetPathRotateDone();
           ROS_INFO("[Astar Controller] Prune Corner Point On Start");  
         } else {
-					if(first_run_controller_flag_) {
-            first_run_controller_flag_ = false;
+          // get the current amcl pose of the robot, and prune fixpattern path
+          tf::Stamped<tf::Pose> global_pose;
+          if (controller_costmap_ros_->getRobotPose(global_pose)) {
+            geometry_msgs::PoseStamped start;
+            tf::poseStampedTFToMsg(global_pose, start);
+            start = PoseStampedToGlobalFrame(start);
+            astar_path_.Prune(fixpattern_path::GeometryPoseToPathPoint(start.pose), co_->max_offroad_dis);
           } else {
-            // get the current amcl pose of the robot, and prune fixpattern path
-            tf::Stamped<tf::Pose> global_pose;
-            if (controller_costmap_ros_->getRobotPose(global_pose)) {
-              geometry_msgs::PoseStamped start;
-              tf::poseStampedTFToMsg(global_pose, start);
-              start = PoseStampedToGlobalFrame(start);
-              astar_path_.Prune(fixpattern_path::GeometryPoseToPathPoint(start.pose), co_->max_offroad_dis);
-            } else {
-              ROS_WARN("[MOVE BASE] Unable to get robot pose, unable to calculate highlight length");
-            }
+            ROS_WARN("[MOVE BASE] Unable to get robot pose, unable to calculate highlight length");
           }
         }
       }
@@ -818,8 +810,6 @@ bool AStarController::ExecuteCycle() {
         PublishZeroVelocity();
         state_ = A_CLEARING;
         recovery_trigger_ = A_OSCILLATION_R;
-        recovery_trigger_ = A_GOALSAFE_R;
-        ROS_ERROR("[ASTAR CONTROLLER] oscillation, entering GOALSAFE_R");
       }
 
       if (!IsPoseFootprintSafe(co_->goal_safe_dis_a, co_->goal_safe_dis_b, planner_goal_)) {
@@ -1054,7 +1044,6 @@ bool AStarController::ExecuteCycle() {
           runPlanner_ = false;
           lock.unlock();
 
-          first_run_controller_flag_ = true;
           ROS_WARN("[ASTAR CONTROLLER] GetAStarGoal failed, switch controller");
           return true;
         } else {

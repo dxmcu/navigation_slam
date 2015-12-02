@@ -110,10 +110,11 @@ class FixPatternTrajectoryPlannerROS {
 
   /**
    * @brief  Check if rotate to path has been done 
-   * @return rotating_to_path_done_ : True if achieved, false otherwise
+   * @return rotating_to_path_done_ : True if done, false otherwise
    */
   bool isPathRotateDone();
 
+  void resetPathRotateDone();
   /**
    * @brief reset reached_goal_, xy_tolerance_latch_, last_rotate_to_goal_dir_ and try_rotate_ etc.
    */
@@ -125,6 +126,8 @@ class FixPatternTrajectoryPlannerROS {
 
   /** @brief Return the inner TrajectoryPlanner object.  Only valid after initialize(). */
   TrajectoryPlanner* getPlanner() const { return tc_; }
+
+  double xy_goal_tolerance_, yaw_goal_tolerance_;
 
  private:
   /**
@@ -185,7 +188,7 @@ class FixPatternTrajectoryPlannerROS {
   nav_msgs::Odometry base_odom_;           ///< @brief Used to get the velocity of the robot
   std::string robot_base_frame_;           ///< @brief Used as the base frame id of the robot
   double rot_stopped_velocity_, trans_stopped_velocity_;
-  double xy_goal_tolerance_, yaw_goal_tolerance_, min_in_place_vel_th_;
+  double min_in_place_vel_th_;
   std::vector<geometry_msgs::PoseStamped> global_plan_;
   std::vector<fixpattern_path::PathPoint> fixpattern_path_;
   bool prune_plan_;
