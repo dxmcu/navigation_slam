@@ -60,7 +60,7 @@ typedef struct _base_ctrl_option_t {
 
 class BaseController {
  public:
-  virtual bool Control(BaseControlOption* option, ControlEnvironment* environment) = 0;
+  virtual bool Control(BaseControlOption* option, ControlEnvironment* environment, bool first_run_flag) = 0;
 };
 
 };  // namespace autoscrubber

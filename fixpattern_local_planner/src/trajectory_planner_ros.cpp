@@ -350,8 +350,8 @@ bool FixPatternTrajectoryPlannerROS::rotateToGoal(PlannerType planner_type, cons
   double max_speed_to_stop = sqrt(2 * acc_lim_theta_ * fabs(ang_diff));
 
   v_theta_samp = sign(v_theta_samp) * std::min(max_speed_to_stop, fabs(v_theta_samp));
-  if(ang_diff < 0.2) v_theta_samp *= 0.5;
-  if(ang_diff < 0.1) v_theta_samp *= 0.2;
+  if(ang_diff < 0.35) v_theta_samp *= 0.5;
+  if(ang_diff < 0.2) v_theta_samp *= 0.2;
   // Re-enforce min_in_place_vel_th_.  It is more important than the acceleration limits.
   v_theta_samp = v_theta_samp > 0.0
       ? std::min(max_vel_th_, std::max(min_in_place_vel_th_, v_theta_samp))
@@ -637,7 +637,11 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
  */
 
   // ROS_INFO("[FIXPATTERN LOCAL PLANNER] fixpattern_path_.size(): %d", fixpattern_path_.size());
-
+  for(unsigned int i = 0; i < fixpattern_path_.size(); ++i) {
+    if(fixpattern_path_.at(i).IsCornerPoint()) {
+      ROS_INFO("[FIXPATTERN LOCAL PLANNER] fixpattern_path_size = %d, corner_index = %d", (int)fixpattern_path_.size(), i);
+    }
+  }
   if (fixpattern_path_.front().IsCornerPoint()) {
 /*    if (needBackward(planner_type, global_pose, robot_vel, cmd_vel)) {
       publishPlan(transformed_plan, g_plan_pub_);
@@ -673,31 +677,33 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
       rotating_to_path_done_ = true;
 		}
   } else {
-		if (robot_vel.getOrigin().getX() < GS_DOUBLE_PRECISION && tf::getYaw(robot_vel.getRotation()) < GS_DOUBLE_PRECISION) {
-			double yaw = tf::getYaw(global_pose.getRotation());
-			double acc_dis = 0.0;
-			unsigned int index = 1;
-			for (; index < fixpattern_path_.size() - 2; index++) {
-				acc_dis += fixpattern_path_.at(index).DistanceToPoint(fixpattern_path_.at(index - 1));
-				//acc_dis += getPoseDistance(transformed_plan.at(index), tranformed_plan.at(index + 1));
-				if (acc_dis > 0.1) break;
-			}	
-			double target_yaw = fixpattern_path::CalculateDirection(fixpattern_path_.front(), fixpattern_path_.at(index - 1)); 
-			double angle_diff = angles::shortest_angular_distance(yaw, target_yaw);
-			ROS_INFO("[FIXPATTERN LOCAL PLANNER] start point rotating to goal, yaw: %lf, target_yaw: %lf, angle_diff: %lf", yaw, target_yaw, angle_diff);
-			// if target_yaw changed during rotation, don't follow last dir
-			if (fabs(angle_diff) > 0.5) {  // > 30 digree
+		double yaw = tf::getYaw(global_pose.getRotation());
+		double acc_dis = 0.0;
+		unsigned int index = 1;
+		for (; index < fixpattern_path_.size() - 2; index++) {
+			acc_dis += fixpattern_path_.at(index).DistanceToPoint(fixpattern_path_.at(index - 1));
+			//acc_dis += getPoseDistance(transformed_plan.at(index), tranformed_plan.at(index + 1));
+			if (acc_dis > 0.1) break;
+		}	
+		double target_yaw = fixpattern_path::CalculateDirection(fixpattern_path_.front(), fixpattern_path_.at(index)); 
+		double angle_diff = angles::shortest_angular_distance(yaw, target_yaw);
+		if (robot_vel.getOrigin().getX() < GS_DOUBLE_PRECISION && tf::getYaw(robot_vel.getRotation()) < GS_DOUBLE_PRECISION && fabs(angle_diff) > 0.5) {  // > 30 digree{
+        need_rotate_to_path_ = true;
+		    ROS_INFO("[FIXPATTERN LOCAL PLANNER] start point rotating to goal, yaw: %lf, target_yaw: %lf, angle_diff: %lf", yaw, target_yaw, angle_diff);
+    }
+    if (fabs(angle_diff) > 0.1 && need_rotate_to_path_) {
+				ROS_INFO("[FIXPATTERN LOCAL PLANNER] rotating to path goal");
 				if (!rotateToGoal(planner_type, global_pose, robot_vel, target_yaw, cmd_vel)) {
 					ROS_INFO("[FIXPATTERN LOCAL PLANNER] try_rotate_: %d", try_rotate_);
 					return false;
 				}
-				ROS_INFO("[FIXPATTERN LOCAL PLANNER] rotating to goal");
 				publishPlan(transformed_plan, g_plan_pub_);
 				publishPlan(local_plan, l_plan_pub_);
 				// we don't actually want to run the controller when we're just rotating to goal
 				return true;
-			}
-		}
+		} else {
+      need_rotate_to_path_ = false;
+    }
   }
 
   last_target_yaw_ = 0.0;

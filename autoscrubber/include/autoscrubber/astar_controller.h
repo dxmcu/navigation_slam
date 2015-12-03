@@ -93,7 +93,7 @@ class AStarController : public BaseController {
    */
   virtual ~AStarController();
 
-  bool Control(BaseControlOption* option, ControlEnvironment* environment);
+  bool Control(BaseControlOption* option, ControlEnvironment* environment, bool first_run_flag);
 
  private:
   /**
@@ -129,7 +129,7 @@ class AStarController : public BaseController {
    */
   geometry_msgs::PoseStamped PoseStampedToGlobalFrame(const geometry_msgs::PoseStamped& pose_msg);
   geometry_msgs::PoseStamped PoseStampedToLocalFrame(const geometry_msgs::PoseStamped& pose_msg);
-  bool IsPoseFootprintSafe(double front_safe_dis_a, double front_safe_dis_b, const geometry_msgs::PoseStamped& pose);
+  bool IsGoalFootprintSafe(double front_safe_dis_a, double front_safe_dis_b, const geometry_msgs::PoseStamped& pose);
   bool IsPathFootprintSafe(const fixpattern_path::Path& fix_path, double length);
   bool IsPathFootprintSafe(const std::vector<geometry_msgs::PoseStamped>& path,
                            const std::vector<geometry_msgs::Point>& circle_center_points, double length);
@@ -194,9 +194,11 @@ class AStarController : public BaseController {
   boost::mutex planner_mutex_;
   boost::condition_variable planner_cond_;
   geometry_msgs::PoseStamped planner_goal_;
+  geometry_msgs::PoseStamped global_goal_;
   boost::thread* planner_thread_;
 
   bool new_global_plan_;
+  bool switch_controller_;
   bool using_sbpl_directly_;
   // broader sbpl start and goal entry
   bool sbpl_broader_;

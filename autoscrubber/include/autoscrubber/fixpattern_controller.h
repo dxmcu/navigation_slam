@@ -81,7 +81,7 @@ class FixPatternController : public BaseController {
    */
   virtual ~FixPatternController();
 
-  bool Control(BaseControlOption* option, ControlEnvironment* environment);
+  bool Control(BaseControlOption* option, ControlEnvironment* environment, bool first_run_flag);
 
  private:
   /**

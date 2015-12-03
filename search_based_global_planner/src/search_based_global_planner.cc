@@ -473,16 +473,21 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(std::vector<Action> a
         }
       }
       ROS_INFO("[SBPL] corner size = %d", corner_size);
-			if(corner_size == 1) {  // 22p5 digree
-			  max_vel = sbpl_max_vel_;	
-        is_corner = false;
-			} else if(corner_size <= 3) { //45 and 67.5 digree
-			  max_vel = sbpl_low_vel_;	
-        is_corner = false;
-			} else if(corner_size > 3) { // > 67.5 digree
+			if(pind == 0 && corner_size >= 2) {
 			  max_vel = sbpl_min_vel_;	
         is_corner = true;
-			}
+      } else {	
+			  if(corner_size == 1) {  // 22p5 digree
+			    max_vel = sbpl_max_vel_;	
+          is_corner = false;
+			  } else if(corner_size <= 3) { //45 and 67.5 digree
+			    max_vel = sbpl_low_vel_;	
+          is_corner = false;
+			  } else if(corner_size > 3) { // > 67.5 digree
+			    max_vel = sbpl_min_vel_;	
+          is_corner = true;
+			  }
+      }
 			for(unsigned int i = pind; i < pind + corner_size; ++i) {
 			  actions_path[i].max_vel = max_vel;
 			  actions_path[i].highlight = highlight;

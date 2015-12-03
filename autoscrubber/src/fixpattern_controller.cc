@@ -52,7 +52,7 @@ void FixPatternController::PublishZeroVelocity() {
   co_->vel_pub->publish(cmd_vel);
 }
 
-bool FixPatternController::Control(BaseControlOption* option, ControlEnvironment* environment) {
+bool FixPatternController::Control(BaseControlOption* option, ControlEnvironment* environment, bool first_run_flag) {
   ROS_INFO("[FIXPATTERN_PATH_CTRL] Switch to Fixpattern_Path Controller!");
   co_ = reinterpret_cast<FixPatternControlOption*>(option);
   env_ = environment;
@@ -60,7 +60,15 @@ bool FixPatternController::Control(BaseControlOption* option, ControlEnvironment
   // reset fixpattern_local_planner
   co_->fixpattern_local_planner->reset_planner();
   ros::Rate r(co_->controller_frequency);
-
+  if(first_run_flag_) {
+    first_run_flag_ = true;
+    first_run_controller_flag_ = true;
+    ResetState();
+    // reset fixpattern_local_planner
+    co_->fixpattern_local_planner->reset_planner();
+    // reset fixpattern_planner
+    co_->fixpattern_path->FinishPath();
+  }
   // we want to make sure that we reset the last time we had a valid plan and control
   last_valid_control_ = ros::Time::now();
   last_oscillation_reset_ = ros::Time::now();
@@ -153,6 +161,7 @@ bool FixPatternController::ExecuteCycle() {
   //if just started, we'll switch to astar controller to add sbpl_path and remake fixpattern_path and smooth it 
   if(first_run_flag_) {
     first_run_flag_ = false;
+    
     tf::Stamped<tf::Pose> global_pose;
     if (controller_costmap_ros_->getRobotPose(global_pose)/*|| planner_costmap_ros_->getRobotPose(global_pose)*/) {
       geometry_msgs::PoseStamped start;
@@ -225,7 +234,8 @@ bool FixPatternController::ExecuteCycle() {
           co_->fixpattern_path->fixpattern_path_goal_updated_ = false;
           double pose_diff = PoseStampedDistance(current_position, planner_goal_);
           double yaw_diff = angles::shortest_angular_distance(tf::getYaw(current_position.pose.orientation), tf::getYaw(planner_goal_.pose.orientation));
-          if (pose_diff > co_->fixpattern_local_planner->xy_goal_tolerance_ || fabs(yaw_diff) > co_->fixpattern_local_planner->yaw_goal_tolerance_) {
+          if (pose_diff > co_->fixpattern_local_planner->xy_goal_tolerance_
+                || fabs(yaw_diff) > co_->fixpattern_local_planner->yaw_goal_tolerance_) {
             switch_controller_ = true;
           } else  {
             switch_controller_ = false;
@@ -235,8 +245,8 @@ bool FixPatternController::ExecuteCycle() {
         }
         return true;  //(lee)
       }
-        if(co_->fixpattern_path->fixpattern_path_reached_goal_)	
-          co_->fixpattern_path->fixpattern_path_reached_goal_ = false;
+      if(co_->fixpattern_path->fixpattern_path_reached_goal_)	
+        co_->fixpattern_path->fixpattern_path_reached_goal_ = false;
 
       {
         boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
@@ -276,7 +286,7 @@ bool FixPatternController::ExecuteCycle() {
 
       // check front safe. If not, we'll go to recovery
       if (!IsFrontSafe()) {
-        ROS_INFO("[FIXPATTERN CONTROLLER] !IsFrontSafe to CLEARING");
+        ROS_ERROR("[FIXPATTERN CONTROLLER] !IsFrontSafe to CLEARING");
         PublishZeroVelocity();
         state_ = F_CLEARING;
         recovery_trigger_ = F_FRONTSAFE_R;
@@ -299,10 +309,11 @@ bool FixPatternController::ExecuteCycle() {
                           cmd_vel_.linear.x, cmd_vel_.linear.y, cmd_vel_.angular.z);
           last_valid_control_ = ros::Time::now();
 					
-					if(cmd_vel_.linear.x > 0.2)
+/*		    if(cmd_vel_.linear.x > 0.2)
             cmd_vel_.linear.x += 0.2;
 					else if(cmd_vel_.linear.x > 0.1)
             cmd_vel_.linear.x += 0.1;
+*/
           // make sure that we send the velocity command to the base
           co_->vel_pub->publish(cmd_vel_);
 

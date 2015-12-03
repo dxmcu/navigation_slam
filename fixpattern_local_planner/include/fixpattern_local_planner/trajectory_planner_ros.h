@@ -193,6 +193,7 @@ class FixPatternTrajectoryPlannerROS {
   std::vector<fixpattern_path::PathPoint> fixpattern_path_;
   bool prune_plan_;
   bool rotating_to_route_direction_;
+  bool need_rotate_to_path_;
   boost::recursive_mutex odom_lock_;
 
   double max_vel_th_, min_vel_th_;
@@ -200,7 +201,7 @@ class FixPatternTrajectoryPlannerROS {
   double sim_period_;
   bool rotating_to_goal_;
   bool reached_goal_;
-	bool rotating_to_path_done_;
+  bool rotating_to_path_done_;
   bool latch_xy_goal_tolerance_, xy_tolerance_latch_;
 
   ros::Publisher g_plan_pub_, l_plan_pub_;

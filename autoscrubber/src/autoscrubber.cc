@@ -181,6 +181,7 @@ void AutoScrubber::SimpleGoalCB(const geometry_msgs::PoseStamped::ConstPtr& goal
   ROS_DEBUG_NAMED("move_base", "In ROS goal callback, wrapping the PoseStamped in the action message and start ExecuteCycle.");
   ROS_INFO("[AUTOSCRUBBER] Get Goal!x = %.2f, y = %.2f, yaw = %.2f",goal->pose.position.x, goal->pose.position.y, tf::getYaw(goal->pose.orientation));
   global_planner_goal_.pose = goal->pose;
+  global_planner_goal_.header.frame_id = global_frame_;
 //  reinterpret_cast<AStarControlOption*>(options_)->settle_planner_goal_ = &astar_planner_goal_;
   autoscrubber_services::Start::Request req;
   autoscrubber_services::Start::Response res;
@@ -297,9 +298,10 @@ void AutoScrubber::ControlThread() {
 
     // do some intialize things
     nav_mode_ = FIX_PATTERN;
-
+    bool first_run = true;
     // loop below quits when navigation finishes
-    while (!controllers_[nav_mode_]->Control(options_[nav_mode_], &environment_)) {
+    while (!controllers_[nav_mode_]->Control(options_[nav_mode_], &environment_, first_run)) {
+      first_run = false; 
       if (nav_mode_ == FIX_PATTERN) {
         nav_mode_ = AUTO_NAV;
       } else {
