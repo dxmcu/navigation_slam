@@ -133,9 +133,8 @@ class AStarController : public BaseController {
   bool IsPathFootprintSafe(const fixpattern_path::Path& fix_path, double length);
   bool IsPathFootprintSafe(const std::vector<geometry_msgs::PoseStamped>& path,
                            const std::vector<geometry_msgs::Point>& circle_center_points, double length);
-  bool IsGoalFootprintSafe(double goal_check_safe_dis, double goal_safe_dis_a, double goal_safe_dis_b, const geometry_msgs::PoseStamped& current_pose);
   bool NeedBackward(const geometry_msgs::PoseStamped& pose, double distance);
-  bool GetAStarGoal(int begin_index = 0);
+  bool GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, int begin_index = 0);
   bool HandleGoingBack(geometry_msgs::PoseStamped current_position);
   void PlanThread();
   double PoseStampedDistance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2);
@@ -185,12 +184,15 @@ class AStarController : public BaseController {
 
   // rotate direction of rotate_recovery
   int rotate_recovery_dir_;
+  int rotate_failure_times_;
 
   // set up the planner's thread
   bool runPlanner_;
   bool sbpl_reached_goal_;
   bool taken_global_goal_;
   unsigned int local_planner_error_cnt_;
+  unsigned int goal_not_safe_cnt_;
+  unsigned int path_not_safe_cnt_;
   boost::mutex planner_mutex_;
   boost::condition_variable planner_cond_;
   geometry_msgs::PoseStamped planner_goal_;

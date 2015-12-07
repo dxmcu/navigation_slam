@@ -71,8 +71,8 @@ class SearchBasedGlobalPlanner {
   void PublishPlan(const std::vector<geometry_msgs::PoseStamped>& plan);
   void GetPointPathFromEntryPath(const std::vector<EnvironmentEntry3D*>& entry_path,
                                  std::vector<XYThetaPoint>* point_path, std::vector<IntermPointStruct>* path_info);
-  void ComputeHighlightAndVelocity(std::vector<Action> actions_path, 
-                                 std::vector<IntermPointStruct>* path_info); 
+  void ComputeHighlightAndVelocity(const std::vector<Action>& actions_path, 
+                                 std::vector<XYThetaPoint>* point_path, std::vector<IntermPointStruct>* path_info);
   void ReInitializeSearchEnvironment();
   unsigned char TransformCostmapCost(unsigned char cost);
   bool CostsChanged(const std::vector<XYCell>& changed_cells);

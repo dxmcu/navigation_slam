@@ -43,7 +43,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   private_nh.param("planner_frequency", planner_frequency_, 0.0);
   private_nh.param("sbpl_max_distance", sbpl_max_distance_, 12.0);
   private_nh.param("controller_frequency", controller_frequency_, 20.0);
-  private_nh.param("planner_patience", planner_patience_, 5.0);
+  private_nh.param("planner_patience", planner_patience_, 2.0);
   private_nh.param("controller_patience", controller_patience_, 1.0);
 
   private_nh.param("oscillation_timeout", oscillation_timeout_, 0.0);
@@ -123,6 +123,8 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->stop_duration = stop_duration_;
   reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->max_offroad_dis = max_offroad_dis_;
   reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->front_safe_check_dis = front_safe_check_dis_;
+  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->goal_safe_check_dis = goal_safe_check_dis_;
+  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->goal_safe_check_duration = goal_safe_check_duration_;
   reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->fixpattern_path = fixpattern_path_;
   reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->fixpattern_local_planner = fixpattern_local_planner_;
   reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->circle_center_points = circle_center_points_;

@@ -44,6 +44,8 @@ struct FixPatternControlOption : BaseControlOption {
   double stop_duration;
   double max_offroad_dis;
   double front_safe_check_dis;
+  double goal_safe_check_dis;
+  double goal_safe_check_duration;
   int* fixpattern_reached_goal;
   double fixpattern_footprint_padding;
   fixpattern_path::Path* fixpattern_path;
@@ -114,10 +116,19 @@ class FixPatternController : public BaseController {
                            const std::vector<geometry_msgs::Point>& circle_center_points, double length);
   /**
    * @brief Check if front of machine is safe
+	 * 
+   * @param front_safe_check_dis
    *
    * @return True if front is safe, return false if not
    */
-  bool IsFrontSafe();
+  bool IsFrontSafe(double front_safe_check_dis);
+  /**
+   * @brief Check goal is safe
+   *
+   * @return True if goal is safe, return false if not
+   */
+  bool IsGoalFootprintSafe(double goal_safe_dis_a, double goal_safe_dis_b,
+		                       const geometry_msgs::PoseStamped& pose); 
   /**
    * @brief Publish nav_msgs::Path for visualization
    *
@@ -165,9 +176,11 @@ class FixPatternController : public BaseController {
   ControlEnvironment* env_;
 
   geometry_msgs::Twist cmd_vel_;
+  geometry_msgs::Twist last_valid_cmd_vel_;
   bool switch_controller_;
   bool first_run_flag_;
   bool first_run_controller_flag_;
+  unsigned int local_planner_error_cnt_;
 };
 
 };  // namespace autoscrubber

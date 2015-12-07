@@ -57,6 +57,7 @@ bool FixPatternController::Control(BaseControlOption* option, ControlEnvironment
   co_ = reinterpret_cast<FixPatternControlOption*>(option);
   env_ = environment;
   planner_goal_.pose = co_->global_planner_goal->pose;
+  planner_goal_.header.frame_id = co_->global_frame;
   // reset fixpattern_local_planner
   co_->fixpattern_local_planner->reset_planner();
   ros::Rate r(co_->controller_frequency);
@@ -215,6 +216,33 @@ bool FixPatternController::ExecuteCycle() {
     case F_CONTROLLING:
       ROS_INFO("[FIXPATTERN CONTROLLER] in CONTROLLING state");
       ROS_DEBUG_NAMED("autoscrubber", "In controlling state.");
+      // check if the global goal footprint is safe, if not, stop and wait until timeout
+      {      
+        if (PoseStampedDistance(current_position, planner_goal_) < co_->goal_safe_check_dis
+             && IsGoalFootprintSafe(0.0, 0.3, planner_goal_)) {
+					bool is_goal_safe = false;
+					ros::Rate check_rate(10);
+					ros::Time check_end_time = ros::Time::now() + ros::Duration(co_->goal_safe_check_duration);
+					while (ros::Time::now() < check_end_time) {
+						if (IsGoalFootprintSafe(0.0, 0.3, planner_goal_)) {
+							is_goal_safe = true;
+							break;
+						}
+					  PublishZeroVelocity();
+						check_rate.sleep();
+					}
+					if (!is_goal_safe){      
+						ROS_ERROR("[FIXPATTERN CONTROLLER] Check global goal not safe, stop here!");
+            co_->fixpattern_path->fixpattern_path_reached_goal_ = false;
+            switch_controller_ = false;
+
+						// TODO(chenkan): check if this is needed
+						co_->fixpattern_local_planner->reset_planner();
+						// Goal not reached, but we will stop and exit ExecuteCycle
+						return true;
+					}
+        }
+      }
 
       // check to see if we've reached our goal
       if (co_->fixpattern_local_planner->isGoalReached()) {
@@ -285,7 +313,7 @@ bool FixPatternController::ExecuteCycle() {
       }
 
       // check front safe. If not, we'll go to recovery
-      if (!IsFrontSafe()) {
+      if (!IsFrontSafe(co_->front_safe_check_dis)) {
         ROS_ERROR("[FIXPATTERN CONTROLLER] !IsFrontSafe to CLEARING");
         PublishZeroVelocity();
         state_ = F_CLEARING;
@@ -303,8 +331,15 @@ bool FixPatternController::ExecuteCycle() {
 
           return true;
         }
-
-        if (co_->fixpattern_local_planner->computeVelocityCommands(fixpattern_local_planner::TRAJECTORY_PLANNER, &cmd_vel_)) {
+        bool local_planner_ret = co_->fixpattern_local_planner->computeVelocityCommands(fixpattern_local_planner::TRAJECTORY_PLANNER, &cmd_vel_);    
+        if (!local_planner_ret) {
+          ++local_planner_error_cnt_;
+          cmd_vel_ = last_valid_cmd_vel_;
+        } else {
+          local_planner_error_cnt_ = 0;
+          last_valid_cmd_vel_ = cmd_vel_;
+        }
+        if (local_planner_error_cnt_ < 1) {
           ROS_DEBUG_NAMED("autoscrubber", "Got a valid command from the local planner: %.3lf, %.3lf, %.3lf",
                           cmd_vel_.linear.x, cmd_vel_.linear.y, cmd_vel_.angular.z);
           last_valid_control_ = ros::Time::now();
@@ -320,6 +355,7 @@ bool FixPatternController::ExecuteCycle() {
           // notify chassis to launch scrubber
           env_->launch_scrubber = true;
         } else {
+          local_planner_error_cnt_ = 0;
           ROS_DEBUG_NAMED("autoscrubber", "The local planner could not find a valid plan.");
           ros::Time attempt_end = last_valid_control_ + ros::Duration(co_->controller_patience);
 
@@ -351,10 +387,14 @@ bool FixPatternController::ExecuteCycle() {
         ros::Time end_time = ros::Time::now() + ros::Duration(co_->stop_duration);
         ros::Rate r(10);
         bool front_safe = false;
+        unsigned int front_safe_check_cnt = 0;
         while (ros::Time::now() < end_time) {
-          if (IsFrontSafe()) {
-            front_safe = true;
-            break;
+          if (IsFrontSafe(co_->front_safe_check_dis)) {
+            ++front_safe_check_cnt;
+            if (front_safe_check_cnt > 3) {
+              front_safe = true;
+              break;
+            }
           }
           r.sleep();
         }
@@ -431,32 +471,74 @@ bool FixPatternController::IsPathFootprintSafe(const std::vector<geometry_msgs::
   return true;
 }
 
-bool FixPatternController::IsFrontSafe() {
+bool FixPatternController::IsFrontSafe(double front_safe_check_dis) {
   boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
 
   std::vector<geometry_msgs::PoseStamped> path = co_->fixpattern_path->GeometryPath();
-  if (IsPathFootprintSafe(path, co_->circle_center_points, co_->front_safe_check_dis)) {
+  if (IsPathFootprintSafe(path, co_->circle_center_points, front_safe_check_dis)) {
     return true;
   }
 
+  ROS_WARN("[Fixpattern_path] origin path is not safe");
   if (fabs(co_->fixpattern_footprint_padding) < GS_DOUBLE_PRECISION) return false;
 
   // if not safe, let's cast some padding to footprint
   std::vector<geometry_msgs::Point> circle_center_points_padding_1 = co_->circle_center_points;
   for (auto&& p : circle_center_points_padding_1) p.y +=co_->fixpattern_footprint_padding;
-  if (IsPathFootprintSafe(path, circle_center_points_padding_1, co_->front_safe_check_dis)) {
+  if (IsPathFootprintSafe(path, circle_center_points_padding_1, front_safe_check_dis)) {
     return true;
   }
+  ROS_WARN("[Fixpattern_path] Pandding up path is not safe");
 
   // okay okay, the other padding
   std::vector<geometry_msgs::Point> circle_center_points_padding_2 = co_->circle_center_points;
   for (auto&& p : circle_center_points_padding_2) p.y -= co_->fixpattern_footprint_padding;
-  if (IsPathFootprintSafe(path, circle_center_points_padding_2, co_->front_safe_check_dis)) {
+  if (IsPathFootprintSafe(path, circle_center_points_padding_2, front_safe_check_dis)) {
     return true;
   }
+  ROS_WARN("[Fixpattern_path] Pandding down path is not safe");
 
   // at last...
   return false;
+}
+
+bool FixPatternController::IsGoalFootprintSafe(double goal_safe_dis_a, double goal_safe_dis_b, const geometry_msgs::PoseStamped& pose) {
+  std::vector<geometry_msgs::PoseStamped> fix_path = co_->fixpattern_path->GeometryPath();
+  int goal_index = -1;
+  for (int i = 0; i < static_cast<int>(fix_path.size()); ++i) {
+    if (PoseStampedDistance(fix_path[i], pose) < 0.0001) {
+      goal_index = i;
+      break;
+    }
+  }
+  if (goal_index == -1) {
+    return true;
+  }
+  double free_dis_a = 0.0;
+  for (int i = goal_index - 1; i >= 0; i -= 5) {
+    double x = fix_path[i].pose.position.x;
+    double y = fix_path[i].pose.position.y;
+    double yaw = tf::getYaw(fix_path[i].pose.orientation);
+    if (footprint_checker_->CircleCenterCost(x, y, yaw, co_->circle_center_points) < 0)
+      return false;
+    free_dis_a += PoseStampedDistance(fix_path[i], fix_path[i + 5]);
+    if (free_dis_a >= goal_safe_dis_a) {
+      break;
+    }
+  }
+  double free_dis_b = 0.0;
+  for (int i = goal_index + 1; i < fix_path.size(); i += 5) {
+    double x = fix_path[i].pose.position.x;
+    double y = fix_path[i].pose.position.y;
+    double yaw = tf::getYaw(fix_path[i].pose.orientation);
+    if (footprint_checker_->CircleCenterCost(x, y, yaw, co_->circle_center_points) < 0)
+      return false;
+    free_dis_b += PoseStampedDistance(fix_path[i], fix_path[i - 5]);
+    if (free_dis_b >= goal_safe_dis_b) {
+      break;
+    }
+  }
+  return true;
 }
 
 void FixPatternController::PublishPlan(const ros::Publisher& pub, const std::vector<geometry_msgs::PoseStamped>& plan) {

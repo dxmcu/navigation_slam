@@ -2,6 +2,7 @@
  */
 
 #include "search_based_global_planner/search_based_global_planner.h"
+#include <angles/angles.h>
 
 #include <nav_msgs/Path.h>
 #include <costmap_2d/inflation_layer.h>
@@ -407,6 +408,8 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
     costs.clear();
     actions.clear();
     env_->GetSuccs(source_entry, &succ_entries, &costs, &actions);
+    ROS_INFO("[SEARCH BASED GLOBAL PLANNER] GetSuccs_entries size = %d, costs size = %d, actions size = %d",
+               (int)succ_entries.size(), (int)costs.size(), (int)actions.size());
 
     int best_cost = INFINITECOST;
     int best_index = -1;
@@ -440,7 +443,7 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
 		}
     actions_path.push_back(*actions.at(best_index));
   }
-  ComputeHighlightAndVelocity(actions_path, path_info);
+  ComputeHighlightAndVelocity(actions_path, point_path, path_info);
 }
 
 void setActionIntermStruct(Action* action, double highlight, double max_vel, bool is_corner) {
@@ -453,10 +456,11 @@ void setActionIntermStruct(Action* action, double highlight, double max_vel, boo
 	}
 }	
 
-void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(std::vector<Action> actions_path, 
+void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Action>& origin_actions_path, 
+                                                         std::vector<XYThetaPoint>* point_path,
                                                          std::vector<IntermPointStruct>* path_info) {
-  std::vector<unsigned int> mprim_sequence;
-	unsigned int num_point_in_prim = 9;
+  std::vector<Action> actions_path = origin_actions_path;
+  ROS_INFO("[SBPL] actions_path size = %d", (int)actions_path.size());
   // check corner and set max_vel and highlight of action 
   for (unsigned int pind = 0; pind < actions_path.size(); ++pind) {
     unsigned int corner_size = 0;
@@ -489,45 +493,49 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(std::vector<Action> a
 			  }
       }
 			for(unsigned int i = pind; i < pind + corner_size; ++i) {
-			  actions_path[i].max_vel = max_vel;
-			  actions_path[i].highlight = highlight;
-				setActionIntermStruct(&actions_path[i], highlight, max_vel, is_corner);
+			  actions_path.at(i).max_vel = max_vel;
+			  actions_path.at(i).highlight = highlight;
+				setActionIntermStruct(&actions_path.at(i), highlight, max_vel, is_corner);
 			}
 			pind += corner_size - 1;
-    } else if(CHECK_SHORT_FORWARD(actions_path[pind])) {
+    } else if(CHECK_SHORT_FORWARD(actions_path.at(pind))) {
       max_vel = sbpl_low_vel_;
-		  actions_path[pind].max_vel = sbpl_low_vel_;
-			setActionIntermStruct(&actions_path[pind], highlight, max_vel, is_corner);
+		  actions_path.at(pind).max_vel = sbpl_low_vel_;
+			setActionIntermStruct(&actions_path.at(pind), highlight, max_vel, is_corner);
 		} else {
       max_vel = sbpl_max_vel_;
-		  actions_path[pind].max_vel = sbpl_max_vel_;
-			setActionIntermStruct(&actions_path[pind], highlight, max_vel, is_corner);
+		  actions_path.at(pind).max_vel = sbpl_max_vel_;
+			setActionIntermStruct(&actions_path.at(pind), highlight, max_vel, is_corner);
 		}
   }
  
 	// push action:interm_struct to path_info(including highlight and max_vel) 
   for (unsigned int pind = 0; pind < actions_path.size(); ++pind) {
-    for (int ipind = 0; ipind < actions_path[pind].interm_struct.size() - 1; ++ipind) {
-      path_info->push_back(actions_path[pind].interm_struct[ipind]);
+    for (int ipind = 0; ipind < actions_path.at(pind).interm_struct.size() - 1; ++ipind) {
+      path_info->push_back(actions_path.at(pind).interm_struct[ipind]);
 		}
 	}
 	
 	// calculate hightlight based on max_vel of each point in path_info
 	double sum_highlight;
   for (unsigned int i = 0; i < path_info->size() - 1; ++i) {
-		if(path_info->at(i).max_vel != sbpl_min_vel_) {
+		if (path_info->at(i).max_vel != sbpl_min_vel_) {
 			sum_highlight = 0.0;
-			for(unsigned int j = i; j < path_info->size() - 1; ++j) {
+			for (unsigned int j = i; j < path_info->size() - 1; ++j) {
 				sum_highlight += path_info->at(j).distance;
-				if(sum_highlight > fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE) {
+				if (sum_highlight > fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE) {
 					sum_highlight = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE;
 					break;
 				}
-				if(path_info->at(j).max_vel == sbpl_min_vel_) {
+				if (path_info->at(j).max_vel == sbpl_min_vel_) {
 					break;
 				}
+        if (path_info->at(j).max_vel == sbpl_max_vel_ 
+              && angles::shortest_angular_distance(point_path->at(i).theta, point_path->at(j).theta) > M_PI / 1.98) {
+         break;
+        }
 			}
-			if(sum_highlight > fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE) {
+			if (sum_highlight > fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE) {
 				sum_highlight = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE;
 			} else if(sum_highlight < fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE) {
 				sum_highlight = fixpattern_path::Path::MIN_HIGHLIGHT_DISTANCE;
@@ -634,6 +642,7 @@ bool SearchBasedGlobalPlanner::search(std::vector<XYThetaPoint>* point_path, std
   } else {
     std::vector<EnvironmentEntry3D*> entry_path;
     GetEntryPath(&entry_path);
+    ROS_INFO("[SEARCH BASED GLOBAL PLANNER] GetEntryPath.size = %d", (int)entry_path.size());
     GetPointPathFromEntryPath(entry_path, point_path, path_info);
     ROS_INFO("[SEARCH BASED GLOBAL PLANNER] solution found");
     return true;

@@ -478,7 +478,10 @@ void Environment::GetSuccs(EnvironmentEntry3D* entry, std::vector<EnvironmentEnt
   costs->reserve(num_of_prims_per_angle_);
 
   // goal state should be absorbing
-  if (entry->x == goal_cell_.x && entry->y == goal_cell_.y && entry->theta == goal_cell_.theta) return;
+  if (entry->x == goal_cell_.x && entry->y == goal_cell_.y && entry->theta == goal_cell_.theta) { 
+    ROS_INFO("[SBPL_environment] current entry in goal cell");
+    return;
+  }
 
   // iterate through actions
   Action* action = NULL;
