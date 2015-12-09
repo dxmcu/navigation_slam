@@ -34,15 +34,28 @@ namespace autoscrubber {
 typedef enum {
   A_PLANNING    = 0,
   A_CONTROLLING = 1,
-  A_CLEARING    = 2
+  A_CLEARING    = 2,
+  FIX_CONTROLLING = 3,
+  FIX_CLEARING    = 4 
 } AStarState;
 
 typedef enum {
   A_PLANNING_R    = 0,
   A_CONTROLLING_R = 1,
   A_OSCILLATION_R = 2,
-  A_GOALSAFE_R    = 3
+  A_GOALSAFE_R    = 3,
+  FIX_CONTROLLING_R = 4, 
+  FIX_OSCILLATION_R = 5,
+  FIX_GETNEWGOAL_R  = 6,
+  FIX_FRONTSAFE_R   = 7 
 } AStarRecoveryTrigger;
+
+typedef enum {
+  P_INSERTING_NONE   = 0,
+  P_INSERTING_BEGIN  = 1,
+  P_INSERTING_END    = 2, 
+  P_INSERTING_MIDDLE = 3 
+} AStarPlanningState;
 
 struct AStarControlOption : BaseControlOption {
   double stop_duration;
@@ -54,6 +67,7 @@ struct AStarControlOption : BaseControlOption {
   double goal_safe_check_dis;	
   double goal_safe_check_duration;
   double sbpl_footprint_padding;
+  double fixpattern_footprint_padding; 
   int* fixpattern_reached_goal;
   fixpattern_path::Path* fixpattern_path;
   geometry_msgs::PoseStamped* global_planner_goal;
@@ -130,10 +144,15 @@ class AStarController : public BaseController {
   geometry_msgs::PoseStamped PoseStampedToGlobalFrame(const geometry_msgs::PoseStamped& pose_msg);
   geometry_msgs::PoseStamped PoseStampedToLocalFrame(const geometry_msgs::PoseStamped& pose_msg);
   bool IsGoalFootprintSafe(double front_safe_dis_a, double front_safe_dis_b, const geometry_msgs::PoseStamped& pose);
+  bool IsFixPathFrontSafe(double front_safe_check_dis); 
   bool IsPathFootprintSafe(const fixpattern_path::Path& fix_path, double length);
   bool IsPathFootprintSafe(const std::vector<geometry_msgs::PoseStamped>& path,
                            const std::vector<geometry_msgs::Point>& circle_center_points, double length);
+  bool IsGlobalGoalReached(const geometry_msgs::PoseStamped& current_position, const geometry_msgs::PoseStamped& global_goal,
+                            double xy_goal_tolerance, double yaw_goal_tolerance); 
+  double CheckFixPathFrontSafe(double front_safe_check_dis); 
   bool NeedBackward(const geometry_msgs::PoseStamped& pose, double distance);
+	bool GetInitalPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
   bool GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, int begin_index = 0);
   bool HandleGoingBack(geometry_msgs::PoseStamped current_position);
   void PlanThread();
@@ -141,6 +160,7 @@ class AStarController : public BaseController {
   void CalculateStartCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path);
   void CalculateGoalCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path);
 
+	void PublishPlan(const ros::Publisher& pub, const std::vector<geometry_msgs::PoseStamped>& plan);
   // rotate recovery
   bool CanRotate(double x, double y, double yaw, int dir);
   bool RotateToYaw(double target_yaw);
@@ -164,6 +184,7 @@ class AStarController : public BaseController {
   geometry_msgs::Twist last_valid_cmd_vel_;
   AStarState state_;
   AStarRecoveryTrigger recovery_trigger_;
+  AStarPlanningState planning_state_;
 
   ros::Time last_valid_plan_, last_valid_control_, last_oscillation_reset_;
   geometry_msgs::PoseStamped oscillation_pose_;
@@ -181,6 +202,7 @@ class AStarController : public BaseController {
   std::vector<geometry_msgs::PoseStamped>* planner_plan_;
   std::vector<geometry_msgs::PoseStamped>* latest_plan_;
   std::vector<geometry_msgs::PoseStamped>* controller_plan_;
+  std::vector<fixpattern_path::PathPoint> fix_path_;
 
   // rotate direction of rotate_recovery
   int rotate_recovery_dir_;
@@ -191,10 +213,14 @@ class AStarController : public BaseController {
   bool sbpl_reached_goal_;
   bool taken_global_goal_;
   unsigned int local_planner_error_cnt_;
+  unsigned int fix_local_planner_error_cnt_;
   unsigned int goal_not_safe_cnt_;
   unsigned int path_not_safe_cnt_;
+  unsigned int front_safe_check_cnt_;
+  double cmd_vel_ratio_;
   boost::mutex planner_mutex_;
   boost::condition_variable planner_cond_;
+  geometry_msgs::PoseStamped planner_start_;
   geometry_msgs::PoseStamped planner_goal_;
   geometry_msgs::PoseStamped global_goal_;
   boost::thread* planner_thread_;
@@ -209,6 +235,9 @@ class AStarController : public BaseController {
 
   AStarControlOption* co_;
   ControlEnvironment* env_;
+
+  // set for fixpattern
+  ros::Publisher fixpattern_pub_;
 };
 
 };  // namespace autoscrubber

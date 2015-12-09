@@ -81,7 +81,7 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
     double stop_time_buffer;
     std::string world_model_type;
     rotating_to_goal_ = false;
-    rotating_to_path_done_ = false;
+    rotating_to_goal_done_ = false;
 //    rotating_to_route_direction_ = false;
 
     // initialize the copy of the costmap the controller will use
@@ -435,7 +435,7 @@ bool FixPatternTrajectoryPlannerROS::needBackward(PlannerType planner_type, cons
     cmd_vel->linear.x = -0.1;
     cmd_vel->linear.y = 0.0;
     cmd_vel->angular.z = 0.0;
-		ROS_INFO("[FIXPATTERN LOCAL PLANNER] need backward!");
+    ROS_INFO("[FIXPATTERN LOCAL PLANNER] need backward!");
     return true;
   }
 }
@@ -561,6 +561,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
       rotating_to_goal_ = false;
       xy_tolerance_latch_ = false;
       reached_goal_ = true;
+      rotating_to_goal_done_ = true;
     } else {
       // we need to call the next two lines to make sure that the trajectory
       // planner updates its path distance and goal distance grids
@@ -594,6 +595,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
       } else {
         // if we're stopped... then we want to rotate to goal
         // set this so that we know its OK to be moving
+        rotating_to_goal_done_ = false;
         rotating_to_goal_ = true;
         if (!rotateToGoal(planner_type, global_pose, robot_vel, goal_th, cmd_vel)) {
           ROS_ERROR("[FIXPATTERN LOCAL PLANNER] rotateToGoal failed");
@@ -661,7 +663,8 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
       last_target_yaw_ = target_yaw;
     }
     if (fabs(angle_diff) > 0.1) {
-      rotating_to_path_done_ = false;
+      rotating_to_goal_ = true;
+      rotating_to_goal_done_ = false;
       if (!rotateToGoal(planner_type, global_pose, robot_vel, target_yaw, cmd_vel)) {
         ROS_INFO("[FIXPATTERN LOCAL PLANNER] try_rotate_: %d", try_rotate_);
         return false;
@@ -674,9 +677,10 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
       // we don't actually want to run the controller when we're just rotating to goal
       return true;
     } else {
-      rotating_to_path_done_ = true;
+      rotating_to_goal_ = false;
+      rotating_to_goal_done_ = true;
 		}
-  } else {
+  }/* else {
 		double yaw = tf::getYaw(global_pose.getRotation());
 		double acc_dis = 0.0;
 		unsigned int index = 1;
@@ -689,7 +693,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
 		double angle_diff = angles::shortest_angular_distance(yaw, target_yaw);
 		if (robot_vel.getOrigin().getX() < GS_DOUBLE_PRECISION && tf::getYaw(robot_vel.getRotation()) < GS_DOUBLE_PRECISION && fabs(angle_diff) > 0.5) {  // > 30 digree{
         need_rotate_to_path_ = true;
-		    ROS_INFO("[FIXPATTERN LOCAL PLANNER] start point rotating to goal, yaw: %lf, target_yaw: %lf, angle_diff: %lf", yaw, target_yaw, angle_diff);
+        ROS_INFO("[FIXPATTERN LOCAL PLANNER] start point rotating to path, yaw: %lf, target_yaw: %lf, angle_diff: %lf", yaw, target_yaw, angle_diff);
     }
     if (fabs(angle_diff) > 0.1 && need_rotate_to_path_) {
 				ROS_INFO("[FIXPATTERN LOCAL PLANNER] rotating to path goal");
@@ -705,7 +709,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
       need_rotate_to_path_ = false;
     }
   }
-
+*/
   last_target_yaw_ = 0.0;
   last_rotate_to_goal_dir_ = 0;
   try_rotate_ = 0;
@@ -790,20 +794,29 @@ bool FixPatternTrajectoryPlannerROS::isGoalReached() {
   return reached_goal_;
 }
 
-bool FixPatternTrajectoryPlannerROS::isPathRotateDone() {
+bool FixPatternTrajectoryPlannerROS::isRotatingToGoalDone() {
   if (!isInitialized()) {
     ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
     return false;
   }
   // return flag set in controller
-  return rotating_to_path_done_;
+  return rotating_to_goal_done_;
 }
 
-void FixPatternTrajectoryPlannerROS::resetPathRotateDone() {
+void FixPatternTrajectoryPlannerROS::resetRotatingToGoalDone() {
   // return flag set in controller
-  rotating_to_path_done_ = false;
+  rotating_to_goal_done_ = false;
 }
  
+
+bool FixPatternTrajectoryPlannerROS::isRotatingToGoal() {
+  if (!isInitialized()) {
+    ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
+    return false;
+  }
+  // return flag set in controller
+  return rotating_to_goal_;
+}
 
 void FixPatternTrajectoryPlannerROS::reset_planner() {
    reached_goal_ = false;

@@ -109,12 +109,14 @@ class FixPatternTrajectoryPlannerROS {
   bool isGoalReached();
 
   /**
-   * @brief  Check if rotate to path has been done 
-   * @return rotating_to_path_done_ : True if done, false otherwise
+   * @brief  Check if rotate to goal has been done 
+   * @return rotating_to_goal_done_ : True if done, false otherwise
    */
-  bool isPathRotateDone();
+  bool isRotatingToGoalDone();
 
-  void resetPathRotateDone();
+  void resetRotatingToGoalDone();
+
+  bool isRotatingToGoal();
   /**
    * @brief reset reached_goal_, xy_tolerance_latch_, last_rotate_to_goal_dir_ and try_rotate_ etc.
    */
@@ -201,7 +203,7 @@ class FixPatternTrajectoryPlannerROS {
   double sim_period_;
   bool rotating_to_goal_;
   bool reached_goal_;
-  bool rotating_to_path_done_;
+  bool rotating_to_goal_done_;
   bool latch_xy_goal_tolerance_, xy_tolerance_latch_;
 
   ros::Publisher g_plan_pub_, l_plan_pub_;

@@ -422,7 +422,7 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
     if (best_index == -1) {
       if (broader_start_and_goal_) {
         for (const auto& entry : goal_entry_list_)
-          if (*source_entry == *entry && *target_entry == *goal_entry_) return;
+          if (*source_entry == *entry && *target_entry == *goal_entry_) break; //return;
       }
       ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] successor not found for transition");
       point_path->clear();
@@ -443,6 +443,7 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
 		}
     actions_path.push_back(*actions.at(best_index));
   }
+  ROS_INFO("[SBPL] actions_path size = %d, point_path size = %d", (int)actions_path.size(), (int)point_path->size());
   ComputeHighlightAndVelocity(actions_path, point_path, path_info);
 }
 
@@ -460,7 +461,7 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Act
                                                          std::vector<XYThetaPoint>* point_path,
                                                          std::vector<IntermPointStruct>* path_info) {
   std::vector<Action> actions_path = origin_actions_path;
-  ROS_INFO("[SBPL] actions_path size = %d", (int)actions_path.size());
+  ROS_INFO("[SBPL] 1: actions_path size = %d, path_point size = %d, path_info size = %d", (int)actions_path.size(),(int)point_path->size(), (int)path_info->size());
   // check corner and set max_vel and highlight of action 
   for (unsigned int pind = 0; pind < actions_path.size(); ++pind) {
     unsigned int corner_size = 0;
@@ -509,6 +510,7 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Act
 		}
   }
  
+  ROS_INFO("[SBPL] 2: actions_path size = %d, path_point size = %d, path_info size = %d", (int)actions_path.size(),(int)point_path->size(), (int)path_info->size());
 	// push action:interm_struct to path_info(including highlight and max_vel) 
   for (unsigned int pind = 0; pind < actions_path.size(); ++pind) {
     for (int ipind = 0; ipind < actions_path.at(pind).interm_struct.size() - 1; ++ipind) {
@@ -543,6 +545,7 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Act
 			path_info->at(i).highlight = sum_highlight;
 		}
 	}	
+  ROS_INFO("[SBPL] 3: actions_path size = %d, path_point size = %d, path_info size = %d", (int)actions_path.size(),(int)point_path->size(), (int)path_info->size());
 }
 
 void SearchBasedGlobalPlanner::ReInitializeSearchEnvironment() {

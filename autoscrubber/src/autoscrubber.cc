@@ -150,6 +150,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->fixpattern_local_planner = fixpattern_local_planner_;
   reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->circle_center_points = circle_center_points_;
   reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->sbpl_footprint_padding = sbpl_footprint_padding_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->fixpattern_footprint_padding = fixpattern_footprint_padding_;
   reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->global_planner_goal = &global_planner_goal_;
   controllers_[FIX_PATTERN] = new FixPatternController(&tf_, planner_costmap_ros_, controller_costmap_ros_);
   controllers_[AUTO_NAV] = new AStarController(&tf_, planner_costmap_ros_, controller_costmap_ros_);
@@ -302,7 +303,8 @@ void AutoScrubber::ControlThread() {
     nav_mode_ = FIX_PATTERN;
     bool first_run = true;
     // loop below quits when navigation finishes
-    while (!controllers_[nav_mode_]->Control(options_[nav_mode_], &environment_, first_run)) {
+//    while (!controllers_[nav_mode_]->Control(options_[nav_mode_], &environment_, first_run)) {
+    while (!controllers_[AUTO_NAV]->Control(options_[AUTO_NAV], &environment_, first_run)) {
       first_run = false; 
       if (nav_mode_ == FIX_PATTERN) {
         nav_mode_ = AUTO_NAV;
