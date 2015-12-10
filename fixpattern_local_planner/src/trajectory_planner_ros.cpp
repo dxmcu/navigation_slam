@@ -90,7 +90,7 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
 
     global_frame_ = costmap_ros_->getGlobalFrameID();
     robot_base_frame_ = costmap_ros_->getBaseFrameID();
-    private_nh.param("prune_plan", prune_plan_, true);
+    private_nh.param("prune_plan", prune_plan_, false); //true
 
     private_nh.param("yaw_goal_tolerance", yaw_goal_tolerance_, 0.05);
     ROS_INFO("[LOCAL PLANNER] yaw_goal_tolerance: %lf", yaw_goal_tolerance_);

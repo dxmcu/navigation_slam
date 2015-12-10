@@ -217,6 +217,7 @@ class AStarController : public BaseController {
   unsigned int goal_not_safe_cnt_;
   unsigned int path_not_safe_cnt_;
   unsigned int front_safe_check_cnt_;
+  unsigned int obstacle_index_;
   double cmd_vel_ratio_;
   boost::mutex planner_mutex_;
   boost::condition_variable planner_cond_;
