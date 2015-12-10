@@ -237,7 +237,7 @@ void AStarController::PlanThread() {
           first_run_controller_flag_ = true;
         }
       } else if (planning_state_ == P_INSERTING_BEGIN) {
-        co_->fixpattern_path->insert_begin_path(astar_path_.path());
+        co_->fixpattern_path->insert_begin_path(astar_path_.path(), false, temp_goal);
         state_ = FIX_CONTROLLING;
         runPlanner_ = false;
         first_run_controller_flag_ = true;
@@ -1468,7 +1468,6 @@ double GetTimeInSeconds() {
 
 bool AStarController::GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, int begin_index) {
   double start = GetTimeInSeconds();
-//  co_->fixpattern_path->Prune(fixpattern_path::GeometryPoseToPathPoint(cur_pose.pose), co_->max_offroad_dis, false);
 
 	if(PoseStampedDistance(cur_pose, global_goal_) < co_->sbpl_max_distance 
        && IsGoalFootprintSafe(0.0 , 0.3, global_goal_)) {
@@ -1519,10 +1518,10 @@ bool AStarController::GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, i
 		}
   }
   // check if prune fix_path needed
-  if (planning_state_ == P_INSERTING_BEGIN) {
+/*  if (planning_state_ == P_INSERTING_BEGIN) {
      co_->fixpattern_path->Prune(fixpattern_path::GeometryPoseToPathPoint(planner_goal_.pose), co_->max_offroad_dis, false);
 	}
-          
+*/          
   ROS_INFO("[ASTAR CONTROLLER] GetAStarGoal cost: %lf secs", GetTimeInSeconds() - start);
   ROS_INFO("[ASTAR CONTROLLER] planner_goal_index_: %d", planner_goal_index_);
   return true;
@@ -1582,7 +1581,7 @@ bool AStarController::GetInitalPath(const geometry_msgs::PoseStamped& global_sta
       gotStartPlan = false;
     }
     if(gotStartPlan && !astar_path_.path().empty()) {
-			co_->fixpattern_path->insert_begin_path(astar_path_.path());
+			co_->fixpattern_path->insert_begin_path(astar_path_.path(), false, start);
 //      fix_path.insert(fix_path.begin(), astar_path_.path().begin(), astar_path_.path().end() - 1);
       ROS_INFO("[ASTAR CONTROLLOR] Insert Start Path to fixpattern_path");
 		}
