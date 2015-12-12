@@ -91,8 +91,8 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   }
 
   // create the ros wrapper for the controller's costmap... and initializer a pointer we'll use with the underlying map
-  controller_costmap_ros_ = new costmap_2d::Costmap2DROS("local_costmap", tf_);
-  controller_costmap_ros_->pause();
+   controller_costmap_ros_ = planner_costmap_ros_;//new costmap_2d::Costmap2DROS("local_costmap", tf_);
+  // controller_costmap_ros_->pause();
 
   // create a local planner
   if (!LoadLocalPlanner()) {
@@ -101,13 +101,13 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
 
   // Start actively updating costmaps based on sensor data
   planner_costmap_ros_->start();
-  controller_costmap_ros_->start();
+ // controller_costmap_ros_->start();
 
   // if we shutdown our costmaps when we're deactivated... we'll do that now
   if (shutdown_costmaps_) {
     ROS_DEBUG_NAMED("move_base", "Stopping costmaps initially");
     planner_costmap_ros_->stop();
-    controller_costmap_ros_->stop();
+   // controller_costmap_ros_->stop();
   }
 
   // create fixpattern_path object
@@ -224,8 +224,8 @@ AutoScrubber::~AutoScrubber() {
   if (planner_costmap_ros_ != NULL)
     delete planner_costmap_ros_;
 
-  if (controller_costmap_ros_ != NULL)
-    delete controller_costmap_ros_;
+  // if (controller_costmap_ros_ != NULL)
+  //   delete controller_costmap_ros_;
 
   delete planner_plan_;
   delete latest_plan_;

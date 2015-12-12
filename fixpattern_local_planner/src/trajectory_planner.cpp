@@ -301,16 +301,17 @@ void TrajectoryPlanner::generateTrajectory(
       traj.cost_ = -1.0;
       return;
     }
+    if (i < 3) {
+      double footprint_cost = 0.0;
+      if (i < num_calc_footprint_cost_) {
+        // check the point on the trajectory for legality
+        footprint_cost = footprintCost(x_i, y_i, theta_i);
 
-    double footprint_cost = 0.0;
-    if (i < num_calc_footprint_cost_) {
-      // check the point on the trajectory for legality
-      footprint_cost = footprintCost(x_i, y_i, theta_i);
-
-      // if the footprint hits an obstacle this trajectory is invalid
-      if (footprint_cost < 0) {
-        traj.cost_ = -1.0;
-        return;
+        // if the footprint hits an obstacle this trajectory is invalid
+        if (footprint_cost < 0) {
+          traj.cost_ = -1.0;
+          return;
+        }
       }
     }
 

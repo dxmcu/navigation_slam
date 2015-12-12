@@ -212,6 +212,8 @@ class AStarController : public BaseController {
   bool runPlanner_;
   bool sbpl_reached_goal_;
   bool taken_global_goal_;
+  bool gotStartPlan_;
+  bool gotGoalPlan_;
   unsigned int local_planner_error_cnt_;
   unsigned int fix_local_planner_error_cnt_;
   unsigned int goal_not_safe_cnt_;

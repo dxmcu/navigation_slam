@@ -90,7 +90,7 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
 
     global_frame_ = costmap_ros_->getGlobalFrameID();
     robot_base_frame_ = costmap_ros_->getBaseFrameID();
-    private_nh.param("prune_plan", prune_plan_, false); //true
+    private_nh.param("prune_plan", prune_plan_, true); //
 
     private_nh.param("yaw_goal_tolerance", yaw_goal_tolerance_, 0.05);
     ROS_INFO("[LOCAL PLANNER] yaw_goal_tolerance: %lf", yaw_goal_tolerance_);
@@ -645,13 +645,13 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
     }
   }
   if (fixpattern_path_.front().IsCornerPoint()) {
-/*    if (needBackward(planner_type, global_pose, robot_vel, cmd_vel)) {
+    if (needBackward(planner_type, global_pose, robot_vel, cmd_vel)) {
       publishPlan(transformed_plan, g_plan_pub_);
       publishPlan(local_plan, l_plan_pub_);
       // we don't actually want to run the controller when we're just moving backward
       return true;
     }
-*/
+
     double yaw = tf::getYaw(global_pose.getRotation());
     double target_yaw = fixpattern_path_.front().corner_struct.theta_out;
     double angle_diff = angles::shortest_angular_distance(yaw, target_yaw);

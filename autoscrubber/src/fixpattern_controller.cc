@@ -278,7 +278,7 @@ bool FixPatternController::ExecuteCycle() {
         co_->fixpattern_path->fixpattern_path_reached_goal_ = false;
 
       {
-        boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
+        //boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
         // we'll Prune the path first as we don't want to navigate back when
         // trigger front_safe while robot still moves
         // get current pose of the vehicle && prune fixpattern path
@@ -325,7 +325,7 @@ bool FixPatternController::ExecuteCycle() {
       }
 
       {
-        boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
+        //boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
 
         if (!co_->fixpattern_local_planner->setPlan(co_->fixpattern_path->path(), co_->global_frame)) {
           // ABORT and SHUTDOWN COSTMAPS
@@ -475,7 +475,7 @@ bool FixPatternController::IsPathFootprintSafe(const std::vector<geometry_msgs::
 }
 
 bool FixPatternController::IsFrontSafe(double front_safe_check_dis) {
-  boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
+ // boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
 
   std::vector<geometry_msgs::PoseStamped> path = co_->fixpattern_path->GeometryPath();
   if (IsPathFootprintSafe(path, co_->circle_center_points, front_safe_check_dis)) {

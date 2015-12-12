@@ -16,6 +16,8 @@
 #define CHECK_INPLACE_ROTATE(action) (action.action_index == IN_PLACE_ROTATE_LEFT || action.action_index == IN_PLACE_ROTATE_RIGHT)
 #define CHECK_SHORT_FORWARD(action) (action.action_index == SHORT_FORWARD)
 
+const double MAX_HIGHLIGHT_DIS = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE * 1.0 / 2.0;
+const double MIN_HIGHLIGHT_DIS = fixpattern_path::Path::MIN_HIGHLIGHT_DISTANCE;
 //const double MAX_VEL = 0.6; 
 //const double LOW_VEL = 0.4; 
 //const double MIN_VEL = 0.0; 
@@ -116,15 +118,15 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
     // check if the costmap has an inflation layer
     // Warning: footprint updates after initialization are not supported here
     unsigned char cost_possibly_circumscribed_thresh = 0;
-    for (std::vector<boost::shared_ptr<costmap_2d::Layer> >::const_iterator layer = costmap_ros_->getLayeredCostmap()->getPlugins()->begin();
-        layer != costmap_ros_->getLayeredCostmap()->getPlugins()->end();
-        ++layer) {
-      boost::shared_ptr<costmap_2d::InflationLayer> inflation_layer = boost::dynamic_pointer_cast<costmap_2d::InflationLayer>(*layer);
-      if (!inflation_layer) continue;
+    // for (std::vector<boost::shared_ptr<costmap_2d::Layer> >::const_iterator layer = costmap_ros_->getLayeredCostmap()->getPlugins()->begin();
+    //     layer != costmap_ros_->getLayeredCostmap()->getPlugins()->end();
+    //     ++layer) {
+    //   boost::shared_ptr<costmap_2d::InflationLayer> inflation_layer = boost::dynamic_pointer_cast<costmap_2d::InflationLayer>(*layer);
+    //   if (!inflation_layer) continue;
 
-      cost_possibly_circumscribed_thresh = inflation_layer->computeCost(costmap_ros_->getLayeredCostmap()->getCircumscribedRadius() / resolution_);
-    }
-
+    //   cost_possibly_circumscribed_thresh = inflation_layer->computeCost(costmap_ros_->getLayeredCostmap()->getCircumscribedRadius() / resolution_);
+    // }
+    cost_possibly_circumscribed_thresh = costmap_ros_->getCostPossiblyCircumscribedThresh();
     int lethal_cost = 20;
     private_nh.param("lethal_cost", lethal_cost, 20);
     lethal_cost_ = static_cast<unsigned char>(lethal_cost);
@@ -464,7 +466,7 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Act
   // check corner and set max_vel and highlight of action 
   for (unsigned int pind = 0; pind < actions_path.size(); ++pind) {
     unsigned int corner_size = 0;
-		double highlight= fixpattern_path::Path::MIN_HIGHLIGHT_DISTANCE;
+		double highlight= MIN_HIGHLIGHT_DIS;
 		double max_vel = sbpl_min_vel_;
 		bool is_corner = false;
     if (CHECK_INPLACE_ROTATE(actions_path[pind])) {
@@ -523,8 +525,8 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Act
 			sum_highlight = 0.0;
 			for (unsigned int j = i; j < path_info->size() - 1; ++j) {
 				sum_highlight += path_info->at(j).distance;
-				if (sum_highlight > fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE) {
-					sum_highlight = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE;
+				if (sum_highlight > MAX_HIGHLIGHT_DIS) {
+					sum_highlight = MAX_HIGHLIGHT_DIS;
 					break;
 				}
 				if (path_info->at(j).max_vel == sbpl_min_vel_) {
@@ -534,10 +536,10 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Act
           break;
         }
 			}
-			if (sum_highlight > fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE) {
-				sum_highlight = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE;
-			} else if(sum_highlight < fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE) {
-				sum_highlight = fixpattern_path::Path::MIN_HIGHLIGHT_DISTANCE;
+			if (sum_highlight > MAX_HIGHLIGHT_DIS) {
+				sum_highlight = MAX_HIGHLIGHT_DIS;
+			} else if(sum_highlight < MIN_HIGHLIGHT_DIS) {
+				sum_highlight = MIN_HIGHLIGHT_DIS;
 			}
 			path_info->at(i).highlight = sum_highlight;
 		}
@@ -905,7 +907,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
 
   // if (!broader_start_and_goal_) {
     fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan.back().pose);
-    point.highlight = fixpattern_path::Path::MIN_HIGHLIGHT_DISTANCE;
+    point.highlight = MIN_HIGHLIGHT_DIS;
     point.max_vel = 0.0;
     point.radius = 0.5;
     point.corner_struct.corner_point = false;
