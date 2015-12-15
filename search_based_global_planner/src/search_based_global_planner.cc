@@ -520,10 +520,10 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Act
 	
 	// calculate hightlight based on max_vel of each point in path_info
 	double sum_highlight;
-  for (unsigned int i = 0; i < path_info->size() - 1; ++i) {
+  for (unsigned int i = 0; i < path_info->size(); ++i) {
 		if (path_info->at(i).max_vel != sbpl_min_vel_) {
 			sum_highlight = 0.0;
-			for (unsigned int j = i; j < path_info->size() - 1; ++j) {
+			for (unsigned int j = i; j < path_info->size(); ++j) {
 				sum_highlight += path_info->at(j).distance;
 				if (sum_highlight > MAX_HIGHLIGHT_DIS) {
 					sum_highlight = MAX_HIGHLIGHT_DIS;
@@ -532,6 +532,7 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Act
 				if (path_info->at(j).max_vel == sbpl_min_vel_) {
 					break;
 				}
+        // TODO(lizhen) check break theta
         if (fabs(angles::shortest_angular_distance(point_path->at(i).theta, point_path->at(j).theta)) > M_PI / 2.02) { //path_info->at(j).max_vel == sbpl_max_vel && 
           break;
         }

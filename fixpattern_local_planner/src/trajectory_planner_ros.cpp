@@ -350,13 +350,19 @@ bool FixPatternTrajectoryPlannerROS::rotateToGoal(PlannerType planner_type, cons
   double max_speed_to_stop = sqrt(2 * acc_lim_theta_ * fabs(ang_diff));
 
   v_theta_samp = sign(v_theta_samp) * std::min(max_speed_to_stop, fabs(v_theta_samp));
-  if(ang_diff < 0.35) v_theta_samp *= 0.5;
-  if(ang_diff < 0.2) v_theta_samp *= 0.2;
+
   // Re-enforce min_in_place_vel_th_.  It is more important than the acceleration limits.
   v_theta_samp = v_theta_samp > 0.0
       ? std::min(max_vel_th_, std::max(min_in_place_vel_th_, v_theta_samp))
       : std::max(min_vel_th_, std::min(-1.0 * min_in_place_vel_th_, v_theta_samp));
 
+  double angle_diff = angles::shortest_angular_distance(yaw, goal_th);
+  ROS_INFO("[FIXPATTERN LOCAL PLANNER] rotate to goal: angle_diff = %lf", angle_diff);
+  if(fabs(angle_diff) < 0.15) {
+    v_theta_samp *= 0.3;
+  } else if(fabs(angle_diff) < 0.3) {
+    v_theta_samp *= 0.6;
+  }
   // we still want to lay down the footprint of the robot and check if the action is legal
   bool valid_cmd = true;
   if (planner_type == TRAJECTORY_PLANNER) {
@@ -645,13 +651,13 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
     }
   }
   if (fixpattern_path_.front().IsCornerPoint()) {
-    if (needBackward(planner_type, global_pose, robot_vel, cmd_vel)) {
+/*    if (needBackward(planner_type, global_pose, robot_vel, cmd_vel)) {
       publishPlan(transformed_plan, g_plan_pub_);
       publishPlan(local_plan, l_plan_pub_);
       // we don't actually want to run the controller when we're just moving backward
       return true;
     }
-
+*/
     double yaw = tf::getYaw(global_pose.getRotation());
     double target_yaw = fixpattern_path_.front().corner_struct.theta_out;
     double angle_diff = angles::shortest_angular_distance(yaw, target_yaw);
