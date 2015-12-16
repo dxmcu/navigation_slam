@@ -211,11 +211,9 @@ void AStarController::PlanThread() {
          gotStartPose = false;
       else {
         start = path.back();
-        start.header.frame_id = planner_costmap_ros_->getGlobalFrameID();
       }
     } else if (state_ == FIX_CONTROLLING) {
       start = planner_start_;
-      start.header.frame_id = planner_costmap_ros_->getGlobalFrameID();
      }
 
     // run planner
@@ -247,12 +245,6 @@ void AStarController::PlanThread() {
         state_ = FIX_CONTROLLING;
         runPlanner_ = false;
         first_run_controller_flag_ = true;
-      } else if (planning_state_ == P_INSERTING_NONE) {
-        // make sure we only start the controller if we still haven't reached the goal
-        if (runPlanner_) {
-          state_ = A_CONTROLLING;
-          first_run_controller_flag_ = true;
-        }
       } else if (planning_state_ == P_INSERTING_BEGIN) {
         co_->fixpattern_path->insert_begin_path(astar_path_.path(), false, temp_goal);
         state_ = FIX_CONTROLLING;
@@ -264,10 +256,17 @@ void AStarController::PlanThread() {
         runPlanner_ = false;
         first_run_controller_flag_ = true;
       } else if (planning_state_ == P_INSERTING_MIDDLE) {
-        co_->fixpattern_path->insert_middle_path(astar_path_.path(), start, temp_goal);
+        co_->fixpattern_path->insert_middle_path(astar_path_.path(), planner_start_, temp_goal);
         state_ = FIX_CONTROLLING;
         runPlanner_ = false;
+        front_safe_check_cnt_ = 0; // only set 0 after getting new fix_path
        // first_run_controller_flag_ = true;
+      } else if (planning_state_ == P_INSERTING_NONE) {
+        // make sure we only start the controller if we still haven't reached the goal
+        if (runPlanner_) {
+          state_ = A_CONTROLLING;
+          first_run_controller_flag_ = true;
+        }
       }
       
       // pointer swap the plans under mutex (the controller will pull from latest_plan_)
@@ -421,7 +420,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
           ROS_ERROR("[ASTAR CONTROLLER] cannot get astar goal from start point to fix_path, terminate");
           // we need to notify fixpattern_path
           co_->fixpattern_path->FinishPath();
-	  // TODO(lizhen): alert
+          // TODO(lizhen): alert
           return true;
         }
       }
@@ -1160,8 +1159,6 @@ bool AStarController::ExecuteCycle() {
           } else if (front_safe_dis > 0.8) {
             ROS_WARN("[FIXPATTERN CONTROLLER] !IsFrontSafe dis = %lf > 0.5, check_cnt = %d", front_safe_dis, front_safe_check_cnt_);
             if (++front_safe_check_cnt_ > 2) {
-              front_safe_check_cnt_ = 0;
-
               ROS_WARN("[FIXPATTERN CONTROLLER] Enable PlanThread and continue FIX_CONTROLLING");
               if (GetAStarGoal(current_position, obstacle_index_)) {
                 if (front_safe_dis < 1.5) 
@@ -1209,6 +1206,7 @@ bool AStarController::ExecuteCycle() {
         if (!local_planner_ret) {
           ++fix_local_planner_error_cnt_;
           cmd_vel = last_valid_cmd_vel_;
+          ROS_WARN("[FIXPATTERN CONTROLLER] local_planner error count = %d", fix_local_planner_error_cnt_);
         } else {
           fix_local_planner_error_cnt_ = 0;
           last_valid_cmd_vel_ = cmd_vel;
