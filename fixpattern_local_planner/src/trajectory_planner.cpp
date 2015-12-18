@@ -301,6 +301,7 @@ void TrajectoryPlanner::generateTrajectory(
       traj.cost_ = -1.0;
       return;
     }
+    // TODO(lizhen) check if it is needed
     if (i < 3) {
       double footprint_cost = 0.0;
       if (i < num_calc_footprint_cost_) {

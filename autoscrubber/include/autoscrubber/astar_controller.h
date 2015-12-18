@@ -45,9 +45,10 @@ typedef enum {
   A_OSCILLATION_R = 2,
   A_GOALSAFE_R    = 3,
   FIX_CONTROLLING_R = 4, 
-  FIX_OSCILLATION_R = 5,
+  FIX_RECOVERY_R    = 5,
   FIX_GETNEWGOAL_R  = 6,
-  FIX_FRONTSAFE_R   = 7 
+  FIX_FRONTSAFE_R   = 7,
+  FIX_OSCILLATION_R = 8 
 } AStarRecoveryTrigger;
 
 typedef enum {
@@ -108,6 +109,7 @@ class AStarController : public BaseController {
   virtual ~AStarController();
 
   bool Control(BaseControlOption* option, ControlEnvironment* environment, bool first_run_flag);
+  std::vector<geometry_msgs::Point> footprint_spec_;
 
  private:
   /**
@@ -165,7 +167,8 @@ class AStarController : public BaseController {
   bool CanRotate(double x, double y, double yaw, int dir);
   bool RotateToYaw(double target_yaw);
   bool RotateRecovery();
-
+//  bool HandleRecovery();
+  bool HandleRecovery(geometry_msgs::PoseStamped current_pos); 
   // forward
   bool GoingForward(double distance);
   bool CanForward(double distance);

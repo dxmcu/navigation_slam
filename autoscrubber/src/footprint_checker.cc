@@ -10,9 +10,9 @@
  */
 
 #include "autoscrubber/footprint_checker.h"
-
 #include <fixpattern_local_planner/line_iterator.h>
-#include <costmap_2d/cost_values.h>
+#include <tf/message_filter.h>
+#include <ros/ros.h>
 #include <algorithm>
 #include <vector>
 
@@ -25,6 +25,10 @@ double FootprintChecker::FootprintCost(const geometry_msgs::Point& position, con
   // used to put things into grid coordinates
   unsigned int cell_x, cell_y;
 
+  if (inscribed_radius == 0.0 || circumscribed_radius == 0.0) {
+    costmap_2d::calculateMinAndMaxDistances(footprint, inscribed_radius, circumscribed_radius);
+  }
+  ROS_INFO("[Footprint Check] inscribed_radius = %lf, circumscribed_radius = %lf", inscribed_radius, circumscribed_radius);
   // get the cell coord of the center point of the robot
   if (!costmap_.worldToMap(position.x, position.y, cell_x, cell_y)) {
     return 0.0;
@@ -87,6 +91,76 @@ double FootprintChecker::FootprintCost(const geometry_msgs::Point& position, con
   return footprint_cost;
 }
 
+  double FootprintChecker::RecoveryCircleCost(const geometry_msgs::PoseStamped& current_pos, const std::vector<geometry_msgs::Point>& footprint_spec, geometry_msgs::PoseStamped* goal_pose){
+
+    unsigned char cost;
+    double free_theta = 0x7FFFFFFF;
+    double inscribed_radius, circumscribed_radius;
+    double sample_radius;
+    const double sample_theta = M_PI / 8.0;
+    const unsigned int sample_theta_num = 2.0 * M_PI / sample_theta + 0.5;  
+    unsigned char circle_cost[sample_theta_num * 2]; 
+    double x = current_pos.pose.position.x;
+    double y = current_pos.pose.position.y;
+    costmap_2d::calculateMinAndMaxDistances(footprint_spec, inscribed_radius, circumscribed_radius);
+    // initalize all as FREE_SPACE
+    for (int i = 0; i < sample_theta_num * 2; ++i) circle_cost[i] = costmap_2d::FREE_SPACE; 
+
+    for (int circle_index = 0; circle_index < 3; ++circle_index) {
+      sample_radius = (circle_index + 2) * 0.5 * circumscribed_radius;
+      for (int theta_index = 0; theta_index < sample_theta_num; ++theta_index) {
+        double circle_x = x + sample_radius * cos(theta_index * sample_theta);
+        double circle_y = y + sample_radius * sin(theta_index * sample_theta);
+        unsigned int cell_x, cell_y;
+        if(!costmap_.worldToMap(circle_x, circle_y, cell_x, cell_y)) {
+          cost = costmap_2d::NO_INFORMATION;
+        } else {
+          cost = costmap_.getCost(cell_x, cell_y);
+        }
+        // taken the largest cost as the cost of this theta_index
+        circle_cost[theta_index] = std::max(circle_cost[theta_index], cost); 
+        ROS_INFO("[Footprint Checker] cost[circle = %d][theta = %d] = %d", circle_index, theta_index, circle_cost[theta_index]);
+      }
+    }
+    
+    ROS_INFO("[Footprint Checker] sample_theta_num = %d", sample_theta_num);
+
+    // it's a circle, so we have to check sample_theta_num * 2 
+    for (int theta_index = 0; theta_index < sample_theta_num; ++theta_index) {
+      circle_cost[sample_theta_num + theta_index] = circle_cost[theta_index]; 
+      ROS_INFO("[Footprint Checker] cost[theta = %d] = %d", theta_index, circle_cost[theta_index]);
+    }
+
+    unsigned int free_index = 0;
+    // we start from theta_index = 3, to avoid ignoring the second half circle
+    for (int theta_index = 3; theta_index < sample_theta_num * 2; ++theta_index) {
+      ROS_INFO("[Footprint Checker] checking theta_index : %d", theta_index);
+      if (circle_cost[theta_index] < costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
+        free_index = 1;
+        ROS_INFO("[Footprint Checker] theta_index : %d is free", theta_index);
+        for (int i = theta_index + 1; i < sample_theta_num * 2; ++i) {
+          if (circle_cost[i] >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE)  break;
+          ROS_INFO("[Footprint Checker] theta_index : %d is free", i);
+          ++free_index;
+        }
+        ROS_INFO("[Footprint Checker] free_theta acc_index : %d", free_index);
+        if (free_index >= 4) {
+          unsigned int free_theta_index =  theta_index + free_index / 2;
+          free_theta_index = free_theta_index >= sample_theta_num ? free_theta_index - sample_theta_num : free_theta_index;
+          ROS_INFO("[Footprint Checker] free_theta_index : %d", free_theta_index);
+          free_theta = free_theta_index * sample_theta;
+          goal_pose->pose.position.x = x + sample_radius * cos(free_theta);
+          goal_pose->pose.position.y = y + sample_radius * sin(free_theta);
+          goal_pose->pose.orientation = tf::createQuaternionMsgFromYaw(free_theta);
+          break;
+        }
+        theta_index += free_index;
+      }
+    }
+    ROS_INFO("[Footprint Checker] free theta is %lf", free_theta);
+    return free_theta;
+  }
+
 // calculate the cost of a ray-traced line
 double FootprintChecker::LineCost(int x0, int x1, int y0, int y1) {
   double line_cost = 0.0;
@@ -115,5 +189,6 @@ double FootprintChecker::PointCost(int x, int y) {
 
   return cost;
 }
+
 
 };  // namespace autoscrubber

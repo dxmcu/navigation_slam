@@ -16,6 +16,7 @@
 #include <costmap_2d/footprint.h>
 #include <costmap_2d/cost_values.h>
 #include <vector>
+#include <geometry_msgs/PoseStamped.h>
 
 namespace autoscrubber {
 
@@ -37,6 +38,9 @@ class FootprintChecker {
    * @brief  Destructor for the world model
    */
   virtual ~FootprintChecker() { }
+
+//  double RecoveryCircleCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& footprint_spec, geometry_msgs::PoseStamped* goal_pose);
+  double RecoveryCircleCost(const geometry_msgs::PoseStamped& current_pos, const std::vector<geometry_msgs::Point>& footprint_spec, geometry_msgs::PoseStamped* goal_pose);
 
   double CircleCenterCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& circle_center_points) {
     double cos_th = cos(theta);
