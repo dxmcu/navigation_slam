@@ -12,7 +12,6 @@
 #include "autoscrubber/footprint_checker.h"
 #include <fixpattern_local_planner/line_iterator.h>
 #include <tf/message_filter.h>
-#include <ros/ros.h>
 #include <algorithm>
 #include <vector>
 
@@ -182,8 +181,8 @@ double FootprintChecker::LineCost(int x0, int x1, int y0, int y1) {
 double FootprintChecker::PointCost(int x, int y) {
   unsigned char cost = costmap_.getCost(x, y);
   // if the cell is in an obstacle the path is invalid
-  if (cost == costmap_2d::LETHAL_OBSTACLE) {
-  // if (cost == costmap_2d::LETHAL_OBSTACLE || cost == costmap_2d::NO_INFORMATION) {
+//  if (cost == costmap_2d::LETHAL_OBSTACLE) {
+  if (cost == costmap_2d::LETHAL_OBSTACLE || cost == costmap_2d::NO_INFORMATION) {
     return -1.0;
   }
 

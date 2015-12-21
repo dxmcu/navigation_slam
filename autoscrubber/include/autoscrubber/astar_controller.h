@@ -73,6 +73,7 @@ struct AStarControlOption : BaseControlOption {
   fixpattern_path::Path* fixpattern_path;
   geometry_msgs::PoseStamped* global_planner_goal;
   std::vector<geometry_msgs::Point> circle_center_points;
+  std::vector<geometry_msgs::Point> footprint_center_points;
   boost::shared_ptr<nav_core::BaseGlobalPlanner> astar_global_planner;
   boost::shared_ptr<search_based_global_planner::SearchBasedGlobalPlanner> sbpl_global_planner;
   boost::shared_ptr<fixpattern_local_planner::FixPatternTrajectoryPlannerROS> fixpattern_local_planner;
@@ -154,20 +155,17 @@ class AStarController : public BaseController {
                             double xy_goal_tolerance, double yaw_goal_tolerance); 
   double CheckFixPathFrontSafe(double front_safe_check_dis); 
   bool NeedBackward(const geometry_msgs::PoseStamped& pose, double distance);
-	bool GetInitalPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
+  bool GetInitalPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
   bool GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, int begin_index = 0);
   bool HandleGoingBack(geometry_msgs::PoseStamped current_position);
   void PlanThread();
   double PoseStampedDistance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2);
-  void CalculateStartCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path);
-  void CalculateGoalCurvePath(const std::vector<fixpattern_path::PathPoint>& astar_path);
 
-	void PublishPlan(const ros::Publisher& pub, const std::vector<geometry_msgs::PoseStamped>& plan);
+  void PublishPlan(const ros::Publisher& pub, const std::vector<geometry_msgs::PoseStamped>& plan);
   // rotate recovery
   bool CanRotate(double x, double y, double yaw, int dir);
   bool RotateToYaw(double target_yaw);
   bool RotateRecovery();
-//  bool HandleRecovery();
   bool HandleRecovery(geometry_msgs::PoseStamped current_pos); 
   // forward
   bool GoingForward(double distance);
@@ -230,7 +228,7 @@ class AStarController : public BaseController {
   geometry_msgs::PoseStamped planner_goal_;
   geometry_msgs::PoseStamped global_goal_;
   boost::thread* planner_thread_;
-
+  unsigned int planner_start_index_;
   bool new_global_plan_;
   bool switch_controller_;
   bool using_sbpl_directly_;

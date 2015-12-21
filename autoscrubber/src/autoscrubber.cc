@@ -65,6 +65,10 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
     exit(1);
   }
 
+  if (!ReadFootprintCenterFromParams(private_nh, &footprint_center_points_)) {
+    ROS_ERROR("[AUTOSCRUBBER] read footprint_center_point failed");
+    exit(1);
+  }
   // for comanding the base
   vel_pub_ = nh.advertise<geometry_msgs::Twist>("cmd_vel", 1);
 
@@ -149,6 +153,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->sbpl_global_planner = sbpl_global_planner_;
   reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->fixpattern_local_planner = fixpattern_local_planner_;
   reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->circle_center_points = circle_center_points_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->footprint_center_points = footprint_center_points_;
   reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->sbpl_footprint_padding = sbpl_footprint_padding_;
   reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->fixpattern_footprint_padding = fixpattern_footprint_padding_;
   reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->global_planner_goal = &global_planner_goal_;
@@ -391,6 +396,24 @@ bool AutoScrubber::ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<g
       return true;
     } else {
       ROS_ERROR("[AUTOSCRUBBER] circle_center param's type is not Array!");
+      return false;
+    }
+  }
+}
+
+bool AutoScrubber::ReadFootprintCenterFromParams(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>* points) {
+  std::string full_param_name;
+
+  if (nh.searchParam("footprint_center", full_param_name)) {
+    XmlRpc::XmlRpcValue footprint_center_xmlrpc;
+    nh.getParam(full_param_name, footprint_center_xmlrpc);
+    if (footprint_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
+      ReadCircleCenterFromXMLRPC(footprint_center_xmlrpc, full_param_name, points);
+      for (int i = 0; i < points->size(); ++i)
+        ROS_INFO("[AUTOSCRUBBER] footprint_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
+      return true;
+    } else {
+      ROS_ERROR("[AUTOSCRUBBER] footprint_center param's type is not Array!");
       return false;
     }
   }

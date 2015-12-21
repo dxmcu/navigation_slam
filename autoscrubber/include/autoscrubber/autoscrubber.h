@@ -127,6 +127,7 @@ class AutoScrubber {
   void NotifyChassisThread();
   void SwitchNavigationMode();
   bool ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>* points);
+  bool ReadFootprintCenterFromParams(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>* points);
 
  private:
   tf::TransformListener& tf_;
@@ -173,6 +174,7 @@ class AutoScrubber {
 
   // sbpl param
   std::vector<geometry_msgs::Point> circle_center_points_;
+  std::vector<geometry_msgs::Point> footprint_center_points_;
 
   // fixpattern path, share between two controllers
   fixpattern_path::Path* fixpattern_path_;
