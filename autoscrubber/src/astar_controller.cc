@@ -222,7 +222,8 @@ void AStarController::PlanThread() {
 
     if (gotPlan) {
       ROS_INFO("[ASTAR CONTROLLER] Got Plan with %zu points!", planner_plan_->size());
-      
+      state_ = A_CONTROLLING;
+      runPlanner_ = false;
       // reset rotate_recovery_dir_
       rotate_recovery_dir_ = 0;
       // reset sbpl_broader_
@@ -243,7 +244,8 @@ void AStarController::PlanThread() {
         PublishZeroVelocity();
 
         // switch to FIX_CLEARING state
-        state_ = A_CLEARING;
+//        state_ = A_CLEARING;
+        state_ = A_PLANNING;
         recovery_trigger_ = A_RECOVERY_R;
         ROS_ERROR("[ASTAR CONTROLLER] No got plan until planner_patience, enter recovery");
       } else if (runPlanner_) {
@@ -275,7 +277,8 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
   global_goal_.pose = co_->global_planner_goal->pose; 
   global_goal_.header.frame_id = co_->global_frame;
   planner_goal_ = global_goal_;	
-
+  double  inscribed_radius, circumscribed_radius;
+  costmap_2d::calculateMinAndMaxDistances(footprint_spec_, inscribed_radius, circumscribed_radius);
   geometry_msgs::PoseStamped current_position;
   tf::Stamped<tf::Pose> global_pose;
   if (!planner_costmap_ros_->getRobotPose(global_pose)) {
@@ -666,25 +669,26 @@ bool AStarController::ExecuteCycle() {
 */
 
       // check to see if we've reached our goal
-      if (co_->fixpattern_local_planner->isGoalReached() && IsGlobalGoalReached(current_position, global_goal_, 
-            co_->fixpattern_local_planner->xy_goal_tolerance_, co_->fixpattern_local_planner->yaw_goal_tolerance_)) {
+      if (co_->fixpattern_local_planner->isGoalReached()) {
         ROS_WARN("[ASTAR CONTROLLER] Goal reached!");
 
         PublishZeroVelocity();
         ResetState();
-
-        // disable the planner thread
-        boost::unique_lock<boost::mutex> lock(planner_mutex_);
-        runPlanner_ = false;
-        lock.unlock();
-        // TODO(chenkan): check if this is needed
-        co_->fixpattern_local_planner->reset_planner();
-        switch_controller_ = false;
-        return true;
-      } else {
-        state_ = A_PLANNING;
-        PublishZeroVelocity();
-        break;
+        if (IsGlobalGoalReached(current_position, global_goal_, co_->fixpattern_local_planner->xy_goal_tolerance_, co_->fixpattern_local_planner->yaw_goal_tolerance_)) {
+          // disable the planner thread
+          boost::unique_lock<boost::mutex> lock(planner_mutex_);
+          runPlanner_ = false;
+          lock.unlock();
+          // TODO(chenkan): check if this is needed
+          co_->fixpattern_local_planner->reset_planner();
+          switch_controller_ = false;
+          return true;
+        } else {
+          ROS_WARN("[ASTAR CONTROLLER] Global Goal not reached, swtich to planning state!");
+          state_ = A_PLANNING;
+          PublishZeroVelocity();
+          break;
+        }
       }
 
       // check if Goingback needed
