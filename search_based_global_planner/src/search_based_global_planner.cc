@@ -138,10 +138,11 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
     const int num_of_angles = 16;
 //    const int num_of_prims_per_angle = 7;
     const int num_of_prims_per_angle = MAX_MPRIM_INDEX;
-    int forward_cost_mult, forward_and_turn_cost_mult, turn_in_place_cost_mult;
+    int forward_cost_mult, forward_and_turn_cost_mult, turn_in_place_cost_mult, path_cost_mult;
     private_nh.param("forward_cost_mult", forward_cost_mult, 1);
     private_nh.param("forward_and_turn_cost_mult", forward_and_turn_cost_mult, 2);
     private_nh.param("turn_in_place_cost_mult", turn_in_place_cost_mult, 50);
+    private_nh.param("path_cost_mult", path_cost_mult, 5);
 
     private_nh.param("map_size", map_size_, 400);
 
@@ -161,9 +162,17 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
     env_ = new Environment(size_x, size_y, resolution_, lethal_cost_, inscribed_inflated_cost_,
                            cost_possibly_circumscribed_thresh, nominalvel_mpersec,
                            timetoturn45degsinplace_secs, footprint_point, circle_center_point,
-                           num_of_angles, num_of_prims_per_angle, forward_cost_mult,
+                           num_of_angles, num_of_prims_per_angle, path_cost_mult, forward_cost_mult,
                            forward_and_turn_cost_mult, turn_in_place_cost_mult);
 
+    // TODO(lizhen) change to pathcostmap
+    for (unsigned int ix = 0; ix < map_size_; ++ix) {
+      for (unsigned int iy = 0; iy < map_size_; ++iy) {
+        unsigned char path_cost = TransformCostmapCost(costmap_ros_->getCostmap()->getCost(ix, iy));
+//        env_->UpdatePathCost(ix, iy, path_cost);
+        env_->UpdatePathCost(ix, iy, 0);
+      }
+    }
     need_to_reinitialize_environment_ = true;
     ROS_INFO("[SEARCH BASED GLOBAL PLANNER] Search Based Global Planner initialized");
   } else {

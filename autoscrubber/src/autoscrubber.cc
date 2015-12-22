@@ -24,7 +24,7 @@ namespace autoscrubber {
 
 AutoScrubber::AutoScrubber(tf::TransformListener* tf)
     : tf_(*tf), nav_mode_(FIX_PATTERN), options_{2}, controllers_{2},
-      planner_costmap_ros_(NULL), controller_costmap_ros_(NULL),
+      planner_costmap_ros_(NULL), controller_costmap_ros_(NULL), path_costmap_ros_(NULL),
       bgp_loader_("nav_core", "nav_core::BaseGlobalPlanner"),
       blp_loader_("nav_core", "nav_core::BaseLocalPlanner"),
       recovery_loader_("nav_core", "nav_core::RecoveryBehavior"),
@@ -231,6 +231,8 @@ AutoScrubber::~AutoScrubber() {
 
   // if (controller_costmap_ros_ != NULL)
   //   delete controller_costmap_ros_;
+  if (path_costmap_ros_ != NULL)
+    delete path_costmap_ros_;
 
   delete planner_plan_;
   delete latest_plan_;

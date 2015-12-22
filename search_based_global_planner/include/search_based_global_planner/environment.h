@@ -28,6 +28,7 @@ typedef struct {
   int y;
   int heuristic;
   unsigned char cost;
+  unsigned int path_cost;
 
   int heap_index;
   int visited_iteration;
@@ -92,7 +93,7 @@ class Environment {
               unsigned char cost_possibly_circumscribed_thresh, double nominalvel_mpersec,
               double timetoturn45degsinplace_secs,
               const std::vector<XYPoint>& footprint, const std::vector<XYPoint>& circle_center,
-              int num_of_angles, int num_of_prims_per_angle, int forward_cost_mult,
+              int num_of_angles, int num_of_prims_per_angle, int forward_cost_mult, int path_cost_mult,
               int forward_and_turn_cost_mult, int turn_in_place_cost_mult);
   ~Environment();
 
@@ -100,6 +101,7 @@ class Environment {
   EnvironmentEntry3D* SetStart(double x_m, double y_m, double theta_rad);
   EnvironmentEntry3D* SetGoal(double x_m, double y_m, double theta_rad);
   void UpdateCost(unsigned int x, unsigned int y, unsigned char cost);
+  void UpdatePathCost(unsigned int x, unsigned int y, unsigned char path_cost);
   void GetPreds(EnvironmentEntry3D* entry, std::vector<EnvironmentEntry3D*>* pred_entries, std::vector<int>* costs);
   void GetSuccs(EnvironmentEntry3D* entry, std::vector<EnvironmentEntry3D*>* succ_entries,
                 std::vector<int>* costs, std::vector<Action*>* actions = NULL);
@@ -175,7 +177,7 @@ class Environment {
   MPrimitiveManager* mprim_manager_;
   double nominalvel_mpersec_, timetoturn45degsinplace_secs_;
   int num_of_angles_, num_of_prims_per_angle_;
-  int forward_cost_mult_, forward_and_turn_cost_mult_, turn_in_place_cost_mult_;
+  int forward_cost_mult_, forward_and_turn_cost_mult_, turn_in_place_cost_mult_, path_cost_mult_;
   std::vector<std::vector<Action*>> actions_;
   std::vector<std::vector<Action*>> pred_actions_;
   std::vector<XYThetaCell> affected_succ_cells_;  // arrays of states whose outgoing actions cross cell 0,0

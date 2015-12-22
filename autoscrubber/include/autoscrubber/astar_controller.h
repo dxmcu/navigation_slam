@@ -42,7 +42,7 @@ typedef enum {
 typedef enum {
   A_PLANNING_R    = 0,
   A_CONTROLLING_R = 1,
-  A_OSCILLATION_R = 2,
+  A_RECOVERY_R    = 2,
   A_GOALSAFE_R    = 3,
   FIX_CONTROLLING_R = 4, 
   FIX_RECOVERY_R    = 5,

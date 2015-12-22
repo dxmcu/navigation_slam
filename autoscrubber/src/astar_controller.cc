@@ -96,7 +96,6 @@ bool AStarController::MakePlan(const geometry_msgs::PoseStamped& start, const ge
     if (state_ == A_PLANNING) {
 //      astar_path_.set_path(path, false);
       astar_path_.set_short_sbpl_path(start, path);
-//      co_->fixpattern_path->set_short_sbpl_path(start, path);
     } else {
       fixpattern_path::Path temp_path;
       temp_path.set_path(path);
@@ -213,9 +212,7 @@ void AStarController::PlanThread() {
       else {
         start = path.back();
       }
-    } else if (state_ == FIX_CONTROLLING) {
-      start = planner_start_;
-     }
+    } 
 
     // run planner
     planner_plan_->clear();
@@ -225,67 +222,15 @@ void AStarController::PlanThread() {
 
     if (gotPlan) {
       ROS_INFO("[ASTAR CONTROLLER] Got Plan with %zu points!", planner_plan_->size());
-      if (astar_path_.Length() > 8.0) {
-        ROS_WARN("[ASTAR CONTROLLER] Got Plan length = %lf > 8m, continue", astar_path_.Length());
-        GetAStarGoal(start);
-//        continue;
-      }
-      planner_costmap_ros_->getRobotPose(global_pose);
-      tf::poseStampedTFToMsg(global_pose, start);
-      double distance_diff = PoseStampedDistance(start, astar_path_.GeometryPath().front());
-      if (distance_diff > 0.3 && state_ == A_PLANNING) {
-        planning_state_ == P_INSERTING_BEGIN;
-        ROS_WARN("[ASTAR CONTROLLER] Distance from start to path_front = %lf > 0.1m, continue", distance_diff);
-     //   continue;
-      } else {
-        last_valid_plan_ = ros::Time::now();
-        new_global_plan_ = true;
- 
-        if (taken_global_goal_) {
-          taken_global_goal_ = false;
-          co_->fixpattern_path->set_sbpl_path(astar_path_.path());
-          state_ = FIX_CONTROLLING;
-          runPlanner_ = false;
-          first_run_controller_flag_ = true;
-        } else if (planning_state_ == P_INSERTING_BEGIN) {
-          co_->fixpattern_path->insert_begin_path(astar_path_.path(), false, temp_goal);
-          state_ = FIX_CONTROLLING;
-          runPlanner_ = false;
-          first_run_controller_flag_ = true;
-        } else if (planning_state_ == P_INSERTING_END) {
-          co_->fixpattern_path->insert_end_path(astar_path_.path());
-          state_ = FIX_CONTROLLING;
-          runPlanner_ = false;
-          first_run_controller_flag_ = true;
-        } else if (planning_state_ == P_INSERTING_MIDDLE) {
-          co_->fixpattern_path->insert_middle_path(astar_path_.path(), planner_start_, temp_goal);
-          state_ = FIX_CONTROLLING;
-          runPlanner_ = false;
-          front_safe_check_cnt_ = 0; // only set 0 after getting new fix_path
-          // first_run_controller_flag_ = true;
-        } else if (planning_state_ == P_INSERTING_NONE) {
-          // make sure we only start the controller if we still haven't reached the goal
-          if (runPlanner_) {
-            state_ = A_CONTROLLING;
-            first_run_controller_flag_ = true;
-          }
-        }
       
-        // pointer swap the plans under mutex (the controller will pull from latest_plan_)
-        std::vector<geometry_msgs::PoseStamped>* temp_plan = planner_plan_;
-        lock.lock();
-        planner_plan_ = latest_plan_;
-        latest_plan_ = temp_plan;
+      // reset rotate_recovery_dir_
+      rotate_recovery_dir_ = 0;
+      // reset sbpl_broader_
+      ROS_DEBUG_NAMED("move_base_plan_thread", "Generated a plan from the base_global_planner");
 
-        // reset rotate_recovery_dir_
-        rotate_recovery_dir_ = 0;
-        // reset sbpl_broader_
-        ROS_DEBUG_NAMED("move_base_plan_thread", "Generated a plan from the base_global_planner");
-
-        if (co_->planner_frequency <= 0)
-          runPlanner_ = false;
-        lock.unlock();
-      }
+      if (co_->planner_frequency <= 0)
+        runPlanner_ = false;
+     
     } else if (state_ == A_PLANNING) {  // if we didn't get a plan and we are in the planning state (the robot isn't moving)
       ROS_ERROR("[ASTAR CONTROLLER] No Plan...");
       // ros::Time attempt_end = last_valid_plan_ + ros::Duration(co_->planner_patience);
@@ -296,15 +241,15 @@ void AStarController::PlanThread() {
         // don't allow plan, as RotateRecovery needs global costmap
         runPlanner_ = false;
         PublishZeroVelocity();
+
         // switch to FIX_CLEARING state
-        state_ = FIX_CLEARING;
-        recovery_trigger_ = FIX_RECOVERY_R;
-        planning_state_ = P_INSERTING_BEGIN;
+        state_ = A_CLEARING;
+        recovery_trigger_ = A_RECOVERY_R;
         ROS_ERROR("[ASTAR CONTROLLER] No got plan until planner_patience, enter recovery");
       } else if (runPlanner_) {
         // to update global costmap
         usleep(500000);
-        GetAStarGoal(start);
+//        GetAStarGoal(start);
       }
       lock.unlock();
     }
@@ -329,12 +274,8 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
   env_ = environment;
   global_goal_.pose = co_->global_planner_goal->pose; 
   global_goal_.header.frame_id = co_->global_frame;
-	
-  taken_global_goal_ = false;
-  bool start_path_got = false;
-  double cur_goal_distance;
-  unsigned int path_status; 
-	
+  planner_goal_ = global_goal_;	
+
   geometry_msgs::PoseStamped current_position;
   tf::Stamped<tf::Pose> global_pose;
   if (!planner_costmap_ros_->getRobotPose(global_pose)) {
@@ -343,7 +284,6 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
 		return true;
   } else {
     tf::poseStampedTFToMsg(global_pose, current_position);
-    cur_goal_distance = PoseStampedDistance(current_position, global_goal_); 
   }
 
   // check if current_position is invalid
@@ -352,59 +292,21 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
   double yaw = tf::getYaw(current_position.pose.orientation);
   // check if oboscal in footprint, yes - recovery; no - get new goal and replan
   if (footprint_checker_->FootprintCenterCost(x, y, yaw, co_->footprint_center_points) < 0) {
-//  if (footprint_checker_->FootprintCost(x, y, yaw, footprint_spec_, 0.0, 0.0) < 0) {
-     ROS_WARN("[FIXPATTERN CONTROLLER] footprint cost check < 0!, switch to Recovery");
-     if (!HandleRecovery(current_position)) {
-       ROS_ERROR("[FIXPATTERN CONTROLLER] footprint not safe and recovery failed, terminate!");
-       switch_controller_ = false;
-	     return true;
-     }
+    ROS_WARN("[FIXPATTERN CONTROLLER] footprint cost check < 0!, switch to Recovery");
+    if (!HandleRecovery(current_position)) {
+      ROS_ERROR("[FIXPATTERN CONTROLLER] footprint not safe and recovery failed, terminate!");
+      switch_controller_ = false;
+	    return true;
+    }
   }
-  // first run: just get sbpl Path, and insert to fixpattern_path 
-  if (first_run_flag) {
-    if (cur_goal_distance < 2.5) {
-      ROS_INFO("[ASTAR CONTROLLER] distance from current pose to goal = %lf, take global goal as planner_goal", cur_goal_distance);
-      planner_goal_ = global_goal_;
-      state_ = A_PLANNING;
-//      planning_state_ = P_INSERTING_NONE;
-      taken_global_goal_ = true;
-    } else {
-      ROS_INFO("[ASTAR_CONTROLLER] get Astar Path, and insert to fixpattern_path on first run");
-      start_path_got = GetInitalPath(current_position, global_goal_);
-      if (start_path_got) {
-        state_ = FIX_CONTROLLING;
-	   	} else { 
-        if (GetAStarGoal(current_position)) {
-          state_ = A_PLANNING;
-          planning_state_ = P_INSERTING_BEGIN;
-        } else {
-          ROS_ERROR("[ASTAR CONTROLLER] cannot get astar goal from start point to fix_path, terminate");
-          // we need to notify fixpattern_path
-          co_->fixpattern_path->FinishPath();
-          // TODO(lizhen): alert
-          return true;
-        }
-      }
-    }
-  }/* else {
-    if (!GetAStarGoal(current_position)) {  
-      // get a goal first, if get failed, we'll terminate
-      ROS_ERROR("[ASTAR CONTROLLER] cannot get astar goal, terminate path");
-      // we need to notify fixpattern_path
-      co_->fixpattern_path->FinishPath();
-      return true;
-    } else {
-      state_ = A_PLANNING;
-      planning_state_ = P_INSERTING_BEGIN;
-    }
-  } // if (first_run_flag) 
-*/
 
   co_->fixpattern_local_planner->reset_planner();
 
   // initialize some flag
   first_run_controller_flag_ = true;
   using_sbpl_directly_ = false;
+  taken_global_goal_ = false;
+	state_ = A_PLANNING;
 
   // disable the planner
   boost::unique_lock<boost::mutex> lock(planner_mutex_);
@@ -429,7 +331,6 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
     }
     // if terminated, return true directly
     if (!env_->run_flag) {
-      co_->fixpattern_path->EraseToPoint(fixpattern_path::GeometryPoseToPathPoint(planner_goal_.pose));
       ResetState();
 
       // disable the planner thread
@@ -441,7 +342,8 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
       co_->fixpattern_local_planner->reset_planner();
 
       // we need to notify fixpattern_path
-      co_->fixpattern_path->FinishPath();
+//      co_->fixpattern_path->FinishPath();
+//      co_->fixpattern_path->EraseToPoint(fixpattern_path::GeometryPoseToPathPoint(planner_goal_.pose));
 
       return true;
     }
@@ -727,7 +629,8 @@ bool AStarController::ExecuteCycle() {
     case A_CONTROLLING:
       ROS_INFO("[ASTAR CONTROLLER] in Astar CONTROLLING state");
       // check if the global goal footprint is safe, if not, stop and wait until timeout
-      {      
+ /*     {      
+
         if (cur_goal_distance < co_->goal_safe_check_dis
              && !IsGoalFootprintSafe(0.3, 0.0, global_goal_)) {
 					bool is_goal_safe = false;
@@ -760,100 +663,73 @@ bool AStarController::ExecuteCycle() {
 					}
         }
       }
+*/
 
       // check to see if we've reached our goal
-      if (co_->fixpattern_local_planner->isGoalReached()) {
+      if (co_->fixpattern_local_planner->isGoalReached() && IsGlobalGoalReached(current_position, global_goal_, 
+            co_->fixpattern_local_planner->xy_goal_tolerance_, co_->fixpattern_local_planner->yaw_goal_tolerance_)) {
         ROS_WARN("[ASTAR CONTROLLER] Goal reached!");
-        co_->fixpattern_path->EraseToPoint(fixpattern_path::GeometryPoseToPathPoint(planner_goal_.pose));
+
+        PublishZeroVelocity();
         ResetState();
 
         // disable the planner thread
         boost::unique_lock<boost::mutex> lock(planner_mutex_);
         runPlanner_ = false;
         lock.unlock();
-
         // TODO(chenkan): check if this is needed
         co_->fixpattern_local_planner->reset_planner();
-
-        if(co_->fixpattern_path->fixpattern_path_reached_goal_
-            && cur_goal_distance < co_->fixpattern_local_planner->xy_goal_tolerance_
-            || taken_global_goal_) {
-/*
-        if (taken_global_goal_ || !IsGlobalGoalReached(current_position, global_goal_, 
-                                 co_->fixpattern_local_planner->xy_goal_tolerance_, co_->fixpattern_local_planner->yaw_goal_tolerance_)) {
-*/
-        // Sbpl Goal reached, and fix_pattern Goal reached, all path done 
-				  ResetState();
-          co_->fixpattern_path->fixpattern_path_reached_goal_ = false;
-          ROS_WARN("[ASTAR CONTROLLER] Final Goal reached!");
-          switch_controller_ = false;
-        } else {
-          switch_controller_ = true;
-        }
-        // Goal reached, switch to fixpattern controller
+        switch_controller_ = false;
         return true;
       } else {
-        switch_controller_ = true;
+        state_ = A_PLANNING;
+        PublishZeroVelocity();
+        break;
       }
 
+      // check if Goingback needed
       {
         bool need_backward = HandleGoingBack(current_position);
         // check if need going back
+/*
         if(!IsGoalFootprintSafe(co_->goal_safe_dis_a, co_->goal_safe_dis_b, planner_goal_)) {
           ++goal_not_safe_cnt_;
           ROS_WARN("[ASTAR CONTROLLER] IsGoalFootprintSafe count = %d", goal_not_safe_cnt_);
         } else {
           goal_not_safe_cnt_ = 0;
         }
+*/
         // check if goal footprint hits something alongside the road, after and before it 
-        if (need_backward || goal_not_safe_cnt_ > 8) {
-          goal_not_safe_cnt_ = 0;
+//        if (need_backward || goal_not_safe_cnt_ > 8) {
+        if (need_backward) {
+//          goal_not_safe_cnt_ = 0;
           PublishZeroVelocity();
-          state_ = A_CLEARING;
+          state_ = A_PLANNING;
           recovery_trigger_ = A_GOALSAFE_R;
-          ROS_ERROR("[ASTAR CONTROLLER] HandleGoingBack or !IsGoalfootprintSafe, entering A_PLANNING state");
+          ROS_ERROR("[ASTAR CONTROLLER] HandleGoingBack, entering A_PLANNING state");
           return false;
         }
       }
 
 			{
         // get the current amcl pose of the robot, and prune fixpattern path
-//        boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
         // check if under rotating_to_goal, if done, prune the first corner point on path
-				if (!co_->fixpattern_local_planner->isRotatingToGoal()) {
-          if (co_->fixpattern_local_planner->isRotatingToGoalDone()) {
-            astar_path_.PruneCornerOnStart();
-            co_->fixpattern_local_planner->resetRotatingToGoalDone();
-            ROS_INFO("[Astar Controller] Prune Corner Point On Start");  
-          } else {
-            // do nothing when controller first start, to avoid prune the first corner point
-            if(first_run_controller_flag_) {
-              first_run_controller_flag_ = false;
-            } else {
-              tf::Stamped<tf::Pose> global_pose;
-              if (controller_costmap_ros_->getRobotPose(global_pose)) {
-                geometry_msgs::PoseStamped start;
-                tf::poseStampedTFToMsg(global_pose, start);
-                start = PoseStampedToGlobalFrame(start);
-                astar_path_.Prune(fixpattern_path::GeometryPoseToPathPoint(start.pose), co_->max_offroad_dis, true);
-              } else {
-                ROS_WARN("[MOVE BASE] Unable to get robot pose, unable to calculate highlight length");
-              }
-            }
+        if (co_->fixpattern_local_planner->isRotatingToGoalDone()) {
+          astar_path_.PruneCornerOnStart();
+          co_->fixpattern_local_planner->resetRotatingToGoalDone();
+          ROS_INFO("[Astar Controller] Prune Corner Point On Start");  
+        } else {
+          // do nothing when controller first start, to avoid prune the first corner point
+          if (!astar_path_.Prune(fixpattern_path::GeometryPoseToPathPoint(current_position.pose), co_->max_offroad_dis, true)) {
+            ROS_WARN("[MOVE BASE] current pose offroad dis > %lf, switch to replan!", co_->max_offroad_dis);
+            PublishZeroVelocity();
+            state_ = A_PLANNING;
+            break;
           }
         }
       }
 
-      // check for an oscillation condition
-      if (co_->oscillation_timeout > 0.0 &&
-         last_oscillation_reset_ + ros::Duration(co_->oscillation_timeout) < ros::Time::now()) {
-        PublishZeroVelocity();
-        state_ = A_CLEARING;
-        recovery_trigger_ = A_OSCILLATION_R;
-        ROS_ERROR("[ASTAR CONTROLLER] oscillation, entering GOALSAFE_R");
-      }
-
-      // if astar_path_ is not long enough and new plan has not arrived, just wait
+      // if astar_path_ is not long enough and new plan has not arrived, not stop and just wait for a new plan
       if (!using_sbpl_directly_ &&
           (PoseStampedDistance(current_position, planner_goal_) <= co_->sbpl_max_distance ||
            astar_path_.Length() < 2.5)) {
@@ -865,7 +741,7 @@ bool AStarController::ExecuteCycle() {
         ROS_INFO("[ASTAR CONTROLLER] distance to start point < 2.5, replan");
       }
 
-      // if astar_path_ is not long enough and new plan has not arrived, just wait
+      // if astar_path_ is not long enough and new plan has not arrived, just stop and wait for a new plan
       if (!using_sbpl_directly_ && astar_path_.Length() < 0.5) {
         PublishZeroVelocity();
         state_ = A_PLANNING;
@@ -888,7 +764,8 @@ bool AStarController::ExecuteCycle() {
       } else {
         path_not_safe_cnt_ = 0;
       }
-      if (path_not_safe_cnt_ > 5) {
+
+      if (path_not_safe_cnt_ > 2) {
         path_not_safe_cnt_ = 0;
         PublishZeroVelocity();
         state_ = A_PLANNING;
@@ -904,9 +781,8 @@ bool AStarController::ExecuteCycle() {
         return false;
       }
 
-      // change highlight and set plan for fixpattern_local_planner
+      // set plan for fixpattern_local_planner
       {
-        //boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(controller_costmap_ros_->getCostmap()->getMutex()));
         // change highlight to 1.5 meters for sbpl path and 1.0 for points that around corner
         std::vector<fixpattern_path::PathPoint> path = astar_path_.path();
         if (!co_->fixpattern_local_planner->setPlan(path, co_->global_frame)) {
@@ -937,17 +813,15 @@ bool AStarController::ExecuteCycle() {
           // make sure that we send the velocity command to the base
           co_->vel_pub->publish(cmd_vel);
         } else {
-          
-          
           ROS_WARN("[ASTAR CONTROLLER] The local planner could not find a valid plan.");
           ros::Time attempt_end = last_valid_control_ + ros::Duration(co_->controller_patience);
 
           // check if we've tried to find a valid control for longer than our time limit
           if (ros::Time::now() > attempt_end) {
-            // we'll move into our obstacle clearing mode
             PublishZeroVelocity();
             // TODO(lizhen): check this variable
             local_planner_error_cnt_ = 0;
+            // we'll move into our obstacle clearing mode
             state_ = A_CLEARING;
             recovery_trigger_ = A_CONTROLLING_R;
             ROS_WARN("[ASTAR CONTROLLER] controller_patience time out!");

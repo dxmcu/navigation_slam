@@ -20,7 +20,7 @@ Environment::Environment(unsigned int size_x, unsigned int size_y, double resolu
                          unsigned char cost_possibly_circumscribed_thresh, double nominalvel_mpersec,
                          double timetoturn45degsinplace_secs,
                          const std::vector<XYPoint>& footprint, const std::vector<XYPoint>& circle_center,
-                         int num_of_angles, int num_of_prims_per_angle, int forward_cost_mult,
+                         int num_of_angles, int num_of_prims_per_angle, int forward_cost_mult, int path_cost_mult,
                          int forward_and_turn_cost_mult, int turn_in_place_cost_mult)
     : size_x_(size_x), size_y_(size_y), resolution_(resolution),
       obstacle_threshold_(obstacle_threshold), cost_inscribed_thresh_(cost_inscribed_thresh),
@@ -28,8 +28,8 @@ Environment::Environment(unsigned int size_x, unsigned int size_y, double resolu
       nominalvel_mpersec_(nominalvel_mpersec), timetoturn45degsinplace_secs_(timetoturn45degsinplace_secs),
       footprint_(footprint), circle_center_(circle_center), num_of_angles_(num_of_angles),
       num_of_prims_per_angle_(num_of_prims_per_angle),
-      forward_cost_mult_(forward_cost_mult), forward_and_turn_cost_mult_(forward_and_turn_cost_mult),
-      turn_in_place_cost_mult_(turn_in_place_cost_mult) {
+      forward_cost_mult_(forward_cost_mult), path_cost_mult_(path_cost_mult),
+      forward_and_turn_cost_mult_(forward_and_turn_cost_mult), turn_in_place_cost_mult_(turn_in_place_cost_mult) {
   size_dir_ = num_of_angles_;
 
   mprim_manager_ = new MPrimitiveManager(this);
@@ -280,6 +280,9 @@ void Environment::UpdateCost(unsigned int x, unsigned int y, unsigned char cost)
   need_to_update_heuristics_ = true;
 }
 
+void Environment::UpdatePathCost(unsigned int x, unsigned int y, unsigned char path_cost) {
+  grid_[x][y].path_cost = path_cost * path_cost_mult_;
+}
 void Environment::EnsureHeuristicsUpdated() {
   if (need_to_update_heuristics_) {
     ComputeHeuristicValues();
@@ -394,15 +397,15 @@ int Environment::ComputeActionCost(int source_x, int source_y, int source_theta,
   if (!IsCellSafe(end_x, end_y)) return INFINITECOST;
 
   // need to iterate over discretized center cells and compute cost based on them
-  unsigned char max_cost = 0;
+  unsigned int max_cost = 0;
   for (unsigned int i = 0; i < action->interm_cells_3d.size(); ++i) {
     interm_cell = action->interm_cells_3d.at(i);
     interm_cell.x = interm_cell.x + source_x;
     interm_cell.y = interm_cell.y + source_y;
 
     if (!IsCellSafe(interm_cell.x, interm_cell.y)) return INFINITECOST;
-
-    max_cost = std::max(max_cost, grid_[interm_cell.x][interm_cell.y].cost);
+    unsigned int grid_cost = grid_[interm_cell.x][interm_cell.y].cost + grid_[interm_cell.x][interm_cell.y].path_cost;
+    max_cost = std::max(max_cost, grid_cost);
   }
 
   // check collisions that for the particular circle_center orientation along the action
@@ -419,8 +422,8 @@ int Environment::ComputeActionCost(int source_x, int source_y, int source_theta,
   }
 
   // to ensure consistency of h2D:
-  max_cost = std::max(max_cost, grid_[source_x][source_y].cost);
-  max_cost = std::max(max_cost, grid_[end_x][end_y].cost);
+  max_cost = std::max(max_cost, grid_[source_x][source_y].cost + grid_[source_x][source_y].path_cost);
+  max_cost = std::max(max_cost, grid_[end_x][end_y].cost + grid_[end_x][end_y].path_cost);
 
   return action->cost * (static_cast<int>(max_cost) + 1);  // use cell cost as multiplicative factor
 }

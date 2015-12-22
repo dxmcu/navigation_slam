@@ -133,7 +133,7 @@ class AutoScrubber {
   tf::TransformListener& tf_;
 
   boost::shared_ptr<fixpattern_local_planner::FixPatternTrajectoryPlannerROS> fixpattern_local_planner_;
-  costmap_2d::Costmap2DROS* planner_costmap_ros_, *controller_costmap_ros_;
+  costmap_2d::Costmap2DROS* planner_costmap_ros_, *controller_costmap_ros_, *path_costmap_ros_;
 
   std::vector<BaseController*> controllers_;
   std::vector<BaseControlOption*> options_;
