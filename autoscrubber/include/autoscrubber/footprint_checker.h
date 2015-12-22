@@ -83,15 +83,15 @@ class FootprintChecker {
         ++check_cost_cnt;
       }
       unsigned char cost = costmap_.getCost(cell_x, cell_y);
-      ROS_INFO("[Footprint_Checker] footprint_center[%d].cost = %d, check_cnt = %d",i, cost, check_cost_cnt + 1);
+      ROS_INFO("[Footprint_Checker] footprint_center[%d].cost = %d, check_cnt = %d", i, cost, check_cost_cnt + 1);
       if (cost >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
-//        return -1.0;
-        ++check_cost_cnt;
+        return -1.0;
+//        ++check_cost_cnt;
       }
       if (ret < cost) ret = cost;
     }
-    if (check_cost_cnt >= 3)
-       ret = -1.0; 
+//    if (check_cost_cnt >= 3)
+//       ret = -1.0; 
     return ret;
   }
 

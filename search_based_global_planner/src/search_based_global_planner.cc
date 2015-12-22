@@ -168,7 +168,7 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
     // TODO(lizhen) change to pathcostmap
     for (unsigned int ix = 0; ix < map_size_; ++ix) {
       for (unsigned int iy = 0; iy < map_size_; ++iy) {
-        unsigned char path_cost = TransformCostmapCost(costmap_ros_->getCostmap()->getCost(ix, iy));
+//        unsigned char path_cost = TransformCostmapCost(costmap_ros_->getPathCostmap()->getCost(ix, iy));
 //        env_->UpdatePathCost(ix, iy, path_cost);
         env_->UpdatePathCost(ix, iy, 0);
       }

@@ -279,6 +279,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
   planner_goal_ = global_goal_;	
   double  inscribed_radius, circumscribed_radius;
   costmap_2d::calculateMinAndMaxDistances(footprint_spec_, inscribed_radius, circumscribed_radius);
+  ROS_INFO("[ASTAR CONTROLLER] inscribed_radius = %lf, circumscribed_radius = %lf", inscribed_radius, circumscribed_radius);
   geometry_msgs::PoseStamped current_position;
   tf::Stamped<tf::Pose> global_pose;
   if (!planner_costmap_ros_->getRobotPose(global_pose)) {
@@ -1570,7 +1571,7 @@ bool AStarController::HandleGoingBack(geometry_msgs::PoseStamped current_positio
   bool need_backward = true;
   ros::Rate r(10);
   while (ros::Time::now() < end_time) {
-    if (!NeedBackward(current_position, 0.15)) {
+    if (!NeedBackward(current_position, 0.10)) {
       need_backward = false;
       break;
     }
@@ -1582,7 +1583,7 @@ bool AStarController::HandleGoingBack(geometry_msgs::PoseStamped current_positio
   }
   ros::Rate control_rate(co_->controller_frequency);
 //  while (need_backward && NeedBackward(current_position, 0.15) && CanBackward(0.25)) {
-  while (need_backward && NeedBackward(current_position, 0.25)) {
+  while (need_backward && NeedBackward(current_position, 0.20)) {
     ROS_INFO("[ASTAR CONTROLLER] going back");
     // get curent position
     tf::Stamped<tf::Pose> global_pose;
@@ -1748,8 +1749,10 @@ bool AStarController::CanForward(double distance) {
 }
 
 bool AStarController::GoingForward(double distance) {
-  if (!CanForward(0.15)) return false;
-
+  if (!CanForward(0.10)) {
+    ROS_WARN("[ASTAR CONTROLLER] CanForward: false");
+	 	return false;
+  }
   double forward_time = distance / 0.1;
   ros::Time end_time = ros::Time::now() + ros::Duration(forward_time);
 
