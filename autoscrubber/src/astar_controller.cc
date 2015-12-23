@@ -171,11 +171,18 @@ void AStarController::WakePlanner(const ros::TimerEvent& event) {
   planner_cond_.notify_one();
 }
 
+double GetTimeInSeconds() {
+  timeval t;
+  gettimeofday(&t, NULL);
+  return t.tv_sec + 0.000001 * t.tv_usec;
+}
+
 void AStarController::PlanThread() {
   ROS_INFO("[ASTAR CONTROLLER] Starting planner thread...");
   ros::NodeHandle n;
   ros::Timer timer;
   bool wait_for_wake = false;
+  double start_t;
   boost::unique_lock<boost::mutex> lock(planner_mutex_);
   while (n.ok()) {
     // check if we should run the planner (the mutex is locked)
@@ -184,6 +191,7 @@ void AStarController::PlanThread() {
       ROS_DEBUG_NAMED("move_base_plan_thread", "Planner thread is suspending");
       planner_cond_.wait(lock);
       wait_for_wake = false;
+      start_t = GetTimeInSeconds();
     }
     ros::Time start_time = ros::Time::now();
 
@@ -221,7 +229,7 @@ void AStarController::PlanThread() {
         gotPlan = n.ok() && MakePlan(start, temp_goal, planner_plan_) && !astar_path_.path().empty();
 
     if (gotPlan) {
-      ROS_INFO("[ASTAR CONTROLLER] Got Plan with %zu points!", planner_plan_->size());
+      ROS_INFO("[ASTAR CONTROLLER] Got Plan with %zu points! cost: %lf secs", planner_plan_->size(), GetTimeInSeconds() - start_t);
       state_ = A_CONTROLLING;
       runPlanner_ = false;
       // reset rotate_recovery_dir_
@@ -725,11 +733,13 @@ bool AStarController::ExecuteCycle() {
           ROS_INFO("[Astar Controller] Prune Corner Point On Start");  
         } else {
           // do nothing when controller first start, to avoid prune the first corner point
-          if (!astar_path_.Prune(fixpattern_path::GeometryPoseToPathPoint(current_position.pose), co_->max_offroad_dis, true)) {
-            ROS_WARN("[MOVE BASE] current pose offroad dis > %lf, switch to replan!", co_->max_offroad_dis);
-            PublishZeroVelocity();
-            state_ = A_PLANNING;
-            break;
+           if (PoseStampedDistance(current_position, global_goal_) > co_->fixpattern_local_planner->xy_goal_tolerance_) {
+             if (!astar_path_.Prune(fixpattern_path::GeometryPoseToPathPoint(current_position.pose), co_->max_offroad_dis, true)) {
+               ROS_WARN("[MOVE BASE] current pose offroad dis > %lf, switch to replan!", co_->max_offroad_dis);
+               PublishZeroVelocity();
+               state_ = A_PLANNING;
+               break;
+             }
           }
         }
       }
@@ -1378,12 +1388,6 @@ geometry_msgs::PoseStamped AStarController::PoseStampedToLocalFrame(const geomet
   return global_pose_msg;
 }
 
-double GetTimeInSeconds() {
-  timeval t;
-  gettimeofday(&t, NULL);
-  return t.tv_sec + 0.000001 * t.tv_usec;
-}
-
 bool AStarController::GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, int begin_index) {
   double start = GetTimeInSeconds();
   std::vector<geometry_msgs::PoseStamped> path = co_->fixpattern_path->GeometryPath();
@@ -1751,7 +1755,7 @@ bool AStarController::CanForward(double distance) {
 bool AStarController::GoingForward(double distance) {
   if (!CanForward(0.10)) {
     ROS_WARN("[ASTAR CONTROLLER] CanForward: false");
-	 	return false;
+    return false;
   }
   double forward_time = distance / 0.1;
   ros::Time end_time = ros::Time::now() + ros::Duration(forward_time);

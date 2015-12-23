@@ -16,7 +16,7 @@
 #define CHECK_INPLACE_ROTATE(action) (action.action_index == IN_PLACE_ROTATE_LEFT || action.action_index == IN_PLACE_ROTATE_RIGHT)
 #define CHECK_SHORT_FORWARD(action) (action.action_index == SHORT_FORWARD)
 
-const double MAX_HIGHLIGHT_DIS = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE * 1.0 / 2.0;
+const double MAX_HIGHLIGHT_DIS = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE * 1.0 / 1.0;
 const double MIN_HIGHLIGHT_DIS = fixpattern_path::Path::MIN_HIGHLIGHT_DISTANCE;
 //const double MAX_VEL = 0.6; 
 //const double LOW_VEL = 0.4; 
@@ -168,9 +168,11 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
     // TODO(lizhen) change to pathcostmap
     for (unsigned int ix = 0; ix < map_size_; ++ix) {
       for (unsigned int iy = 0; iy < map_size_; ++iy) {
-//        unsigned char path_cost = TransformCostmapCost(costmap_ros_->getPathCostmap()->getCost(ix, iy));
-//        env_->UpdatePathCost(ix, iy, path_cost);
-        env_->UpdatePathCost(ix, iy, 0);
+        unsigned char path_cost = TransformCostmapCost(costmap_ros_->getPathCostmap()->getCost(ix, iy));
+        unsigned char cost = costmap_ros_->getPathCostmap()->getCost(ix, iy);
+//        if (cost > 0 && cost < 255)
+//          ROS_INFO("[SEARCH BASED GLOBAL PLANNER] pathcost[%d][%d] = %d", ix, iy, cost);
+        env_->UpdatePathCost(ix, iy, path_cost);
       }
     }
     need_to_reinitialize_environment_ = true;
