@@ -826,6 +826,7 @@ bool FixPatternTrajectoryPlannerROS::isRotatingToGoal() {
 
 void FixPatternTrajectoryPlannerROS::reset_planner() {
    reached_goal_ = false;
+   rotating_to_goal_done_ = false;
    xy_tolerance_latch_ = false;
 //   rotating_to_route_direction_ = false;
 

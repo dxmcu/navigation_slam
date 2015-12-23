@@ -44,7 +44,7 @@ AStarExpansion::AStarExpansion(PotentialCalculator* p_calc, int xs, int ys) :
         Expander(p_calc, xs, ys) {
 }
 
-bool AStarExpansion::calculatePotentials(unsigned char* costs, double start_x, double start_y, double end_x, double end_y,
+bool AStarExpansion::calculatePotentials(unsigned char* costs, unsigned char* path_costs, double start_x, double start_y, double end_x, double end_y,
                                         int cycles, float* potential) {
     queue_.clear();
     int start_i = toIndex(start_x, start_y);
@@ -65,16 +65,16 @@ bool AStarExpansion::calculatePotentials(unsigned char* costs, double start_x, d
         if (i == goal_i)
             return true;
 
-        add(costs, potential, potential[i], i + 1, end_x, end_y);
-        add(costs, potential, potential[i], i - 1, end_x, end_y);
-        add(costs, potential, potential[i], i + nx_, end_x, end_y);
-        add(costs, potential, potential[i], i - nx_, end_x, end_y);
+        add(costs, path_costs, potential, potential[i], i + 1, end_x, end_y);
+        add(costs, path_costs, potential, potential[i], i - 1, end_x, end_y);
+        add(costs, path_costs, potential, potential[i], i + nx_, end_x, end_y);
+        add(costs, path_costs, potential, potential[i], i - nx_, end_x, end_y);
     }
 
     return false;
 }
 
-void AStarExpansion::add(unsigned char* costs, float* potential, float prev_potential, int next_i, int end_x,
+void AStarExpansion::add(unsigned char* costs, unsigned char* path_costs, float* potential, float prev_potential, int next_i, int end_x,
                          int end_y) {
     if (potential[next_i] < POT_HIGH)
         return;
@@ -85,8 +85,8 @@ void AStarExpansion::add(unsigned char* costs, float* potential, float prev_pote
     potential[next_i] = p_calc_->calculatePotential(potential, costs[next_i] + neutral_cost_, next_i, prev_potential);
     int x = next_i % nx_, y = next_i / nx_;
     float distance = abs(end_x - x) + abs(end_y - y);
-
-    queue_.push_back(Index(next_i, potential[next_i] + distance * neutral_cost_));
+    int next_cost = potential[next_i] + distance * neutral_cost_ + path_costs[next_i] * path_cost_;
+    queue_.push_back(Index(next_i, next_cost));
     std::push_heap(queue_.begin(), queue_.end(), greater1());
 }
 

@@ -63,10 +63,10 @@ struct greater1 {
 class AStarExpansion : public Expander {
     public:
         AStarExpansion(PotentialCalculator* p_calc, int nx, int ny);
-        bool calculatePotentials(unsigned char* costs, double start_x, double start_y, double end_x, double end_y, int cycles,
+        bool calculatePotentials(unsigned char* costs, unsigned char* path_costs, double start_x, double start_y, double end_x, double end_y, int cycles,
                                 float* potential);
     private:
-        void add(unsigned char* costs, float* potential, float prev_potential, int next_i, int end_x, int end_y);
+        void add(unsigned char* costs, unsigned char* path_costs, float* potential, float prev_potential, int next_i, int end_x, int end_y);
         std::vector<Index> queue_;
 };
 

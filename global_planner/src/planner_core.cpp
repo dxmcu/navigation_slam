@@ -64,13 +64,13 @@ void GlobalPlanner::outlineMap(unsigned char* costarr, int nx, int ny, unsigned 
 }
 
 GlobalPlanner::GlobalPlanner() :
-        costmap_(NULL), initialized_(false), allow_unknown_(true) {
+        costmap_(NULL), path_costmap_(NULL), initialized_(false), allow_unknown_(true) {
 }
 
 GlobalPlanner::GlobalPlanner(std::string name, costmap_2d::Costmap2D* costmap, std::string frame_id) :
         costmap_(NULL), initialized_(false), allow_unknown_(true) {
     //initialize the planner
-    initialize(name, costmap, frame_id);
+    initialize(name, costmap, costmap, frame_id);
 }
 
 GlobalPlanner::~GlobalPlanner() {
@@ -85,13 +85,15 @@ GlobalPlanner::~GlobalPlanner() {
 }
 
 void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros) {
-    initialize(name, costmap_ros->getCostmap(), costmap_ros->getGlobalFrameID());
+// TODO(lizhen) getPathCostmap()
+//    initialize(name, costmap_ros->getCostmap(), costmap_ros->getPathCostmap(), costmap_ros->getGlobalFrameID());
+    initialize(name, costmap_ros->getCostmap(), costmap_ros->getCostmap(), costmap_ros->getGlobalFrameID());
 }
-
-void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap, std::string frame_id) {
+void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap, costmap_2d::Costmap2D* path_costmap, std::string frame_id) {
     if (!initialized_) {
         ros::NodeHandle private_nh("~/" + name);
         costmap_ = costmap;
+        path_costmap_ = path_costmap;
         frame_id_ = frame_id;
 
         unsigned int cx = costmap->getSizeInCellsX(), cy = costmap->getSizeInCellsY();
@@ -291,7 +293,7 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
 
     outlineMap(costmap_->getCharMap(), nx, ny, costmap_2d::LETHAL_OBSTACLE);
 
-    bool found_legal = planner_->calculatePotentials(costmap_->getCharMap(), start_x, start_y, goal_x, goal_y,
+    bool found_legal = planner_->calculatePotentials(costmap_->getCharMap(), path_costmap_->getCharMap(), start_x, start_y, goal_x, goal_y,
                                                     nx * ny * 2, potential_array_);
 
     if(!old_navfn_behavior_)

@@ -91,8 +91,8 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
          */
         void initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros);
 
-        void initialize(std::string name, costmap_2d::Costmap2D* costmap, std::string frame_id);
-
+//        void initialize(std::string name, costmap_2d::Costmap2D* costmap, std::string frame_id);
+        void initialize(std::string name, costmap_2d::Costmap2D* costmap, costmap_2d::Costmap2D* path_costmap, std::string frame_id);
         /**
          * @brief Given a goal pose in the world, compute a plan
          * @param start The start pose
@@ -170,6 +170,7 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
          * @brief Store a copy of the current costmap in \a costmap.  Called by makePlan.
          */
         costmap_2d::Costmap2D* costmap_;
+        costmap_2d::Costmap2D* path_costmap_;
         std::string frame_id_;
         ros::Publisher plan_pub_;
         bool initialized_, allow_unknown_, visualize_potential_;

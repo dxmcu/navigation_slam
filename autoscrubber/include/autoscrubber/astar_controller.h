@@ -156,6 +156,7 @@ class AStarController : public BaseController {
   double CheckFixPathFrontSafe(double front_safe_check_dis); 
   bool NeedBackward(const geometry_msgs::PoseStamped& pose, double distance);
   bool GetInitalPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
+  bool GetAStarInitalPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
   bool GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, int begin_index = 0);
   bool HandleGoingBack(geometry_msgs::PoseStamped current_position);
   void PlanThread();

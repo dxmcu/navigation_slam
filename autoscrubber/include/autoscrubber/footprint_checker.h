@@ -85,7 +85,7 @@ class FootprintChecker {
       unsigned char cost = costmap_.getCost(cell_x, cell_y);
       ROS_INFO("[Footprint_Checker] footprint_center[%d].cost = %d, check_cnt = %d",i, cost, check_cost_cnt + 1);
       if (cost >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
-//        return -1.0;
+        return -1.0;
         ++check_cost_cnt;
       }
       if (ret < cost) ret = cost;
