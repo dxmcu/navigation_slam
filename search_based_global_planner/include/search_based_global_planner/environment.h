@@ -100,6 +100,7 @@ class Environment {
   void ReInitialize();
   EnvironmentEntry3D* SetStart(double x_m, double y_m, double theta_rad);
   EnvironmentEntry3D* SetGoal(double x_m, double y_m, double theta_rad);
+  void AdjustStartEntry(int* x, int* y, int* theta);
   void UpdateCost(unsigned int x, unsigned int y, unsigned char cost);
   void UpdatePathCost(unsigned int x, unsigned int y, unsigned char path_cost);
   void GetPreds(EnvironmentEntry3D* entry, std::vector<EnvironmentEntry3D*>* pred_entries, std::vector<int>* costs);

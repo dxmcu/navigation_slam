@@ -117,7 +117,7 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
 
     // check if the costmap has an inflation layer
     // Warning: footprint updates after initialization are not supported here
-    unsigned char cost_possibly_circumscribed_thresh = 0;
+    unsigned char cost_possibly_circumscribed_thresh = costmap_ros_->getCostPossiblyCircumscribedThresh();
     // for (std::vector<boost::shared_ptr<costmap_2d::Layer> >::const_iterator layer = costmap_ros_->getLayeredCostmap()->getPlugins()->begin();
     //     layer != costmap_ros_->getLayeredCostmap()->getPlugins()->end();
     //     ++layer) {
@@ -126,7 +126,7 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
 
     //   cost_possibly_circumscribed_thresh = inflation_layer->computeCost(costmap_ros_->getLayeredCostmap()->getCircumscribedRadius() / resolution_);
     // }
-    cost_possibly_circumscribed_thresh = costmap_ros_->getCostPossiblyCircumscribedThresh();
+
     int lethal_cost = 20;
     private_nh.param("lethal_cost", lethal_cost, 20);
     lethal_cost_ = static_cast<unsigned char>(lethal_cost);
@@ -296,8 +296,8 @@ bool SearchBasedGlobalPlanner::ComputeOrImprovePath() {
   // get start_entry_list
   std::vector<EnvironmentEntry3D*> start_entry_list;
   if (broader_start_and_goal_) {
-    std::vector<int> delta_x{-2, -1, 0, 1, 2};
-    std::vector<int> delta_y{-2, -1, 0, 1, 2};
+    std::vector<int> delta_x{-2, 0, 2};
+    std::vector<int> delta_y{-2, 0, 2};
     int start_x = start_entry_->x;
     int start_y = start_entry_->y;
     uint8_t start_theta = start_entry_->theta;
@@ -573,9 +573,9 @@ void SearchBasedGlobalPlanner::ReInitializeSearchEnvironment() {
 
   // put goal_entry_ to open_, entries around goal_entry_ too
   if (broader_start_and_goal_) {
-    std::vector<int> delta_x{-3, -2, -1, 0, 1, 2, 3};
-    std::vector<int> delta_y{-3, -2, -1, 0, 1, 2, 3};
-    std::vector<int> delta_theta{0}; // -1, 0, 1
+    std::vector<int> delta_x{-2, 0, 2};
+    std::vector<int> delta_y{-2, 0, 2};
+    std::vector<int> delta_theta{-1, 0, 1};
     int goal_x = goal_entry_->x;
     int goal_y = goal_entry_->y;
     uint8_t goal_theta = goal_entry_->theta;

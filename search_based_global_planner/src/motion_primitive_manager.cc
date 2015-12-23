@@ -44,9 +44,9 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
   // x aligned with the heading of the robot, angles are positive
   // counterclockwise
   // 0 theta change
-  mprim_cell_0[SHORT_FORWARD] = {1, 0, 0, forward_cost_mult_};
-  mprim_cell_0[NORMAL_FORWARD] = {8, 0, 0, forward_cost_mult_};
-  mprim_cell_0[LONG_FORWARD] = {16, 0, 0, forward_cost_mult_};
+  mprim_cell_0[SHORT_FORWARD] = {2, 0, 0, forward_cost_mult_};
+  mprim_cell_0[NORMAL_FORWARD] = {16, 0, 0, forward_cost_mult_};
+  mprim_cell_0[LONG_FORWARD] = {32, 0, 0, forward_cost_mult_};
 /*  // 1/16 theta change
   mprim_cell_0[FORWARD_TURN_LEFT] = {8, 1, 1, forward_and_turn_cost_mult_};
   mprim_cell_0[FORWARD_TURN_RIGHT] = {8, -1, -1, forward_and_turn_cost_mult_};
@@ -313,7 +313,7 @@ Action* MPrimitiveManager::CreateAction(const MotionPrimitive& mprim) {
     double y1 = action->interm_pts[i].y;
     double dx = x1 - x0;
     double dy = y1 - y0;
-		double distance = sqrt(dx * dx + dy * dy); 
+    double distance = sqrt(dx * dx + dy * dy); 
     linear_distance += distance;
     action->interm_struct[i - 1].distance = distance;
   }
