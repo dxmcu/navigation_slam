@@ -170,6 +170,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
 
   // controlling thread
   control_thread_ = new boost::thread(boost::bind(&AutoScrubber::ControlThread, this));
+/*
   notify_chassis_thread_ = new boost::thread(boost::bind(&AutoScrubber::NotifyChassisThread, this));
 
   // install service client
@@ -183,6 +184,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   resume_srv_ = private_nh.advertiseService("resume", &AutoScrubber::Resume, this);
   terminate_srv_ = private_nh.advertiseService("terminate", &AutoScrubber::Terminate, this);
   is_goal_reached_srv_ = private_nh.advertiseService("is_goal_reached", &AutoScrubber::IsGoalReached, this);
+*/
 }
 
 void AutoScrubber::SimpleGoalCB(const geometry_msgs::PoseStamped::ConstPtr& goal) {

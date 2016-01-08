@@ -147,6 +147,7 @@ class AStarController : public BaseController {
   geometry_msgs::PoseStamped PoseStampedToGlobalFrame(const geometry_msgs::PoseStamped& pose_msg);
   geometry_msgs::PoseStamped PoseStampedToLocalFrame(const geometry_msgs::PoseStamped& pose_msg);
   bool IsGoalFootprintSafe(double front_safe_dis_a, double front_safe_dis_b, const geometry_msgs::PoseStamped& pose);
+  bool IsGoalSafe(const geometry_msgs::PoseStamped& goal_pose); 
   bool IsFixPathFrontSafe(double front_safe_check_dis); 
   bool IsPathFootprintSafe(const fixpattern_path::Path& fix_path, double length);
   bool IsPathFootprintSafe(const std::vector<geometry_msgs::PoseStamped>& path,
@@ -158,7 +159,10 @@ class AStarController : public BaseController {
   bool GetInitalPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
   bool GetAStarInitalPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
   bool GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, int begin_index = 0);
-  bool HandleGoingBack(geometry_msgs::PoseStamped current_position);
+  bool GetAStarStart(double front_safe_check_dis); 
+  bool GetCurrentPosition(geometry_msgs::PoseStamped& current_position);
+  unsigned int GetPoseIndexOfPath(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::PoseStamped& pose);
+  bool HandleGoingBack(const geometry_msgs::PoseStamped& current_position);
   void PlanThread();
   double PoseStampedDistance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2);
 

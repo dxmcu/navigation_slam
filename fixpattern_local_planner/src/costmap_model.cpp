@@ -144,7 +144,7 @@ namespace fixpattern_local_planner {
   double CostmapModel::pointCost(int x, int y){
     unsigned char cost = costmap_.getCost(x, y);
     //if the cell is in an obstacle the path is invalid
-   // if(cost == LETHAL_OBSTACLE){
+    //if(cost == LETHAL_OBSTACLE){
     if(cost == LETHAL_OBSTACLE || cost == NO_INFORMATION){
       return -1;
     }

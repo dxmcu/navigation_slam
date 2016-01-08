@@ -45,7 +45,7 @@ namespace global_planner {
 class Expander {
     public:
         Expander(PotentialCalculator* p_calc, int nx, int ny) :
-                unknown_(true), lethal_cost_(253), neutral_cost_(50), path_cost_(10), factor_(3.0), p_calc_(p_calc) {
+                unknown_(true), lethal_cost_(253), neutral_cost_(50), path_cost_(50), factor_(3.0), p_calc_(p_calc) {
             setSize(nx, ny);
         }
 //        virtual bool calculatePotentials(unsigned char* costs, double start_x, double start_y, double end_x, double end_y,

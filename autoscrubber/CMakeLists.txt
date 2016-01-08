@@ -11,6 +11,7 @@ find_package(catkin REQUIRED
     pluginlib
     nav_core
     tf
+#    gperftools_21
     angles
     autoscrubber_services
     gslib
@@ -28,6 +29,7 @@ catkin_package(
     roscpp
     message_runtime
     angles
+#    gperftools_21
     autoscrubber_services
     gslib
     search_based_global_planner
@@ -53,6 +55,7 @@ target_link_libraries( ${PROJECT_NAME}
   fixpattern_trajectory_planner_ros
   global_planner
   search_based_global_planner
+#  tcmalloc_minimal
   ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
 )

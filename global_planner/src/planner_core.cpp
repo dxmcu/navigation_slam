@@ -87,7 +87,7 @@ GlobalPlanner::~GlobalPlanner() {
 void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros) {
 // TODO(lizhen) getPathCostmap()
 //    initialize(name, costmap_ros->getCostmap(), costmap_ros->getPathCostmap(), costmap_ros->getGlobalFrameID());
-    initialize(name, costmap_ros->getCostmap(), costmap_ros->getCostmap(), costmap_ros->getGlobalFrameID());
+    initialize(name, costmap_ros->getCostmap(), costmap_ros->getPathCostmap(), costmap_ros->getGlobalFrameID());
 }
 void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap, costmap_2d::Costmap2D* path_costmap, std::string frame_id) {
     if (!initialized_) {

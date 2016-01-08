@@ -16,7 +16,8 @@
 #define CHECK_INPLACE_ROTATE(action) (action.action_index == IN_PLACE_ROTATE_LEFT || action.action_index == IN_PLACE_ROTATE_RIGHT)
 #define CHECK_SHORT_FORWARD(action) (action.action_index == SHORT_FORWARD)
 
-const double MAX_HIGHLIGHT_DIS = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE * 1.0 / 2.0;
+const double MAX_HIGHLIGHT_DIS = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE * 2.0 / 3.0;
+const double LOW_HIGHLIGHT_DIS = 0.7;
 const double MIN_HIGHLIGHT_DIS = fixpattern_path::Path::MIN_HIGHLIGHT_DISTANCE;
 //const double MAX_VEL = 0.6; 
 //const double LOW_VEL = 0.4; 
@@ -533,14 +534,14 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Act
 					break;
 				}
         // TODO(lizhen) check break theta
-        if (fabs(angles::shortest_angular_distance(point_path->at(i).theta, point_path->at(j).theta)) > M_PI / 2.02) { //path_info->at(j).max_vel == sbpl_max_vel && 
+        if (fabs(angles::shortest_angular_distance(point_path->at(i).theta, point_path->at(j).theta)) > M_PI / 2.0) { //path_info->at(j).max_vel == sbpl_max_vel && 
           break;
         }
 			}
 			if (sum_highlight > MAX_HIGHLIGHT_DIS) {
 				sum_highlight = MAX_HIGHLIGHT_DIS;
-			} else if(sum_highlight < MIN_HIGHLIGHT_DIS) {
-				sum_highlight = MIN_HIGHLIGHT_DIS;
+			} else if(sum_highlight < LOW_HIGHLIGHT_DIS) {
+				sum_highlight = LOW_HIGHLIGHT_DIS;
 			}
 			path_info->at(i).highlight = sum_highlight;
 		}
