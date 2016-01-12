@@ -27,7 +27,7 @@ double FootprintChecker::FootprintCost(const geometry_msgs::Point& position, con
   if (inscribed_radius == 0.0 || circumscribed_radius == 0.0) {
     costmap_2d::calculateMinAndMaxDistances(footprint, inscribed_radius, circumscribed_radius);
   }
-  ROS_INFO("[Footprint Check] inscribed_radius = %lf, circumscribed_radius = %lf", inscribed_radius, circumscribed_radius);
+//  ROS_INFO("[Footprint Check] inscribed_radius = %lf, circumscribed_radius = %lf", inscribed_radius, circumscribed_radius);
   // get the cell coord of the center point of the robot
   if (!costmap_.worldToMap(position.x, position.y, cell_x, cell_y)) {
     return 0.0;

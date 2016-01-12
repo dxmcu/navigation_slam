@@ -306,9 +306,11 @@ bool FixPatternTrajectoryPlannerROS::stopWithAccLimits(PlannerType planner_type,
   // if we have a valid command, we'll pass it on, otherwise we'll command all zeros
   if (valid_cmd) {
     ROS_DEBUG("Slowing down... using vx, vy, vth: %.2f, %.2f, %.2f", vx, vy, vth);
+    ROS_INFO("[FIXPATTERN LOCAL PLANNER] stopWithAccLimits: vx = %lf, vth = %lf", vx, vth);
     cmd_vel->linear.x = vx;
     cmd_vel->linear.y = vy;
-    cmd_vel->angular.z = vth;
+//    cmd_vel->angular.z = vth;
+    cmd_vel->angular.z = 0.0;
     return true;
   }
 
@@ -557,7 +559,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
     }
 
     double angle = getGoalOrientationAngleDifference(global_pose, goal_th);
-    ROS_INFO("[FIXPATTERN LOCAL PLANNER]yaw_goal_tolerance = %lf, yaw_goal_diff = %lf", yaw_goal_tolerance_, angle);
+    ROS_INFO("[FIXPATTERN LOCAL PLANNER] global_goal: yaw_goal_tolerance = %lf, yaw_goal_diff = %lf", yaw_goal_tolerance_, angle);
     // check to see if the goal orientation has been reached
     if (fabs(angle) <= yaw_goal_tolerance_) {
       // set the velocity command to zero
@@ -568,6 +570,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
       xy_tolerance_latch_ = false;
       reached_goal_ = true;
       rotating_to_goal_done_ = true;
+      ROS_INFO("[FIXPATTERN LOCAL PLANNER] global_goal reached!");
     } else {
       // we need to call the next two lines to make sure that the trajectory
       // planner updates its path distance and goal distance grids
@@ -661,7 +664,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
     double yaw = tf::getYaw(global_pose.getRotation());
     double target_yaw = fixpattern_path_.front().corner_struct.theta_out;
     double angle_diff = angles::shortest_angular_distance(yaw, target_yaw);
-    ROS_INFO("[FIXPATTERN LOCAL PLANNER] before rotating to goal, yaw: %lf, target_yaw: %lf, angle_diff: %lf", yaw, target_yaw, angle_diff);
+    ROS_INFO("[FIXPATTERN LOCAL PLANNER] Corner: before rotating to goal, yaw: %lf, target_yaw: %lf, angle_diff: %lf", yaw, target_yaw, angle_diff);
     // if target_yaw changed during rotation, don't follow last dir
     if (fabs(target_yaw - last_target_yaw_) > 0.000001) {
       last_rotate_to_goal_dir_ = 0;

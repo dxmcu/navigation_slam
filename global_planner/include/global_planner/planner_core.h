@@ -163,6 +163,7 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
         void publishPlan(const std::vector<geometry_msgs::PoseStamped>& path);
 
         bool makePlanService(nav_msgs::GetPlan::Request& req, nav_msgs::GetPlan::Response& resp);
+        bool ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<XYPoint>* points);
 
     protected:
 

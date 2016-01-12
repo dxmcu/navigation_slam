@@ -84,6 +84,60 @@ GlobalPlanner::~GlobalPlanner() {
         delete dsrv_;
 }
 
+double GetNumberFromXMLRPC(XmlRpc::XmlRpcValue& value, const std::string& full_param_name) {
+  // Make sure that the value we're looking at is either a double or an int.
+  if (value.getType() != XmlRpc::XmlRpcValue::TypeInt &&
+      value.getType() != XmlRpc::XmlRpcValue::TypeDouble) {
+    std::string& value_string = value;
+    ROS_FATAL("Values in the circle_center specification (param %s) must be numbers. Found value %s.",
+              full_param_name.c_str(), value_string.c_str() );
+    throw std::runtime_error("Values in the circle_center specification must be numbers");
+  }
+  return value.getType() == XmlRpc::XmlRpcValue::TypeInt ? static_cast<int>(value) : static_cast<double>(value);
+}
+
+void ReadCircleCenterFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const std::string& full_param_name, std::vector<XYPoint>* points) {
+  // Make sure we have an array of at least 3 elements.
+  if (circle_center_xmlrpc.getType() != XmlRpc::XmlRpcValue::TypeArray || circle_center_xmlrpc.size() < 1) {
+    ROS_FATAL("The circle_center must be specified as list of lists on the parameter server, %s was specified as %s",
+              full_param_name.c_str(), std::string(circle_center_xmlrpc).c_str());
+    throw std::runtime_error("The circle_center must be specified as list of lists on the parameter server with at least 1 points eg: [[x1, y1], [x2, y2], ..., [xn, yn]]");
+  }
+
+  XYPoint pt;
+
+  for (int i = 0; i < circle_center_xmlrpc.size(); ++i) {
+    // Make sure each element of the list is an array of size 2. (x and y coordinates)
+    XmlRpc::XmlRpcValue point = circle_center_xmlrpc[ i ];
+    if (point.getType() != XmlRpc::XmlRpcValue::TypeArray ||
+        point.size() != 2) {
+      ROS_FATAL("The circle_center (parameter %s) must be specified as list of lists on the parameter server eg: [[x1, y1], [x2, y2], ..., [xn, yn]], but this spec is not of that form.", full_param_name.c_str());
+      throw std::runtime_error( "The circle_center must be specified as list of lists on the parameter server eg: [[x1, y1], [x2, y2], ..., [xn, yn]], but this spec is not of that form");
+    }
+
+    pt.x = GetNumberFromXMLRPC(point[0], full_param_name);
+    pt.y = GetNumberFromXMLRPC(point[1], full_param_name);
+
+    points->push_back(pt);
+  }
+}
+
+bool GlobalPlanner::ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<XYPoint>* points) {
+  std::string full_param_name;
+
+  if (nh.searchParam("circle_center", full_param_name)) {
+    XmlRpc::XmlRpcValue circle_center_xmlrpc;
+    nh.getParam(full_param_name, circle_center_xmlrpc);
+    if (circle_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
+      ReadCircleCenterFromXMLRPC(circle_center_xmlrpc, full_param_name, points);
+      return true;
+    } else {
+      ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] circle_center param's type is not Array!");
+      return false;
+    }
+  }
+}
+
 void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros) {
 // TODO(lizhen) getPathCostmap()
 //    initialize(name, costmap_ros->getCostmap(), costmap_ros->getPathCostmap(), costmap_ros->getGlobalFrameID());
@@ -119,10 +173,16 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
             if(!old_navfn_behavior_)
                 de->setPreciseStart(true);
             planner_ = de;
+        } else {
+          int path_cost; 
+          private_nh.param("path_cost", path_cost, 50);
+          // get circle_center
+          std::vector<XYPoint> circle_center_point;
+          if (!ReadCircleCenterFromParams(private_nh, &circle_center_point)) {
+            exit(1);
+          }
+          planner_ = new AStarExpansion(p_calc_, cx, cy, path_cost);
         }
-        else
-            planner_ = new AStarExpansion(p_calc_, cx, cy);
-
         bool use_grid_path;
         private_nh.param("use_grid_path", use_grid_path, false);
         if (use_grid_path)

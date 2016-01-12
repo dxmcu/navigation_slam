@@ -251,6 +251,15 @@ AutoScrubber::~AutoScrubber() {
 
 bool AutoScrubber::Start(autoscrubber_services::Start::Request& req, autoscrubber_services::Start::Response& res) {
   ROS_INFO("[AUTOSCRUBBER] Start called");
+  if (environment_.run_flag) {
+    ROS_INFO("[AUTOSCRUBBER] Another ControlThread is Running, Stop it first!");
+    environment_.run_flag = false;
+    environment_.pause_flag = true;
+    while (environment_.pause_flag) {
+      usleep(500);
+    }
+    usleep(1000);
+  }
   environment_.run_flag = true;
   environment_.pause_flag = false;
   return true;
