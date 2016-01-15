@@ -117,6 +117,8 @@ class FixPatternTrajectoryPlannerROS {
   void resetRotatingToGoalDone();
 
   bool isRotatingToGoal();
+
+  bool isGoalXYLatched();
   /**
    * @brief reset reached_goal_, xy_tolerance_latch_, last_rotate_to_goal_dir_ and try_rotate_ etc.
    */

@@ -43,12 +43,13 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   private_nh.param("planner_frequency", planner_frequency_, 0.0);
   private_nh.param("sbpl_max_distance", sbpl_max_distance_, 12.0);
   private_nh.param("controller_frequency", controller_frequency_, 20.0);
-  private_nh.param("planner_patience", planner_patience_, 2.0);
+  private_nh.param("planner_patience", planner_patience_, 5.0);
   private_nh.param("controller_patience", controller_patience_, 1.0);
 
   private_nh.param("oscillation_timeout", oscillation_timeout_, 0.0);
   private_nh.param("oscillation_distance", oscillation_distance_, 0.5);
   private_nh.param("stop_duration", stop_duration_, 4.0);
+  private_nh.param("localization_duration", localization_duration_, 5.0);
 
   private_nh.param("max_offroad_dis", max_offroad_dis_, 0.7); //0.7 Lee
   private_nh.param("front_safe_check_dis", front_safe_check_dis_, 1.0);
@@ -104,7 +105,9 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   }
 
   // Start actively updating costmaps based on sensor data
-  planner_costmap_ros_->start();
+  controller_costmap_ros_->start();
+  controller_costmap_ros_->getCostmap();
+
  // controller_costmap_ros_->start();
 
   // if we shutdown our costmaps when we're deactivated... we'll do that now
@@ -141,6 +144,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
                                               controller_patience_, oscillation_timeout_,
                                               oscillation_distance_, &vel_pub_);
   reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->stop_duration = stop_duration_;
+  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->localization_duration = localization_duration_;
   reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->max_offroad_dis = max_offroad_dis_;
   reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->front_safe_check_dis = front_safe_check_dis_;
   reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->sbpl_max_distance = sbpl_max_distance_;
@@ -177,15 +181,15 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   ros::NodeHandle chassis_nh;
   launch_scrubber_client_ = chassis_nh.serviceClient<autoscrubber_services::LaunchScrubber>("launch_scrubber");
   stop_scrubber_client_ = chassis_nh.serviceClient<autoscrubber_services::StopScrubber>("stop_scrubber");
-
+*/
   // start service when all done
   start_srv_ = private_nh.advertiseService("start", &AutoScrubber::Start, this);
   pause_srv_ = private_nh.advertiseService("pause", &AutoScrubber::Pause, this);
   resume_srv_ = private_nh.advertiseService("resume", &AutoScrubber::Resume, this);
   terminate_srv_ = private_nh.advertiseService("terminate", &AutoScrubber::Terminate, this);
   is_goal_reached_srv_ = private_nh.advertiseService("is_goal_reached", &AutoScrubber::IsGoalReached, this);
-*/
-}
+  get_current_pose_srv_ = private_nh.advertiseService("get_current_pose", &AutoScrubber::GetCurrentPose, this);
+} 
 
 void AutoScrubber::SimpleGoalCB(const geometry_msgs::PoseStamped::ConstPtr& goal) {
   ROS_DEBUG_NAMED("move_base", "In ROS goal callback, wrapping the PoseStamped in the action message and start ExecuteCycle.");
@@ -288,6 +292,26 @@ bool AutoScrubber::Terminate(autoscrubber_services::Terminate::Request& req, aut
 
 bool AutoScrubber::IsGoalReached(autoscrubber_services::IsGoalReached::Request& req, autoscrubber_services::IsGoalReached::Response& res) {
   res.reached.data = !environment_.run_flag && !environment_.pause_flag;
+  return true;
+}
+
+bool AutoScrubber::GetCurrentPose(autoscrubber_services::GetCurrentPose::Request& req, autoscrubber_services::GetCurrentPose::Response& res) {
+  geometry_msgs::PoseStamped cur_pos;
+/*  cur_pos.pose.position.x = 0.0;
+  cur_pos.pose.position.y = 0.0;
+  cur_pos.pose.position.z = 0.0;
+  cur_pos.pose.orientation.x = 0.0;
+  cur_pos.pose.orientation.y = 0.0;
+  cur_pos.pose.orientation.z = 0.0;
+  cur_pos.pose.orientation.w = 0.0;
+*/
+  if (controller_costmap_ros_ != NULL) {
+    tf::Stamped<tf::Pose> global_pose;
+    if (controller_costmap_ros_->getRobotPose(global_pose)) {
+      tf::poseStampedTFToMsg(global_pose, cur_pos);
+    }
+  }
+  res.current_pose = cur_pos; 
   return true;
 }
 

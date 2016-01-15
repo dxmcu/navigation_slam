@@ -117,6 +117,9 @@ class FootprintChecker {
     return FootprintCost(robot_position, oriented_footprint, inscribed_radius, circumscribed_radius);
   }
 
+  double BroaderFootprintCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& footprint_spec,
+                        double broader_theta_x, double broader_theta_y);
+
   /**
    * @brief  Checks if any obstacles in the costmap lie inside a convex footprint that is rasterized into the grid
    * @param  position The position of the robot in world coordinates

@@ -29,6 +29,7 @@
 #include <autoscrubber_services/IsGoalReached.h>
 #include <autoscrubber_services/LaunchScrubber.h>
 #include <autoscrubber_services/StopScrubber.h>
+#include <autoscrubber_services/GetCurrentPose.h>
 #include <fixpattern_path/path.h>
 #include <global_planner/planner_core.h>
 // #include <sbpl_lattice_planner/sbpl_lattice_planner.h>
@@ -80,6 +81,7 @@ class AutoScrubber {
   bool Resume(autoscrubber_services::Resume::Request& req, autoscrubber_services::Resume::Response& res);  // NOLINT
   bool Terminate(autoscrubber_services::Terminate::Request& req, autoscrubber_services::Terminate::Response& res);  // NOLINT
   bool IsGoalReached(autoscrubber_services::IsGoalReached::Request& req, autoscrubber_services::IsGoalReached::Response& res); // NOLINT
+  bool GetCurrentPose(autoscrubber_services::GetCurrentPose::Request& req, autoscrubber_services::GetCurrentPose::Response& res); // NOLINT
 
  private:
   /**
@@ -151,6 +153,7 @@ class AutoScrubber {
   ros::Publisher vel_pub_, goal_reached_pub_;
   ros::Subscriber simple_goal_sub_, goal_sub_, pause_sub_, terminate_sub_;
   ros::ServiceServer start_srv_, pause_srv_, resume_srv_, terminate_srv_, is_goal_reached_srv_;
+  ros::ServiceServer get_current_pose_srv_;
 
   ros::ServiceClient launch_scrubber_client_;
   ros::ServiceClient stop_scrubber_client_;
@@ -162,6 +165,7 @@ class AutoScrubber {
 
   // fixpattern option
   double stop_duration_;
+  double localization_duration_;
   double max_offroad_dis_;
   double front_safe_check_dis_;
   double goal_safe_dis_a_;
@@ -189,7 +193,7 @@ class AutoScrubber {
   geometry_msgs::PoseStamped oscillation_pose_;
   geometry_msgs::PoseStamped global_planner_goal_;
  
- pluginlib::ClassLoader<nav_core::BaseGlobalPlanner> bgp_loader_;
+  pluginlib::ClassLoader<nav_core::BaseGlobalPlanner> bgp_loader_;
   pluginlib::ClassLoader<nav_core::BaseLocalPlanner> blp_loader_;
   pluginlib::ClassLoader<nav_core::RecoveryBehavior> recovery_loader_;
 

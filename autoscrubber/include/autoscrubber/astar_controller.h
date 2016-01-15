@@ -13,6 +13,7 @@
 #define AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_ASTAR_CONTROLLER_H_
 
 #include <ros/ros.h>
+#include <std_msgs/Int8.h>
 #include <nav_core/base_local_planner.h>
 #include <nav_core/base_global_planner.h>
 #include <nav_core/recovery_behavior.h>
@@ -48,7 +49,8 @@ typedef enum {
   FIX_RECOVERY_R    = 5,
   FIX_GETNEWGOAL_R  = 6,
   FIX_FRONTSAFE_R   = 7,
-  FIX_OSCILLATION_R = 8 
+  FIX_OSCILLATION_R = 8, 
+  LOCATION_RECOVERY_R = 9
 } AStarRecoveryTrigger;
 
 typedef enum {
@@ -60,6 +62,7 @@ typedef enum {
 
 struct AStarControlOption : BaseControlOption {
   double stop_duration;
+  double localization_duration;
   double sbpl_max_distance;
   double max_offroad_dis;
   double front_safe_check_dis;
@@ -162,7 +165,7 @@ class AStarController : public BaseController {
   bool GetAStarStart(double front_safe_check_dis); 
   bool GetCurrentPosition(geometry_msgs::PoseStamped& current_position);
   unsigned int GetPoseIndexOfPath(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::PoseStamped& pose);
-  bool HandleGoingBack(const geometry_msgs::PoseStamped& current_position);
+  bool HandleGoingBack(const geometry_msgs::PoseStamped& current_position, double backward_dis = 0.0);
   void PlanThread();
   double PoseStampedDistance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2);
 
@@ -172,6 +175,7 @@ class AStarController : public BaseController {
   bool RotateToYaw(double target_yaw);
   bool RotateRecovery();
   bool HandleRecovery(geometry_msgs::PoseStamped current_pos); 
+  bool HandleLocalizationRecovery(void);
   // forward
   bool GoingForward(double distance);
   bool CanForward(double distance);
@@ -180,6 +184,7 @@ class AStarController : public BaseController {
   bool GoingBackward(double distance);
   bool CanBackward(double distance);
 
+  void LocalizationCallBack(const std_msgs::Int8::ConstPtr& param);
  private:
   tf::TransformListener& tf_;
 
@@ -232,6 +237,7 @@ class AStarController : public BaseController {
   geometry_msgs::PoseStamped planner_start_;
   geometry_msgs::PoseStamped planner_goal_;
   geometry_msgs::PoseStamped global_goal_;
+  geometry_msgs::PoseStamped success_broader_goal_;
   boost::thread* planner_thread_;
   unsigned int planner_start_index_;
   bool new_global_plan_;
@@ -240,13 +246,17 @@ class AStarController : public BaseController {
   // broader sbpl start and goal entry
   bool sbpl_broader_;
   bool first_run_controller_flag_;
-  geometry_msgs::PoseStamped success_broader_goal_;
+  bool localization_valid_;
 
   AStarControlOption* co_;
   ControlEnvironment* env_;
 
   // set for fixpattern
   ros::Publisher fixpattern_pub_;
+  ros::Subscriber localization_sub_;
+  ros::ServiceClient start_rotate_client_;
+  ros::ServiceClient stop_rotate_client_;
+  ros::ServiceClient check_rotate_client_;
 };
 
 };  // namespace autoscrubber
