@@ -135,10 +135,12 @@ class AutoScrubber {
   tf::TransformListener& tf_;
 
   boost::shared_ptr<fixpattern_local_planner::FixPatternTrajectoryPlannerROS> fixpattern_local_planner_;
-  costmap_2d::Costmap2DROS* planner_costmap_ros_, *controller_costmap_ros_;
+  costmap_2d::Costmap2DROS *controller_costmap_ros_;
 
-  std::vector<BaseController*> controllers_;
-  std::vector<BaseControlOption*> options_;
+//  std::vector<BaseController*> controllers_;
+//  std::vector<BaseControlOption*> options_;
+  BaseController* controllers_;
+  BaseControlOption* options_;
   ControlEnvironment environment_;
 
   boost::shared_ptr<nav_core::BaseGlobalPlanner> astar_global_planner_;
@@ -161,7 +163,6 @@ class AutoScrubber {
   double oscillation_timeout_, oscillation_distance_;
 
   bool enable_scrubber_;
-  int fixpattern_reached_goal_;
 
   // fixpattern option
   double stop_duration_;

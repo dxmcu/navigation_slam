@@ -35,23 +35,18 @@ namespace autoscrubber {
 
 typedef enum {
   A_PLANNING    = 0,
-  A_CONTROLLING = 1,
-  A_CLEARING    = 2,
-  FIX_CONTROLLING = 3,
-  FIX_CLEARING    = 4 
+  FIX_CONTROLLING = 1,
+  FIX_CLEARING    = 2 
 } AStarState;
 
 typedef enum {
   A_PLANNING_R    = 0,
-  A_CONTROLLING_R = 1,
-  A_OSCILLATION_R = 2,
-  A_GOALSAFE_R    = 3,
-  FIX_CONTROLLING_R = 4, 
-  FIX_RECOVERY_R    = 5,
-  FIX_GETNEWGOAL_R  = 6,
-  FIX_FRONTSAFE_R   = 7,
-  FIX_OSCILLATION_R = 8, 
-  LOCATION_RECOVERY_R = 9
+  FIX_CONTROLLING_R = 1, 
+  FIX_RECOVERY_R    = 2,
+  FIX_GETNEWGOAL_R  = 3,
+  FIX_FRONTSAFE_R   = 4,
+  FIX_OSCILLATION_R = 5, 
+  LOCATION_RECOVERY_R = 6 
 } AStarRecoveryTrigger;
 
 typedef enum {
@@ -83,13 +78,12 @@ struct AStarControlOption : BaseControlOption {
   boost::shared_ptr<fixpattern_local_planner::FixPatternTrajectoryPlannerROS> fixpattern_local_planner;
 
   AStarControlOption(tf::TransformListener* tf,
-                     costmap_2d::Costmap2DROS* planner_costmap_ros,
                      costmap_2d::Costmap2DROS* controller_costmap_ros,
                      const std::string& robot_base_frame, const std::string& global_frame,
                      double planner_frequency, double controller_frequency, double inscribed_radius,
                      double planner_patience, double controller_patience, double oscillation_timeout,
                      double oscillation_distance, ros::Publisher* vel_pub)
-    : BaseControlOption(tf, planner_costmap_ros, controller_costmap_ros,
+    : BaseControlOption(tf, controller_costmap_ros, controller_costmap_ros,
                         robot_base_frame, global_frame,
                         planner_frequency, controller_frequency, inscribed_radius,
                         planner_patience, controller_patience, oscillation_timeout,
@@ -106,7 +100,6 @@ class AStarController : public BaseController {
    * @param controller_costmap_ros A pointer to a Costmap2DROS of local frame
    */
   AStarController(tf::TransformListener* tf,
-                  costmap_2d::Costmap2DROS* planner_costmap_ros,
                   costmap_2d::Costmap2DROS* controller_costmap_ros);
   /**
    * @brief  Destructor - Cleans up
@@ -148,8 +141,6 @@ class AStarController : public BaseController {
    *
    * @return Transformed PoseStamped
    */
-  geometry_msgs::PoseStamped PoseStampedToGlobalFrame(const geometry_msgs::PoseStamped& pose_msg);
-  geometry_msgs::PoseStamped PoseStampedToLocalFrame(const geometry_msgs::PoseStamped& pose_msg);
   bool IsGoalFootprintSafe(double front_safe_dis_a, double front_safe_dis_b, const geometry_msgs::PoseStamped& pose);
   bool IsGoalSafe(const geometry_msgs::PoseStamped& goal_pose, double goal_front_check_dis, double goal_back_check_dis);
   bool IsFixPathFrontSafe(double front_safe_check_dis); 
@@ -160,7 +151,6 @@ class AStarController : public BaseController {
                             double xy_goal_tolerance, double yaw_goal_tolerance); 
   double CheckFixPathFrontSafe(double front_safe_check_dis); 
   bool NeedBackward(const geometry_msgs::PoseStamped& pose, double distance);
-  bool GetInitalPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
   bool GetAStarInitalPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
   bool GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, int begin_index = 0);
   bool GetAStarStart(double front_safe_check_dis); 
@@ -190,7 +180,7 @@ class AStarController : public BaseController {
  private:
   tf::TransformListener& tf_;
 
-  costmap_2d::Costmap2DROS* planner_costmap_ros_, *controller_costmap_ros_;
+  costmap_2d::Costmap2DROS* controller_costmap_ros_;
 
   tf::Stamped<tf::Pose> global_pose_;
 
@@ -213,8 +203,6 @@ class AStarController : public BaseController {
 
   // set up plan triple buffer
   std::vector<geometry_msgs::PoseStamped>* planner_plan_;
-  std::vector<geometry_msgs::PoseStamped>* latest_plan_;
-  std::vector<geometry_msgs::PoseStamped>* controller_plan_;
   std::vector<fixpattern_path::PathPoint> fix_path_;
 
   // rotate direction of rotate_recovery
@@ -243,7 +231,7 @@ class AStarController : public BaseController {
   boost::thread* planner_thread_;
   unsigned int planner_start_index_;
   bool new_global_plan_;
-  bool switch_controller_;
+  bool terminate_controller_;
   bool using_sbpl_directly_;
   // broader sbpl start and goal entry
   bool sbpl_broader_;

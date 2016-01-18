@@ -23,13 +23,12 @@
 namespace autoscrubber {
 
 AutoScrubber::AutoScrubber(tf::TransformListener* tf)
-    : tf_(*tf), nav_mode_(FIX_PATTERN), options_{2}, controllers_{2},
-      planner_costmap_ros_(NULL), controller_costmap_ros_(NULL),
+    : tf_(*tf), controller_costmap_ros_(NULL),
+      controllers_(NULL), options_(NULL),
       bgp_loader_("nav_core", "nav_core::BaseGlobalPlanner"),
       blp_loader_("nav_core", "nav_core::BaseLocalPlanner"),
       recovery_loader_("nav_core", "nav_core::RecoveryBehavior"),
-      planner_plan_(NULL), latest_plan_(NULL), controller_plan_(NULL),
-      new_global_plan_(false), fixpattern_reached_goal_(0) {
+      new_global_plan_(false) {
   ros::NodeHandle private_nh("~");
   ros::NodeHandle sbpl_nh("~/sbpl_global_planner");
   ros::NodeHandle nh;
@@ -79,7 +78,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
 
   ros::NodeHandle simple_nh("move_base_simple");
   simple_goal_sub_ = simple_nh.subscribe<geometry_msgs::PoseStamped>("goal", 10, boost::bind(&AutoScrubber::SimpleGoalCB, this, _1));
-  goal_sub_ = simple_nh.subscribe<move_base_msgs::MoveBaseActionGoal>("goal", 10, boost::bind(&AutoScrubber::GoalCB, this, _1));
+  goal_sub_ = private_nh.subscribe<move_base_msgs::MoveBaseActionGoal>("goal", 10, boost::bind(&AutoScrubber::GoalCB, this, _1));
   pause_sub_ = simple_nh.subscribe<std_msgs::UInt32>("gaussian_pause", 10, boost::bind(&AutoScrubber::PauseCB, this, _1));
   terminate_sub_ = simple_nh.subscribe<std_msgs::UInt32>("gaussian_cancel", 10, boost::bind(&AutoScrubber::TerminateCB, this, _1));
   goal_reached_pub_ = simple_nh.advertise<std_msgs::UInt32>("/GUI/IS_GOAL_REACHED", 1);
@@ -87,17 +86,13 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   private_nh.param("shutdown_costmaps", shutdown_costmaps_, false);
 
   // create the ros wrapper for the planner's costmap... and initializer a pointer we'll use with the underlying map
-  planner_costmap_ros_ = new costmap_2d::Costmap2DROS("global_costmap", tf_);
-  planner_costmap_ros_->pause();
+  controller_costmap_ros_ = new costmap_2d::Costmap2DROS("global_costmap", tf_);
+  controller_costmap_ros_->pause();
 
   // initialize the global planner
   if (!LoadGlobalPlanner()) {
     exit(1);
   }
-
-  // create the ros wrapper for the controller's costmap... and initializer a pointer we'll use with the underlying map
-   controller_costmap_ros_ = planner_costmap_ros_;//new costmap_2d::Costmap2DROS("local_costmap", tf_);
-  // controller_costmap_ros_->pause();
 
   // create a local planner
   if (!LoadLocalPlanner()) {
@@ -108,12 +103,10 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   controller_costmap_ros_->start();
   controller_costmap_ros_->getCostmap();
 
- // controller_costmap_ros_->start();
-
   // if we shutdown our costmaps when we're deactivated... we'll do that now
   if (shutdown_costmaps_) {
     ROS_DEBUG_NAMED("move_base", "Stopping costmaps initially");
-    planner_costmap_ros_->stop();
+    controller_costmap_ros_->stop();
    // controller_costmap_ros_->stop();
   }
 
@@ -122,47 +115,30 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   astar_path_ = new fixpattern_path::Path();
 
   // create controller option and intialize controllers
-  options_[FIX_PATTERN] = new FixPatternControlOption(&tf_, planner_costmap_ros_, controller_costmap_ros_,
-                                                      robot_base_frame_, global_frame_, planner_frequency_,
-                                                      controller_frequency_, inscribed_radius_, planner_patience_,
-                                                      controller_patience_, oscillation_timeout_,
-                                                      oscillation_distance_, &vel_pub_);
-  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->stop_duration = stop_duration_;
-  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->max_offroad_dis = max_offroad_dis_;
-  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->front_safe_check_dis = front_safe_check_dis_;
-  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->goal_safe_check_dis = goal_safe_check_dis_;
-  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->goal_safe_check_duration = goal_safe_check_duration_;
-  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->fixpattern_path = fixpattern_path_;
-  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->fixpattern_local_planner = fixpattern_local_planner_;
-  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->circle_center_points = circle_center_points_;
-  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->fixpattern_footprint_padding = fixpattern_footprint_padding_;
-  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->global_planner_goal = &global_planner_goal_;
-  reinterpret_cast<FixPatternControlOption*>(options_[FIX_PATTERN])->fixpattern_reached_goal = &fixpattern_reached_goal_;
-  options_[AUTO_NAV] = new AStarControlOption(&tf_, planner_costmap_ros_, controller_costmap_ros_,
+  options_ = new AStarControlOption(&tf_, controller_costmap_ros_,
                                               robot_base_frame_, global_frame_, planner_frequency_,
                                               controller_frequency_, inscribed_radius_, planner_patience_,
                                               controller_patience_, oscillation_timeout_,
                                               oscillation_distance_, &vel_pub_);
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->stop_duration = stop_duration_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->localization_duration = localization_duration_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->max_offroad_dis = max_offroad_dis_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->front_safe_check_dis = front_safe_check_dis_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->sbpl_max_distance = sbpl_max_distance_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->goal_safe_dis_a = goal_safe_dis_a_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->goal_safe_dis_b = goal_safe_dis_b_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->goal_safe_check_dis = goal_safe_check_dis_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->goal_safe_check_duration = goal_safe_check_duration_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->fixpattern_path = fixpattern_path_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->astar_global_planner = astar_global_planner_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->sbpl_global_planner = sbpl_global_planner_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->fixpattern_local_planner = fixpattern_local_planner_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->circle_center_points = circle_center_points_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->footprint_center_points = footprint_center_points_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->sbpl_footprint_padding = sbpl_footprint_padding_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->fixpattern_footprint_padding = fixpattern_footprint_padding_;
-  reinterpret_cast<AStarControlOption*>(options_[AUTO_NAV])->global_planner_goal = &global_planner_goal_;
-  controllers_[FIX_PATTERN] = new FixPatternController(&tf_, planner_costmap_ros_, controller_costmap_ros_);
-  controllers_[AUTO_NAV] = new AStarController(&tf_, planner_costmap_ros_, controller_costmap_ros_);
+  reinterpret_cast<AStarControlOption*>(options_)->stop_duration = stop_duration_;
+  reinterpret_cast<AStarControlOption*>(options_)->localization_duration = localization_duration_;
+  reinterpret_cast<AStarControlOption*>(options_)->max_offroad_dis = max_offroad_dis_;
+  reinterpret_cast<AStarControlOption*>(options_)->front_safe_check_dis = front_safe_check_dis_;
+  reinterpret_cast<AStarControlOption*>(options_)->sbpl_max_distance = sbpl_max_distance_;
+  reinterpret_cast<AStarControlOption*>(options_)->goal_safe_dis_a = goal_safe_dis_a_;
+  reinterpret_cast<AStarControlOption*>(options_)->goal_safe_dis_b = goal_safe_dis_b_;
+  reinterpret_cast<AStarControlOption*>(options_)->goal_safe_check_dis = goal_safe_check_dis_;
+  reinterpret_cast<AStarControlOption*>(options_)->goal_safe_check_duration = goal_safe_check_duration_;
+  reinterpret_cast<AStarControlOption*>(options_)->fixpattern_path = fixpattern_path_;
+  reinterpret_cast<AStarControlOption*>(options_)->astar_global_planner = astar_global_planner_;
+  reinterpret_cast<AStarControlOption*>(options_)->sbpl_global_planner = sbpl_global_planner_;
+  reinterpret_cast<AStarControlOption*>(options_)->fixpattern_local_planner = fixpattern_local_planner_;
+  reinterpret_cast<AStarControlOption*>(options_)->circle_center_points = circle_center_points_;
+  reinterpret_cast<AStarControlOption*>(options_)->footprint_center_points = footprint_center_points_;
+  reinterpret_cast<AStarControlOption*>(options_)->sbpl_footprint_padding = sbpl_footprint_padding_;
+  reinterpret_cast<AStarControlOption*>(options_)->fixpattern_footprint_padding = fixpattern_footprint_padding_;
+  reinterpret_cast<AStarControlOption*>(options_)->global_planner_goal = &global_planner_goal_;
+  controllers_ = new AStarController(&tf_, controller_costmap_ros_);
 
   // initialize environment_
   environment_.launch_scrubber = false;
@@ -232,18 +208,11 @@ void AutoScrubber::TerminateCB(const std_msgs::UInt32::ConstPtr& param) {
 AutoScrubber::~AutoScrubber() {
   delete control_thread_;
 
-  if (planner_costmap_ros_ != NULL)
-    delete planner_costmap_ros_;
+  if (controller_costmap_ros_ != NULL)
+    delete controller_costmap_ros_;
 
-  // if (controller_costmap_ros_ != NULL)
-  //   delete controller_costmap_ros_;
-
-  delete planner_plan_;
-  delete latest_plan_;
-  delete controller_plan_;
-
-  delete controllers_[FIX_PATTERN];
-  delete controllers_[AUTO_NAV];
+  delete controllers_;
+  delete options_ ;
 
   delete fixpattern_path_;
   delete astar_path_;
@@ -340,17 +309,11 @@ void AutoScrubber::ControlThread() {
     }
 
     // do some intialize things
-    nav_mode_ = FIX_PATTERN;
     bool first_run = true;
     // loop below quits when navigation finishes
 //    while (!controllers_[nav_mode_]->Control(options_[nav_mode_], &environment_, first_run)) {
-    while (!controllers_[AUTO_NAV]->Control(options_[AUTO_NAV], &environment_, first_run)) {
+    while (!controllers_->Control(options_, &environment_, first_run)) {
       first_run = false; 
-      if (nav_mode_ == FIX_PATTERN) {
-        nav_mode_ = AUTO_NAV;
-      } else {
-        nav_mode_ = FIX_PATTERN;
-      }
     }
 
     // notify GUI that goal is reached
@@ -368,10 +331,10 @@ void AutoScrubber::ControlThread() {
 bool AutoScrubber::LoadGlobalPlanner() {
   // check if a non fully qualified name has potentially been passed in
   astar_global_planner_ = boost::shared_ptr<nav_core::BaseGlobalPlanner>(new global_planner::GlobalPlanner());
-  astar_global_planner_->initialize("astar_global_planner", planner_costmap_ros_);
+  astar_global_planner_->initialize("astar_global_planner", controller_costmap_ros_);
   sbpl_global_planner_ = boost::shared_ptr<search_based_global_planner::SearchBasedGlobalPlanner>(
       new search_based_global_planner::SearchBasedGlobalPlanner());
-  sbpl_global_planner_->initialize("sbpl_global_planner", planner_costmap_ros_);
+  sbpl_global_planner_->initialize("sbpl_global_planner", controller_costmap_ros_);
   return true;
 }
 
