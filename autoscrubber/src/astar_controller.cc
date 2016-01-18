@@ -61,8 +61,8 @@ AStarController::AStarController(tf::TransformListener* tf,
   fixpattern_pub_ = fixpattern_nh.advertise<nav_msgs::Path>("plan", 1);
   ros::NodeHandle n;
   ros::NodeHandle device_nh("device");
+  alarm_pub_ = n.advertise<std_msgs::UInt8>("alarm", 10);
 
-//  localization_sub_ = n.subscribe("/localization_valid", 100, LocalizationRecoveryCB);
   localization_sub_ = n.subscribe<std_msgs::Int8>("/localization_valid", 100, boost::bind(&AStarController::LocalizationCallBack, this, _1));
   start_rotate_client_ = device_nh.serviceClient<autoscrubber_services::StartRotate>("start_rotate");
   stop_rotate_client_ = device_nh.serviceClient<autoscrubber_services::StopRotate>("stop_rotate");
@@ -1852,6 +1852,15 @@ void AStarController::PublishPlan(const ros::Publisher& pub, const std::vector<g
   // publish
   pub.publish(gui_path);
 }
+
+void AStarController::PublishAlarm(unsigned char alarm_index) {
+  // create a message for the plan
+  std_msgs::UInt8 alarm_msg;
+  alarm_msg.data = alarm_index;
+  // publish
+  alarm_pub_.publish(alarm_msg);
+}
+
 
 bool AStarController::GetInitalPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal) {
   gotStartPlan_ = false;

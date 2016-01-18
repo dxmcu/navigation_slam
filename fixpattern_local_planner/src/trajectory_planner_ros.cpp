@@ -361,9 +361,9 @@ bool FixPatternTrajectoryPlannerROS::rotateToGoal(PlannerType planner_type, cons
   double angle_diff = angles::shortest_angular_distance(yaw, goal_th);
   ROS_INFO("[FIXPATTERN LOCAL PLANNER] rotate to goal: angle_diff = %lf", angle_diff);
   if(fabs(angle_diff) < 0.15) {
-    v_theta_samp *= 0.3;
-  } else if(fabs(angle_diff) < 0.3) {
-    v_theta_samp *= 0.6;
+    v_theta_samp *= 0.2;
+  } else if(fabs(angle_diff) < 0.35) {
+    v_theta_samp *= 0.4;
   }
   // we still want to lay down the footprint of the robot and check if the action is legal
   bool valid_cmd = true;

@@ -14,6 +14,7 @@
 
 #include <ros/ros.h>
 #include <std_msgs/Int8.h>
+#include <std_msgs/UInt8.h>
 #include <nav_core/base_local_planner.h>
 #include <nav_core/base_global_planner.h>
 #include <nav_core/recovery_behavior.h>
@@ -170,6 +171,7 @@ class AStarController : public BaseController {
   double PoseStampedDistance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2);
 
   void PublishPlan(const ros::Publisher& pub, const std::vector<geometry_msgs::PoseStamped>& plan);
+  void PublishAlarm(unsigned char alarm_index);
   // rotate recovery
   bool CanRotate(double x, double y, double yaw, int dir);
   bool RotateToYaw(double target_yaw);
@@ -253,6 +255,7 @@ class AStarController : public BaseController {
 
   // set for fixpattern
   ros::Publisher fixpattern_pub_;
+  ros::Publisher alarm_pub_;
   ros::Subscriber localization_sub_;
   ros::ServiceClient start_rotate_client_;
   ros::ServiceClient stop_rotate_client_;

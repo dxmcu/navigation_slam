@@ -79,10 +79,10 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
 
   ros::NodeHandle simple_nh("move_base_simple");
   simple_goal_sub_ = simple_nh.subscribe<geometry_msgs::PoseStamped>("goal", 10, boost::bind(&AutoScrubber::SimpleGoalCB, this, _1));
-  goal_sub_ = private_nh.subscribe<move_base_msgs::MoveBaseActionGoal>("goal", 10, boost::bind(&AutoScrubber::GoalCB, this, _1));
-  pause_sub_ = private_nh.subscribe<std_msgs::UInt32>("gaussian_pause", 10, boost::bind(&AutoScrubber::PauseCB, this, _1));
-  terminate_sub_ = private_nh.subscribe<std_msgs::UInt32>("gaussian_cancel", 10, boost::bind(&AutoScrubber::TerminateCB, this, _1));
-  goal_reached_pub_ = private_nh.advertise<std_msgs::UInt32>("/GUI/IS_GOAL_REACHED", 1);
+  goal_sub_ = simple_nh.subscribe<move_base_msgs::MoveBaseActionGoal>("goal", 10, boost::bind(&AutoScrubber::GoalCB, this, _1));
+  pause_sub_ = simple_nh.subscribe<std_msgs::UInt32>("gaussian_pause", 10, boost::bind(&AutoScrubber::PauseCB, this, _1));
+  terminate_sub_ = simple_nh.subscribe<std_msgs::UInt32>("gaussian_cancel", 10, boost::bind(&AutoScrubber::TerminateCB, this, _1));
+  goal_reached_pub_ = simple_nh.advertise<std_msgs::UInt32>("/GUI/IS_GOAL_REACHED", 1);
   std::cout << "subscribe init finish here" << std::endl;
   private_nh.param("shutdown_costmaps", shutdown_costmaps_, false);
 
