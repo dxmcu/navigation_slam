@@ -11,7 +11,7 @@ find_package(catkin REQUIRED
     pluginlib
     nav_core
     tf
-#    gperftools_21
+    #gperftools_21
     angles
     gslib
     fixpattern_path
@@ -23,7 +23,7 @@ catkin_package(
   INCLUDE_DIRS include
   CATKIN_DEPENDS
     roscpp
-#    gperftools_21
+    #gperftools_21
     angles
     gslib
     fixpattern_path

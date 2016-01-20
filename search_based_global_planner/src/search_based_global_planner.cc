@@ -711,11 +711,11 @@ bool SearchBasedGlobalPlanner::CostsChanged(const std::vector<XYCell>& changed_c
 }
 
 unsigned char SearchBasedGlobalPlanner::TransformCostmapCost(unsigned char cost) {
-  if (cost == costmap_2d::LETHAL_OBSTACLE) {
+  if (cost == costmap_2d::LETHAL_OBSTACLE || cost == costmap_2d::NO_INFORMATION) {
     return lethal_cost_;
   } else if (cost == costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
     return inscribed_inflated_cost_;
-  } else if (cost == 0 || cost == costmap_2d::NO_INFORMATION) {
+  } else if (cost == 0) {
     return 0;
   } else {
     return static_cast<unsigned char>(cost / cost_multiplier_ + 0.5);

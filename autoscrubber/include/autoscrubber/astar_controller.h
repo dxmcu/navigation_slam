@@ -162,6 +162,7 @@ class AStarController : public BaseController {
 
   void PublishPlan(const ros::Publisher& pub, const std::vector<geometry_msgs::PoseStamped>& plan);
   void PublishAlarm(unsigned char alarm_index);
+  void PublishGoalReached();
   // rotate recovery
   bool CanRotate(double x, double y, double yaw, int dir);
   bool RotateToYaw(double target_yaw);
@@ -243,6 +244,7 @@ class AStarController : public BaseController {
 
   // set for fixpattern
   ros::Publisher fixpattern_pub_;
+  ros::Publisher goal_reached_pub_;
   ros::Publisher alarm_pub_;
   ros::Subscriber localization_sub_;
   ros::ServiceClient start_rotate_client_;

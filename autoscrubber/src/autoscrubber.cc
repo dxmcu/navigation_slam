@@ -107,7 +107,6 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   if (shutdown_costmaps_) {
     ROS_DEBUG_NAMED("move_base", "Stopping costmaps initially");
     controller_costmap_ros_->stop();
-   // controller_costmap_ros_->stop();
   }
 
   // create fixpattern_path object
