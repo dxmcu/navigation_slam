@@ -142,6 +142,7 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costm
 // TODO(lizhen) getPathCostmap()
 //    initialize(name, costmap_ros->getCostmap(), costmap_ros->getPathCostmap(), costmap_ros->getGlobalFrameID());
     initialize(name, costmap_ros->getCostmap(), costmap_ros->getPathCostmap(), costmap_ros->getGlobalFrameID());
+    costmap_ros_ = costmap_ros;
 }
 void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap, costmap_2d::Costmap2D* path_costmap, std::string frame_id) {
     if (!initialized_) {
@@ -229,6 +230,20 @@ void GlobalPlanner::reconfigureCB(global_planner::GlobalPlannerConfig& config, u
     planner_->setFactor(config.cost_factor);
     publish_potential_ = config.publish_potential;
     orientation_filter_->setMode(config.orientation_mode);
+}
+
+void GlobalPlanner::setStaticCosmap(bool is_static) {
+    if (!initialized_) {
+        ROS_ERROR(
+                "This planner has not been initialized yet, but it is being used, please call initialize() before use");
+        return;
+    }
+    //set current costmap_ as static
+    if (is_static) {
+      costmap_ = costmap_ros_->getStaticCostmap();
+    } else {
+      costmap_ = costmap_ros_->getCostmap();
+    }
 }
 
 void GlobalPlanner::clearRobotCell(const tf::Stamped<tf::Pose>& global_pose, unsigned int mx, unsigned int my) {

@@ -41,6 +41,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   private_nh.param("global_costmap/global_frame", global_frame_, std::string("/map"));
   private_nh.param("planner_frequency", planner_frequency_, 0.0);
   private_nh.param("sbpl_max_distance", sbpl_max_distance_, 12.0);
+
   private_nh.param("controller_frequency", controller_frequency_, 20.0);
   private_nh.param("planner_patience", planner_patience_, 5.0);
   private_nh.param("controller_patience", controller_patience_, 1.0);
@@ -50,6 +51,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   private_nh.param("stop_duration", stop_duration_, 4.0);
   private_nh.param("localization_duration", localization_duration_, 5.0);
 
+  private_nh.param("max_path_length_dif", max_path_length_diff_, 5.0);
   private_nh.param("max_offroad_dis", max_offroad_dis_, 0.7); //0.7 Lee
   private_nh.param("front_safe_check_dis", front_safe_check_dis_, 1.0);
   private_nh.param("goal_safe_dis_a", goal_safe_dis_a_, 0.5);	// distance after goal poin
@@ -107,6 +109,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   if (shutdown_costmaps_) {
     ROS_DEBUG_NAMED("move_base", "Stopping costmaps initially");
     controller_costmap_ros_->stop();
+   // controller_costmap_ros_->stop();
   }
 
   // create fixpattern_path object
@@ -122,6 +125,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   reinterpret_cast<AStarControlOption*>(options_)->stop_duration = stop_duration_;
   reinterpret_cast<AStarControlOption*>(options_)->localization_duration = localization_duration_;
   reinterpret_cast<AStarControlOption*>(options_)->max_offroad_dis = max_offroad_dis_;
+  reinterpret_cast<AStarControlOption*>(options_)->max_path_length_diff = max_path_length_diff_;
   reinterpret_cast<AStarControlOption*>(options_)->front_safe_check_dis = front_safe_check_dis_;
   reinterpret_cast<AStarControlOption*>(options_)->sbpl_max_distance = sbpl_max_distance_;
   reinterpret_cast<AStarControlOption*>(options_)->goal_safe_dis_a = goal_safe_dis_a_;
@@ -211,7 +215,7 @@ AutoScrubber::~AutoScrubber() {
     delete controller_costmap_ros_;
 
   delete controllers_;
-  delete options_ ;
+//  delete options_ ;
 
   delete fixpattern_path_;
   delete astar_path_;
@@ -224,7 +228,7 @@ AutoScrubber::~AutoScrubber() {
 bool AutoScrubber::Start(autoscrubber_services::Start::Request& req, autoscrubber_services::Start::Response& res) {
   ROS_INFO("[AUTOSCRUBBER] Start called");
   if (environment_.run_flag) {
-    ROS_INFO("[AUTOSCRUBBER] Another ControlThread is Running, Stop it first!");
+    ROS_INFO("[AUTOSCRUBBER] Control Thread is Running, Stop it first!");
     environment_.run_flag = false;
     environment_.pause_flag = true;
     while (environment_.pause_flag) {
@@ -273,13 +277,20 @@ bool AutoScrubber::GetCurrentPose(autoscrubber_services::GetCurrentPose::Request
   cur_pos.pose.orientation.z = 0.0;
   cur_pos.pose.orientation.w = 0.0;
 */
+  // TODO(lizhen) check localization_valid_, if false, return pose(0,0,0)
   if (controller_costmap_ros_ != NULL) {
     tf::Stamped<tf::Pose> global_pose;
     if (controller_costmap_ros_->getRobotPose(global_pose)) {
       tf::poseStampedTFToMsg(global_pose, cur_pos);
+      res.current_pose = cur_pos; 
+      double x = cur_pos.pose.position.x;
+      double y = cur_pos.pose.position.y;
+      double yaw = tf::getYaw(cur_pos.pose.orientation);
+      ROS_WARN("[AUTOSCRUBBER] clearFootprintInCostmap!");
+      controller_costmap_ros_->clearFootprintInCostmap(controller_costmap_ros_->getStaticCostmap(), x, y, yaw, 0.50);
+      return true;
     }
   }
-  res.current_pose = cur_pos; 
   return true;
 }
 
@@ -303,7 +314,7 @@ void AutoScrubber::ControlThread() {
   ros::NodeHandle n;
   while (n.ok()) {
     if (!environment_.run_flag) {
-      usleep(500);
+      usleep(50000);
       continue;
     }
 
@@ -377,7 +388,7 @@ void ReadCircleCenterFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const
 
     pt.x = GetNumberFromXMLRPC(point[0], full_param_name);
     pt.y = GetNumberFromXMLRPC(point[1], full_param_name);
-
+//    ROS_INFO("[AUTOSCRUBBER] get circle center[%d] px = %lf, py = %lf", i, pt.x, pt.y);
     points->push_back(pt);
   }
 }
@@ -390,6 +401,8 @@ bool AutoScrubber::ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<g
     nh.getParam(full_param_name, circle_center_xmlrpc);
     if (circle_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
       ReadCircleCenterFromXMLRPC(circle_center_xmlrpc, full_param_name, points);
+      for (int i = 0; i < points->size(); ++i)
+        ROS_INFO("[AUTOSCRUBBER] circle_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
       return true;
     } else {
       ROS_ERROR("[AUTOSCRUBBER] circle_center param's type is not Array!");

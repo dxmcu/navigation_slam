@@ -149,6 +149,7 @@ class AutoScrubber {
 
   tf::Stamped<tf::Pose> global_pose_;
   double sbpl_max_distance_;
+  double max_path_length_diff_;
   double planner_frequency_, controller_frequency_, inscribed_radius_, circumscribed_radius_;
   double planner_patience_, controller_patience_;
   double conservative_reset_dist_, clearing_radius_;

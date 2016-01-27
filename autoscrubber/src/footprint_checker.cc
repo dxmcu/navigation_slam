@@ -36,9 +36,9 @@ double FootprintChecker::FootprintCost(const geometry_msgs::Point& position, con
   // if number of points in the footprint is less than 3, we'll just assume a circular robot
   if (footprint.size() < 3) {
     unsigned char cost = costmap_.getCost(cell_x, cell_y);
-    if (cost == costmap_2d::LETHAL_OBSTACLE || cost == costmap_2d::INSCRIBED_INFLATED_OBSTACLE)
-    // if (cost == costmap_2d::LETHAL_OBSTACLE || cost == costmap_2d::INSCRIBED_INFLATED_OBSTACLE || cost == costmap_2d::NO_INFORMATION)
+    if (cost == costmap_2d::LETHAL_OBSTACLE || cost == costmap_2d::INSCRIBED_INFLATED_OBSTACLE || cost == costmap_2d::NO_INFORMATION) {
       return -1.0;
+    }
     return cost;
   }
 
@@ -65,8 +65,7 @@ double FootprintChecker::FootprintCost(const geometry_msgs::Point& position, con
 
     // if there is an obstacle that hits the line... we know that we can return false right away
     if (line_cost < 0) {
-      ret_cost += -1.0;
-//      return -1.0;
+      return -1.0;
     }
   }
 
@@ -85,13 +84,11 @@ double FootprintChecker::FootprintCost(const geometry_msgs::Point& position, con
   footprint_cost = std::max(line_cost, footprint_cost);
 
   if (line_cost < 0) {
-      ret_cost += -1.0;
-//      return -1.0;
+      return -1.0;
   }
 
   // if all line costs are legal... then we can return that the footprint is legal
-//  return footprint_cost;
-  return ret_cost;
+  return footprint_cost;
 }
 
   double FootprintChecker::RecoveryCircleCost(const geometry_msgs::PoseStamped& current_pos, const std::vector<geometry_msgs::Point>& footprint_spec, geometry_msgs::PoseStamped* goal_pose){
@@ -174,27 +171,36 @@ double FootprintChecker::FootprintCost(const geometry_msgs::Point& position, con
   }
 
   double FootprintChecker::BroaderFootprintCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& footprint_spec, double broader_theta_x, double broader_theta_y) {
-    double cos_th = cos(theta);
-    double sin_th = sin(theta);
-    std::vector<geometry_msgs::Point> broader_footprint;
-    for (unsigned int i = 0; i < footprint_spec.size(); ++i) {
-      geometry_msgs::Point footprint_pt = footprint_spec[i];
-      geometry_msgs::Point new_pt;
-
-      new_pt.x = x + ((footprint_pt.x + getSign(footprint_pt.x) * broader_theta_x) * cos_th - (footprint_pt.y + getSign(footprint_pt.y) * broader_theta_y) * sin_th);
-//      new_pt.x = x + (footprint_spec[i].x * cos_th - footprint_spec[i].y * sin_th);
-      new_pt.y = y + ((footprint_pt.x + getSign(footprint_pt.x) * broader_theta_x) * sin_th - (footprint_pt.y + getSign(footprint_pt.y) * broader_theta_y) * cos_th);
-//      new_pt.y = y + (footprint_spec[i].x * sin_th + footprint_spec[i].y * cos_th);
-      broader_footprint.push_back(new_pt);
-    }
-
     geometry_msgs::Point robot_position;
     robot_position.x = x;
     robot_position.y = y;
-//    double inscribed_radius, circumscribed_radius;
-//    costmap_2d::calculateMinAndMaxDistances(footprint_spec, inscribed_radius, circumscribed_radius);
+    double cos_th = cos(theta);
+    double sin_th = sin(theta);
+    double footprint_cost = 0.0; 
+    double broader_x = broader_theta_x;
+    double broader_y = broader_theta_y;
+    int step_num = broader_x / 0.3;
+    std::vector<geometry_msgs::Point> broader_footprint;
+    for (int j = 0; j < step_num; ++j) { 
+      broader_x = std::max(broader_theta_x - 0.3 * j, 0.3);
+      broader_y = std::max(broader_theta_y - 0.3 * j, 0.3);
+      for (int i = 0; i < footprint_spec.size(); ++i) {
+        geometry_msgs::Point footprint_pt = footprint_spec[i];
+        geometry_msgs::Point new_pt;
 
-    return FootprintCost(robot_position, broader_footprint, 0.0, 0.0);
+        new_pt.x = x + ((footprint_pt.x + getSign(footprint_pt.x) * broader_x) * cos_th - (footprint_pt.y + getSign(footprint_pt.y) * broader_y) * sin_th);
+//      new_pt.x = x + (footprint_spec[i].x * cos_th - footprint_spec[i].y * sin_th);
+        new_pt.y = y + ((footprint_pt.x + getSign(footprint_pt.x) * broader_x) * sin_th - (footprint_pt.y + getSign(footprint_pt.y) * broader_y) * cos_th);
+//      new_pt.y = y + (footprint_spec[i].x * sin_th + footprint_spec[i].y * cos_th);
+        broader_footprint.push_back(new_pt);
+      }
+      double temp_cost = FootprintCost(robot_position, broader_footprint, 0.0, 0.0);
+      footprint_cost = std::min(footprint_cost, temp_cost); 
+      if (footprint_cost < 0.0) {
+        return footprint_cost;
+      }
+    }
+    return footprint_cost;
   }
 
 // calculate the cost of a ray-traced line

@@ -60,6 +60,7 @@ struct AStarControlOption : BaseControlOption {
   double stop_duration;
   double localization_duration;
   double sbpl_max_distance;
+  double max_path_length_diff;
   double max_offroad_dis;
   double front_safe_check_dis;
   double goal_safe_dis_a;
@@ -153,6 +154,7 @@ class AStarController : public BaseController {
   bool NeedBackward(const geometry_msgs::PoseStamped& pose, double distance);
   bool GetAStarInitalPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
   bool GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, int begin_index = 0);
+  bool GetAStarTempGoal(); 
   bool GetAStarStart(double front_safe_check_dis); 
   bool GetCurrentPosition(geometry_msgs::PoseStamped& current_position);
   unsigned int GetPoseIndexOfPath(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::PoseStamped& pose);
@@ -216,6 +218,7 @@ class AStarController : public BaseController {
   bool taken_global_goal_;
   bool gotStartPlan_;
   bool gotGoalPlan_;
+  unsigned int astar_planner_timeout_cnt_;
   unsigned int local_planner_error_cnt_;
   unsigned int fix_local_planner_error_cnt_;
   unsigned int goal_not_safe_cnt_;
@@ -245,6 +248,8 @@ class AStarController : public BaseController {
   // set for fixpattern
   ros::Publisher fixpattern_pub_;
   ros::Publisher goal_reached_pub_;
+  ros::Publisher astar_start_pub_;
+  ros::Publisher astar_goal_pub_;
   ros::Publisher alarm_pub_;
   ros::Subscriber localization_sub_;
   ros::ServiceClient start_rotate_client_;

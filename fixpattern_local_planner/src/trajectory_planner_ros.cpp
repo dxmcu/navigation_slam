@@ -596,7 +596,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
       odom_helper_.getOdom(base_odom);
 
       // if we're not stopped yet... we want to stop... taking into account the acceleration limits of the robot
-      if (!rotating_to_goal_ && !fixpattern_local_planner::stopped(base_odom, rot_stopped_velocity_, 0.1)) { //trans_stopped_velocity_
+      if (!rotating_to_goal_ && !fixpattern_local_planner::stopped(base_odom, 0.1, 0.1)) { //trans_stopped_velocity_  rot_stopped_velocity_
         if (!stopWithAccLimits(planner_type, global_pose, robot_vel, cmd_vel)) {
           ROS_ERROR("[FIXPATTERN LOCAL PLANNER] stopWithAccLimits failed");
           return false;

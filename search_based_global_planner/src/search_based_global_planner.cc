@@ -473,43 +473,43 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Act
     if (CHECK_INPLACE_ROTATE(actions_path[pind])) {
       corner_size = 1;
       for (unsigned int i = pind + 1; i < actions_path.size(); ++i) {
-        if (CHECK_INPLACE_ROTATE(actions_path[i])) 
+        if (CHECK_INPLACE_ROTATE(actions_path[i])) {
           ++corner_size;
-        else {
+        } else {
           break;
         }
       }
 //      ROS_INFO("[SBPL] corner size = %d", corner_size);
-			if(pind == 0 && corner_size >= 2) {
-			  max_vel = sbpl_min_vel_;	
+      if(pind == 0 && corner_size >= 1) {
+        max_vel = sbpl_min_vel_;	
         is_corner = true;
       } else {	
-			  if(corner_size == 1) {  // 22p5 digree
-			    max_vel = sbpl_max_vel_;	
+        if(corner_size == 1) {  // 22p5 digree
+          max_vel = sbpl_max_vel_;	
           is_corner = false;
-			  } else if(corner_size <= 3) { //45 and 67.5 digree
-			    max_vel = sbpl_low_vel_;	
+        } else if(corner_size <= 3) { //45 and 67.5 digree
+          max_vel = sbpl_low_vel_;	
           is_corner = false;
-			  } else if(corner_size > 3) { // > 67.5 digree
-			    max_vel = sbpl_min_vel_;	
+        } else if(corner_size > 3) { // > 67.5 digree
+          max_vel = sbpl_min_vel_;	
           is_corner = true;
-			  }
+        }
       }
-			for(unsigned int i = pind; i < pind + corner_size; ++i) {
-			  actions_path.at(i).max_vel = max_vel;
-			  actions_path.at(i).highlight = highlight;
-				setActionIntermStruct(&actions_path.at(i), highlight, max_vel, is_corner);
-			}
-			pind += corner_size - 1;
+      for(unsigned int i = pind; i < pind + corner_size; ++i) {
+        actions_path.at(i).max_vel = max_vel;
+        actions_path.at(i).highlight = highlight;
+        setActionIntermStruct(&actions_path.at(i), highlight, max_vel, is_corner);
+      }
+      pind += corner_size - 1;
     } else if(CHECK_SHORT_FORWARD(actions_path.at(pind))) {
       max_vel = sbpl_low_vel_;
-		  actions_path.at(pind).max_vel = sbpl_low_vel_;
-			setActionIntermStruct(&actions_path.at(pind), highlight, max_vel, is_corner);
-		} else {
+      actions_path.at(pind).max_vel = sbpl_low_vel_;
+      setActionIntermStruct(&actions_path.at(pind), highlight, max_vel, is_corner);
+    } else {
       max_vel = sbpl_max_vel_;
-		  actions_path.at(pind).max_vel = sbpl_max_vel_;
-			setActionIntermStruct(&actions_path.at(pind), highlight, max_vel, is_corner);
-		}
+      actions_path.at(pind).max_vel = sbpl_max_vel_;
+      setActionIntermStruct(&actions_path.at(pind), highlight, max_vel, is_corner);
+    }
   }
  
 	// push action:interm_struct to path_info(including highlight and max_vel) 
@@ -871,7 +871,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
           break;
       }
       unsigned int corner_end_index = i + (corner_size - 1);
-			if(corner_size >= 18) {  // >67.5
+      if(corner_size >= 18) {  // >67.5
         fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[i].pose);
         point.highlight = path_info[i].highlight;
         point.max_vel = path_info[i].max_vel;
@@ -894,7 +894,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
       }
 */
 			}
-     i = corner_end_index;
+      i = corner_end_index;
     } else {
       fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[i].pose);
       point.highlight = path_info[i].highlight;
@@ -952,7 +952,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
 */
   // TODO(chenkan): what if two corner are too close?
 
-  path.set_sbpl_path(tmp_path);
+  path.set_sbpl_path(start ,tmp_path, false);
 /*  if (extend_path) {
     fixpattern_path::Path temp_sbpl_path;
     temp_sbpl_path.set_sbpl_path(tmp_path);

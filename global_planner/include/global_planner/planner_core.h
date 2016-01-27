@@ -163,13 +163,18 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
         void publishPlan(const std::vector<geometry_msgs::PoseStamped>& path);
 
         bool makePlanService(nav_msgs::GetPlan::Request& req, nav_msgs::GetPlan::Response& resp);
-        bool ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<XYPoint>* points);
+
+        /**
+         * @brief set Costmap_ as static or not 
+         */
+        void setStaticCosmap(bool is_static);
 
     protected:
 
         /**
          * @brief Store a copy of the current costmap in \a costmap.  Called by makePlan.
          */
+        costmap_2d::Costmap2DROS* costmap_ros_;
         costmap_2d::Costmap2D* costmap_;
         costmap_2d::Costmap2D* path_costmap_;
         std::string frame_id_;
@@ -181,6 +186,7 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
         bool worldToMap(double wx, double wy, double& mx, double& my);
         void clearRobotCell(const tf::Stamped<tf::Pose>& global_pose, unsigned int mx, unsigned int my);
         void publishPotential(float* potential);
+        bool ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<XYPoint>* points);
 
         double planner_window_x_, planner_window_y_, default_tolerance_;
         std::string tf_prefix_;
