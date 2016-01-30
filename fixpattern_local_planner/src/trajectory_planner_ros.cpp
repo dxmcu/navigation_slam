@@ -688,7 +688,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
     } else {
       rotating_to_goal_ = false;
       rotating_to_goal_done_ = true;
-		}
+    }
   }/* else {
 		double yaw = tf::getYaw(global_pose.getRotation());
 		double acc_dis = 0.0;

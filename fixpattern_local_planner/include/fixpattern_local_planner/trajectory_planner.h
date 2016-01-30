@@ -240,13 +240,6 @@ class TrajectoryPlanner{
                                      double acc_theta, double impossible_cost, Trajectory& traj, double sim_time, int within_obs_thresh);
 
   /**
-   * @brief  Generate and score a single trajectory without considering footprint cost
-   */
-  void generateTrajectoryWithoutCheckingFootprint(double x, double y, double theta, double vx, double vy,
-                                                  double vtheta, double vx_samp, double vy_samp, double vtheta_samp, double acc_x, double acc_y,
-                                                  double acc_theta, double impossible_cost, Trajectory& traj, double sim_time);
-
-  /**
    * @brief  Checks the legality of the robot footprint at a position and orientation using the world model
    * @param x_i The x position of the robot
    * @param y_i The y position of the robot

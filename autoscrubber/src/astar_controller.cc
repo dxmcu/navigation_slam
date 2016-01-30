@@ -250,11 +250,11 @@ void AStarController::PlanThread() {
       tf::poseStampedTFToMsg(global_pose, start);
       start.header.frame_id = co_->global_frame;
     }
-    if (state_ == FIX_CONTROLLING) {
+    if (state_ == FIX_CONTROLLING && planning_state_ == P_INSERTING_MIDDLE) {
       if (!GetAStarStart(co_->front_safe_check_dis)) {
         ROS_WARN("[ASTAR PLANNER]Unable to get AStar start, take current pose in place, and planning_state_ = BEGIN ");
 //        if (planning_state_ == P_INSERTING_MIDDLE) {
-//          planning_state_ = P_INSERTING_BEGIN;
+        planning_state_ = P_INSERTING_BEGIN;
 //        }
       } else {
         start = planner_start_;
@@ -444,7 +444,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
       start_path_got = GetAStarInitalPath(current_position, global_goal_);
       co_->astar_global_planner->setStaticCosmap(false);
       if (start_path_got) {
-        if (CheckFixPathFrontSafe(co_->front_safe_check_dis) < co_->front_safe_check_dis) {
+        if (CheckFixPathFrontSafe(co_->front_safe_check_dis) < 1.5) {
           ROS_WARN("[ASTAR_CONTROLLER] CheckFixPathFrontSafe failed, switch to A_PLANNING state");
           if (GetAStarGoal(current_position, obstacle_index_)) {
             state_ = A_PLANNING;
@@ -747,7 +747,6 @@ bool AStarController::GetAStarStart(double front_safe_check_dis) {
     }else {
       if (path.size() > 20) {
         planner_start_ = path.at(10);
-        start_got = true;
         ROS_INFO("[ASTAR CONTROLLER] GetAStarStart: taken point front index = 10");
       } else {
         planner_start_ = path.front();
@@ -1025,7 +1024,7 @@ bool AStarController::ExecuteCycle() {
             }
           }
         } else if (front_safe_dis < co_->front_safe_check_dis) { // check front safe distance
-          if (front_safe_dis <= 0.5) {
+          if (front_safe_dis <= 0.6) {
             front_safe_check_cnt_ = 0;
             PublishZeroVelocity();
             ros::Time end_time = ros::Time::now() + ros::Duration(co_->stop_duration);
@@ -1061,9 +1060,9 @@ bool AStarController::ExecuteCycle() {
             break;
           } else if (front_safe_dis > 0.5) {
             ROS_WARN("[FIXPATTERN CONTROLLER] !IsPathFrontSafe dis = %lf > 0.5, check_cnt = %d", front_safe_dis, front_safe_check_cnt_);
-            if (front_safe_dis < 0.8) 
+            if (front_safe_dis < 1.0) 
               cmd_vel_ratio_ = 0.5;
-            else if (front_safe_dis < 1.5) 
+            else if (front_safe_dis < 1.7) 
               cmd_vel_ratio_ = 0.7;
             if (!runPlanner_ && ++front_safe_check_cnt_ > 10) {
               ROS_WARN("[FIXPATTERN CONTROLLER] Enable PlanThread and continue FIX_CONTROLLING");
@@ -1127,6 +1126,10 @@ bool AStarController::ExecuteCycle() {
           last_valid_control_ = ros::Time::now();
           cmd_vel.linear.x *= cmd_vel_ratio_;	
           cmd_vel.angular.z *= cmd_vel_ratio_;	
+          if (fix_local_planner_error_cnt_ > 0) {
+            cmd_vel.linear.x *= 0.75;
+            cmd_vel.angular.z *= 0.75;	
+          }
           // make sure that we send the velocity command to the base
           co_->vel_pub->publish(cmd_vel);
           last_valid_cmd_vel_ = cmd_vel;
@@ -1444,6 +1447,7 @@ bool AStarController::GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, i
         // we must enforce cross obstacle within front_safe_check_dis range
 //        if (!cross_obstacle && dis_accu <= co_->front_safe_check_dis) continue;
         if (dis_accu <= goal_safe_dis_a) continue;
+        if (PoseStampedDistance(cur_pose, path.at(i)) <= goal_safe_dis_a) continue;
 //        ROS_INFO("[ASTAR CONTROLLER] dis_accu = %lf", dis_accu);
         double x = path[i].pose.position.x;
         double y = path[i].pose.position.y;
