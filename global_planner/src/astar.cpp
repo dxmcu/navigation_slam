@@ -93,7 +93,12 @@ void AStarExpansion::add(unsigned char* costs, unsigned char* path_costs, float*
     potential[next_i] = p_calc_->calculatePotential(potential, costs[next_i] + neutral_cost_, next_i, prev_potential);
     int x = next_i % nx_, y = next_i / nx_;
     float distance = abs(end_x - x) + abs(end_y - y);
-    int next_cost = potential[next_i] + distance * neutral_cost_ + path_costs[next_i] * path_cost_;
+    int next_cost;
+    if (path_costs != NULL) {
+      next_cost = potential[next_i] + distance * neutral_cost_ + path_costs[next_i] * path_cost_;
+    } else {
+      next_cost = potential[next_i] + distance * neutral_cost_;
+    }
     queue_.push_back(Index(next_i, next_cost));
     std::push_heap(queue_.begin(), queue_.end(), greater1());
 }

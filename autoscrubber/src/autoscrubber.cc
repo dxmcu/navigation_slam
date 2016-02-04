@@ -54,6 +54,8 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   private_nh.param("max_path_length_dif", max_path_length_diff_, 5.0);
   private_nh.param("max_offroad_dis", max_offroad_dis_, 0.7); //0.7 Lee
   private_nh.param("front_safe_check_dis", front_safe_check_dis_, 1.0);
+  private_nh.param("backward_check_dis", backward_check_dis_, 0.13);
+
   private_nh.param("goal_safe_dis_a", goal_safe_dis_a_, 0.5);	// distance after goal poin
   private_nh.param("goal_safe_dis_b", goal_safe_dis_b_, 0.3); // distance before goal point
   private_nh.param("goal_safe_check_dis", goal_safe_check_dis_, 1.0);
@@ -127,6 +129,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   reinterpret_cast<AStarControlOption*>(options_)->max_offroad_dis = max_offroad_dis_;
   reinterpret_cast<AStarControlOption*>(options_)->max_path_length_diff = max_path_length_diff_;
   reinterpret_cast<AStarControlOption*>(options_)->front_safe_check_dis = front_safe_check_dis_;
+  reinterpret_cast<AStarControlOption*>(options_)->backward_check_dis = backward_check_dis_;
   reinterpret_cast<AStarControlOption*>(options_)->sbpl_max_distance = sbpl_max_distance_;
   reinterpret_cast<AStarControlOption*>(options_)->goal_safe_dis_a = goal_safe_dis_a_;
   reinterpret_cast<AStarControlOption*>(options_)->goal_safe_dis_b = goal_safe_dis_b_;

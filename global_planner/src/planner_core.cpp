@@ -368,7 +368,11 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
 
     outlineMap(costmap_->getCharMap(), nx, ny, costmap_2d::LETHAL_OBSTACLE);
 
-    bool found_legal = planner_->calculatePotentials(costmap_->getCharMap(), path_costmap_->getCharMap(), start_x, start_y, goal_x, goal_y,
+    unsigned char* path_costs = NULL; 
+    if (path_costmap_ != NULL) {
+      path_costs = path_costmap_->getCharMap();
+    }
+    bool found_legal = planner_->calculatePotentials(costmap_->getCharMap(), path_costs, start_x, start_y, goal_x, goal_y,
                                                     nx * ny * 2, potential_array_);
 
     if(!old_navfn_behavior_)

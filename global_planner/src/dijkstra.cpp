@@ -75,7 +75,7 @@ void DijkstraExpansion::setSize(int xs, int ys) {
 // runs for a specified number of cycles,
 //   or until it runs out of cells to update,
 //   or until the Start cell is found (atStart = true)
-//
+// warnning: if we have no path.pgm , path_costs == NULL
 
 bool DijkstraExpansion::calculatePotentials(unsigned char* costs, unsigned char* path_costs, double start_x, double start_y, double end_x, double end_y,
                                            int cycles, float* potential) {

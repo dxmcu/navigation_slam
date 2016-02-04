@@ -170,6 +170,7 @@ class AutoScrubber {
   double localization_duration_;
   double max_offroad_dis_;
   double front_safe_check_dis_;
+  double backward_check_dis_;
   double goal_safe_dis_a_;
   double goal_safe_dis_b_;
   double goal_safe_check_dis_;	

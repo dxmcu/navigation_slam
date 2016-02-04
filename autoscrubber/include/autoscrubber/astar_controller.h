@@ -63,6 +63,7 @@ struct AStarControlOption : BaseControlOption {
   double max_path_length_diff;
   double max_offroad_dis;
   double front_safe_check_dis;
+  double backward_check_dis;
   double goal_safe_dis_a;
   double goal_safe_dis_b;
   double goal_safe_check_dis;	

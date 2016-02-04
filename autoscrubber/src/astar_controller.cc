@@ -1603,7 +1603,7 @@ bool AStarController::HandleGoingBack(const geometry_msgs::PoseStamped& current_
   geometry_msgs::Twist cmd_vel;
   geometry_msgs::PoseStamped cur_pos = current_position;
   if (backward_dis == 0.0) {
-    backward_dis = 0.13;
+    backward_dis = co_->backward_check_dis;
   }
   // check if need backward
   ros::Time end_time = ros::Time::now() + ros::Duration(co_->stop_duration / 3);
