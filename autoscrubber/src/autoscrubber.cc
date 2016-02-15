@@ -17,7 +17,6 @@
 #include <vector>
 #include <cmath>
 
-#include "autoscrubber/fixpattern_controller.h"
 #include "autoscrubber/astar_controller.h"
 
 namespace autoscrubber {
@@ -52,7 +51,9 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   private_nh.param("localization_duration", localization_duration_, 5.0);
 
   private_nh.param("max_path_length_dif", max_path_length_diff_, 5.0);
-  private_nh.param("max_offroad_dis", max_offroad_dis_, 0.7); //0.7 Lee
+  private_nh.param("max_offroad_dis", max_offroad_dis_, 0.7); 
+  private_nh.param("max_offroad_yaw", max_offroad_yaw_, M_PI / 2.5); 
+
   private_nh.param("front_safe_check_dis", front_safe_check_dis_, 1.0);
   private_nh.param("backward_check_dis", backward_check_dis_, 0.13);
 
@@ -127,6 +128,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   reinterpret_cast<AStarControlOption*>(options_)->stop_duration = stop_duration_;
   reinterpret_cast<AStarControlOption*>(options_)->localization_duration = localization_duration_;
   reinterpret_cast<AStarControlOption*>(options_)->max_offroad_dis = max_offroad_dis_;
+  reinterpret_cast<AStarControlOption*>(options_)->max_offroad_yaw = max_offroad_yaw_;
   reinterpret_cast<AStarControlOption*>(options_)->max_path_length_diff = max_path_length_diff_;
   reinterpret_cast<AStarControlOption*>(options_)->front_safe_check_dis = front_safe_check_dis_;
   reinterpret_cast<AStarControlOption*>(options_)->backward_check_dis = backward_check_dis_;

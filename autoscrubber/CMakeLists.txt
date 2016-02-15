@@ -46,7 +46,6 @@ include_directories(
 # autoscrubber
 add_library(${PROJECT_NAME} STATIC
     src/autoscrubber.cc
-    src/fixpattern_controller.cc
     src/astar_controller.cc
     src/footprint_checker.cc
 )

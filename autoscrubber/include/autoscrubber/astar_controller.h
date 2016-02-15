@@ -62,6 +62,7 @@ struct AStarControlOption : BaseControlOption {
   double sbpl_max_distance;
   double max_path_length_diff;
   double max_offroad_dis;
+  double max_offroad_yaw;
   double front_safe_check_dis;
   double backward_check_dis;
   double goal_safe_dis_a;
@@ -151,7 +152,7 @@ class AStarController : public BaseController {
                            const std::vector<geometry_msgs::Point>& circle_center_points, double length);
   bool IsGlobalGoalReached(const geometry_msgs::PoseStamped& current_position, const geometry_msgs::PoseStamped& global_goal,
                             double xy_goal_tolerance, double yaw_goal_tolerance); 
-  double CheckFixPathFrontSafe(double front_safe_check_dis); 
+  double CheckFixPathFrontSafe(const std::vector<geometry_msgs::PoseStamped>& path, double front_safe_check_dis);
   bool NeedBackward(const geometry_msgs::PoseStamped& pose, double distance);
   bool GetAStarInitalPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
   bool GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, int begin_index = 0);
@@ -172,6 +173,7 @@ class AStarController : public BaseController {
   bool RotateRecovery();
   bool HandleRecovery(geometry_msgs::PoseStamped current_pos); 
   bool HandleLocalizationRecovery(void);
+  bool HandleSwitchingPath(geometry_msgs::PoseStamped current_position);
   // forward
   bool GoingForward(double distance);
   bool CanForward(double distance);
@@ -198,6 +200,8 @@ class AStarController : public BaseController {
 
   // used in astar local planner
   fixpattern_path::Path astar_path_;
+  // used for path switching and replacing
+  fixpattern_path::Path front_path_;
   // footprint checker
   autoscrubber::FootprintChecker* footprint_checker_;
 
@@ -219,6 +223,7 @@ class AStarController : public BaseController {
   bool taken_global_goal_;
   bool gotStartPlan_;
   bool gotGoalPlan_;
+  bool switch_path_;
   unsigned int astar_planner_timeout_cnt_;
   unsigned int local_planner_error_cnt_;
   unsigned int fix_local_planner_error_cnt_;
@@ -232,6 +237,7 @@ class AStarController : public BaseController {
   geometry_msgs::PoseStamped planner_start_;
   geometry_msgs::PoseStamped planner_goal_;
   geometry_msgs::PoseStamped global_goal_;
+  geometry_msgs::PoseStamped front_goal_;
   geometry_msgs::PoseStamped success_broader_goal_;
   boost::thread* planner_thread_;
   unsigned int planner_start_index_;
