@@ -231,6 +231,7 @@ class AStarController : public BaseController {
   unsigned int path_not_safe_cnt_;
   unsigned int front_safe_check_cnt_;
   unsigned int obstacle_index_;
+  unsigned int front_goal_index_;
   double cmd_vel_ratio_;
   boost::mutex planner_mutex_;
   boost::condition_variable planner_cond_;
@@ -244,8 +245,11 @@ class AStarController : public BaseController {
   bool new_global_plan_;
   bool terminate_controller_;
   bool using_sbpl_directly_;
+  bool last_using_bezier_;
+  bool replan_directly_;
   // broader sbpl start and goal entry
   bool sbpl_broader_;
+
   bool first_run_controller_flag_;
   bool localization_valid_;
 

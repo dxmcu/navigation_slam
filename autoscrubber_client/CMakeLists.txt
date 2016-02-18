@@ -12,7 +12,6 @@ find_package(catkin REQUIRED
 )
 
 catkin_package(
-  INCLUDE_DIRS include
   CATKIN_DEPENDS
     roscpp
     autoscrubber_services
@@ -25,3 +24,4 @@ include_directories(
 # autoscrubber_client
 add_executable(${PROJECT_NAME} src/autoscrubber_client.cc)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})

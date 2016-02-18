@@ -91,8 +91,8 @@ typedef struct _IntermPointStruct {
   int rotate_direction;  // only useful if is_corner is true, represent which direction should turn to
                          // 1 represents turning left, -1 represents turnint right, 0 represents no turn
   double highlight;      // calculate highlight and max_vel based on combination of mprims sequence
-	double max_vel;
-	double distance;  // distance bettween this point and next
+  double max_vel;
+  double distance;  // distance bettween this point and next
 } IntermPointStruct;
 
 typedef struct _MPrimitive {
@@ -121,9 +121,9 @@ typedef struct _Action {
   unsigned int cost;
   double source_x;
   double source_y;
-	double distance;
-	double highlight;
-	double max_vel;
+  double distance;
+  double highlight;
+  double max_vel;
   std::vector<XYCell> intersecting_cells;
   std::vector<XYCell> circle_center_cells;
   // start at 0,0,starttheta and end at endcell in continuous domain with half-bin less to account for 0,0 start

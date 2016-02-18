@@ -34,7 +34,6 @@
 #include <global_planner/planner_core.h>
 // #include <sbpl_lattice_planner/sbpl_lattice_planner.h>
 #include <search_based_global_planner/search_based_global_planner.h>
-#include <base_local_planner/trajectory_planner_ros.h>
 #include <fixpattern_local_planner/trajectory_planner_ros.h>
 #include <vector>
 #include <string>

@@ -29,7 +29,7 @@ SearchBasedGlobalPlanner::SearchBasedGlobalPlanner() : initialized_(false) { }
 
 SearchBasedGlobalPlanner::~SearchBasedGlobalPlanner() { }
 
-double GetNumberFromXMLRPC(XmlRpc::XmlRpcValue& value, const std::string& full_param_name) {
+double GetNumberFromXMLRPC(XmlRpc::XmlRpcValue& value, const std::string& full_param_name) {  // NOLINT
   // Make sure that the value we're looking at is either a double or an int.
   if (value.getType() != XmlRpc::XmlRpcValue::TypeInt &&
       value.getType() != XmlRpc::XmlRpcValue::TypeDouble) {
@@ -41,7 +41,7 @@ double GetNumberFromXMLRPC(XmlRpc::XmlRpcValue& value, const std::string& full_p
   return value.getType() == XmlRpc::XmlRpcValue::TypeInt ? static_cast<int>(value) : static_cast<double>(value);
 }
 
-void ReadCircleCenterFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const std::string& full_param_name, std::vector<XYPoint>* points) {
+void ReadCircleCenterFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const std::string& full_param_name, std::vector<XYPoint>* points) {  // NOLINT
   // Make sure we have an array of at least 3 elements.
   if (circle_center_xmlrpc.getType() != XmlRpc::XmlRpcValue::TypeArray || circle_center_xmlrpc.size() < 1) {
     ROS_FATAL("The circle_center must be specified as list of lists on the parameter server, %s was specified as %s",
@@ -56,8 +56,10 @@ void ReadCircleCenterFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const
     XmlRpc::XmlRpcValue point = circle_center_xmlrpc[ i ];
     if (point.getType() != XmlRpc::XmlRpcValue::TypeArray ||
         point.size() != 2) {
-      ROS_FATAL("The circle_center (parameter %s) must be specified as list of lists on the parameter server eg: [[x1, y1], [x2, y2], ..., [xn, yn]], but this spec is not of that form.", full_param_name.c_str());
-      throw std::runtime_error( "The circle_center must be specified as list of lists on the parameter server eg: [[x1, y1], [x2, y2], ..., [xn, yn]], but this spec is not of that form");
+      ROS_FATAL("The circle_center (parameter %s) must be specified as list of lists on the parameter server eg:"
+                " [[x1, y1], [x2, y2], ..., [xn, yn]], but this spec is not of that form.", full_param_name.c_str());
+      throw std::runtime_error("The circle_center must be specified as list of lists on the parameter server eg:"
+                               " [[x1, y1], [x2, y2], ..., [xn, yn]], but this spec is not of that form");
     }
 
     pt.x = GetNumberFromXMLRPC(point[0], full_param_name);
@@ -118,7 +120,7 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
 
     // check if the costmap has an inflation layer
     // Warning: footprint updates after initialization are not supported here
-    unsigned char cost_possibly_circumscribed_thresh = 0;
+    unsigned char cost_possibly_circumscribed_thresh = costmap_ros_->getCostPossiblyCircumscribedThresh();
     // for (std::vector<boost::shared_ptr<costmap_2d::Layer> >::const_iterator layer = costmap_ros_->getLayeredCostmap()->getPlugins()->begin();
     //     layer != costmap_ros_->getLayeredCostmap()->getPlugins()->end();
     //     ++layer) {
@@ -127,7 +129,7 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
 
     //   cost_possibly_circumscribed_thresh = inflation_layer->computeCost(costmap_ros_->getLayeredCostmap()->getCircumscribedRadius() / resolution_);
     // }
-    cost_possibly_circumscribed_thresh = costmap_ros_->getCostPossiblyCircumscribedThresh();
+
     int lethal_cost = 20;
     private_nh.param("lethal_cost", lethal_cost, 20);
     lethal_cost_ = static_cast<unsigned char>(lethal_cost);
@@ -286,8 +288,8 @@ bool SearchBasedGlobalPlanner::ComputeOrImprovePath() {
   // get start_entry_list
   std::vector<EnvironmentEntry3D*> start_entry_list;
   if (broader_start_and_goal_) {
-    std::vector<int> delta_x{-2, -1, 0, 1, 2};
-    std::vector<int> delta_y{-2, -1, 0, 1, 2};
+    std::vector<int> delta_x{-2, 0, 2};
+    std::vector<int> delta_y{-2, 0, 2};
     int start_x = start_entry_->x;
     int start_y = start_entry_->y;
     uint8_t start_theta = start_entry_->theta;
@@ -304,7 +306,7 @@ bool SearchBasedGlobalPlanner::ComputeOrImprovePath() {
   first_met_entry_ = start_entry_;
   // begin compute
   EnvironmentEntry3D* min_entry = open_.top();
-  while (min_entry != NULL && GetTimeInSeconds() - start_time_ < allocated_time_ ) {
+  while (min_entry != NULL && GetTimeInSeconds() - start_time_ < allocated_time_) {
     bool search_over = false;
     for (const auto& start_entry : start_entry_list) {
       if (COMPUTEKEY(min_entry) >= COMPUTEKEY(start_entry) && start_entry->rhs == start_entry->g) {
@@ -431,14 +433,17 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
       path_info->clear();
       return;
     }
+
     // now push in the actual path
     double source_x = DISCXY2CONT(source_entry->x, resolution_);
     double source_y = DISCXY2CONT(source_entry->y, resolution_);
+
     for (int ipind = 0; ipind < static_cast<int>(actions[best_index]->interm_pts.size()) - 1; ++ipind) {
-		// translate appropriately
+      // translate appropriately
       XYThetaPoint interm_point = actions[best_index]->interm_pts[ipind];
       interm_point.x += source_x;
       interm_point.y += source_y;
+
       // store
       point_path->push_back(interm_point);
   //    path_info->push_back(actions[best_index]->interm_struct[ipind]);
@@ -563,9 +568,9 @@ void SearchBasedGlobalPlanner::ReInitializeSearchEnvironment() {
 
   // put goal_entry_ to open_, entries around goal_entry_ too
   if (broader_start_and_goal_) {
-    std::vector<int> delta_x{-3, -2, -1, 0, 1, 2, 3};
-    std::vector<int> delta_y{-3, -2, -1, 0, 1, 2, 3};
-    std::vector<int> delta_theta{0}; // -1, 0, 1
+    std::vector<int> delta_x{-2, 0, 2};
+    std::vector<int> delta_y{-2, 0, 2};
+    std::vector<int> delta_theta{-1, 0, 1};
     int goal_x = goal_entry_->x;
     int goal_y = goal_entry_->y;
     uint8_t goal_theta = goal_entry_->theta;
@@ -658,7 +663,7 @@ bool SearchBasedGlobalPlanner::CostsChanged(const std::vector<XYCell>& changed_c
 
   EnvironmentEntry3D* entry = NULL;
   std::vector<EnvironmentEntry3D*> affected_entries;
-  char* exist = (char*)calloc(map_size_ * map_size_ * size_dir_, sizeof(char));
+  char* exist = (char*)calloc(map_size_ * map_size_ * size_dir_, sizeof(char));  // NOLINT
   if (!exist) {
     ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] allocate memory for exist in CostsChanged failed");
     exit(0);
@@ -737,6 +742,8 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
   plan.clear();
 
   broader_start_and_goal_ = broader_start_and_goal;
+  ROS_INFO_COND(broader_start_and_goal_, "[SEARCH BASED GLOBAL PLANNER] broader_start_and_goal: true");
+  ROS_INFO_COND(!broader_start_and_goal_, "[SEARCH BASED GLOBAL PLANNER] broader_start_and_goal: false");
 
   double theta_start = 2 * atan2(start.pose.orientation.z, start.pose.orientation.w);
   double theta_goal = 2 * atan2(goal.pose.orientation.z, goal.pose.orientation.w);
@@ -850,28 +857,25 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
 
     plan.push_back(pose);
   }
-  // if (!broader_start_and_goal_) {
-    plan.push_back(goal);
-  // }
+  plan.push_back(goal);
 
   // publish the plan
   PublishPlan(plan);
 
   // assign to fixpattern_path::Path
   std::vector<fixpattern_path::PathPoint> tmp_path;
-//  if(plan.size() > 0)
   for (unsigned int i = 0; i < plan.size() - 1; ++i) {
     //ROS_INFO("[SBPL] path_info[%d]", i);
     if (path_info[i].is_corner) {
       unsigned int corner_size = 1;
       for (unsigned int j = i + 1; j < plan.size() - 1; ++j) {
-        if (path_info[j].is_corner) 
+        if (path_info[j].is_corner)
           corner_size++;
         else
           break;
       }
       unsigned int corner_end_index = i + (corner_size - 1);
-      if(corner_size >= 18) {  // >67.5
+      if(i == 0 || corner_size >= 18) {  // >67.5
         fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[i].pose);
         point.highlight = path_info[i].highlight;
         point.max_vel = path_info[i].max_vel;
@@ -893,7 +897,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
         ROS_INFO("[SEARCH BASED GLOBAL PLANNER] corner_point index: %d, size: %d, real theta_out: %lf, dir: %d", j, (int)path_info.size(), path_info[j].theta_out, path_info[j].rotate_direction);
       }
 */
-			}
+      }
       i = corner_end_index;
     } else {
       fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[i].pose);
