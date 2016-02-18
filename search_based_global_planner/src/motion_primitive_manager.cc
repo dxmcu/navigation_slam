@@ -44,12 +44,12 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
   // x aligned with the heading of the robot, angles are positive
   // counterclockwise
   // 0 theta change
-  mprim_cell_0[SHORT_FORWARD] = {2, 0, 0, forward_cost_mult_};
-  mprim_cell_0[NORMAL_FORWARD] = {16, 0, 0, forward_cost_mult_};
-  mprim_cell_0[LONG_FORWARD] = {32, 0, 0, forward_cost_mult_};
+  mprim_cell_0[SHORT_FORWARD] = {1, 0, 0, forward_cost_mult_};
+  mprim_cell_0[NORMAL_FORWARD] = {8, 0, 0, forward_cost_mult_};
+  mprim_cell_0[LONG_FORWARD] = {16, 0, 0, forward_cost_mult_};
 /*  // 1/16 theta change
-  mprim_cell_0[FORWARD_TURN_LEFT] = {16, 2, 1, forward_and_turn_cost_mult_};
-  mprim_cell_0[FORWARD_TURN_RIGHT] = {16, -2, -1, forward_and_turn_cost_mult_};
+  mprim_cell_0[FORWARD_TURN_LEFT] = {8, 1, 1, forward_and_turn_cost_mult_};
+  mprim_cell_0[FORWARD_TURN_RIGHT] = {8, -1, -1, forward_and_turn_cost_mult_};
 */
   // turn in place
   mprim_cell_0[IN_PLACE_ROTATE_LEFT] = {0, 0, 1, turn_in_place_cost_mult_};
@@ -60,12 +60,12 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
   // x aligned with the heading of the robot, angles are positive
   // counterclockwise
   // 0 theta change
-  mprim_cell_45[SHORT_FORWARD] = {2, 2, 0, forward_cost_mult_};
-  mprim_cell_45[NORMAL_FORWARD] = {12, 12, 0, forward_cost_mult_};
-  mprim_cell_45[LONG_FORWARD] = {24, 24, 0, forward_cost_mult_};
+  mprim_cell_45[SHORT_FORWARD] = {1, 1, 0, forward_cost_mult_};
+  mprim_cell_45[NORMAL_FORWARD] = {6, 6, 0, forward_cost_mult_};
+  mprim_cell_45[LONG_FORWARD] = {12, 12, 0, forward_cost_mult_};
 /*  // 1/16 theta change
-  mprim_cell_45[FORWARD_TURN_LEFT] = {10, 14, 1, forward_and_turn_cost_mult_};
-  mprim_cell_45[FORWARD_TURN_RIGHT] = {14, 10, -1, forward_and_turn_cost_mult_};
+  mprim_cell_45[FORWARD_TURN_LEFT] = {5, 7, 1, forward_and_turn_cost_mult_};
+  mprim_cell_45[FORWARD_TURN_RIGHT] = {7, 5, -1, forward_and_turn_cost_mult_};
 */
   // turn in place
   mprim_cell_45[IN_PLACE_ROTATE_LEFT] = {0, 0, 1, turn_in_place_cost_mult_};
@@ -77,12 +77,12 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
   // x aligned with the heading of the robot, angles are positive
   // counterclockwise
   // 0 theta change
-  mprim_cell_22p5[SHORT_FORWARD] = {4, 2, 0, forward_cost_mult_};
-  mprim_cell_22p5[NORMAL_FORWARD] = {12, 6, 0, forward_cost_mult_};
-  mprim_cell_22p5[LONG_FORWARD] = {28, 12, 0, forward_cost_mult_};
+  mprim_cell_22p5[SHORT_FORWARD] = {2, 1, 0, forward_cost_mult_};
+  mprim_cell_22p5[NORMAL_FORWARD] = {6, 3, 0, forward_cost_mult_};
+  mprim_cell_22p5[LONG_FORWARD] = {14, 6, 0, forward_cost_mult_};
 /*  // 1/16 theta change
-  mprim_cell_22p5[FORWARD_TURN_LEFT] = {10, 8, 1, forward_and_turn_cost_mult_};
-  mprim_cell_22p5[FORWARD_TURN_RIGHT] = {14, 4, -1, forward_and_turn_cost_mult_};
+  mprim_cell_22p5[FORWARD_TURN_LEFT] = {5, 4, 1, forward_and_turn_cost_mult_};
+  mprim_cell_22p5[FORWARD_TURN_RIGHT] = {7, 2, -1, forward_and_turn_cost_mult_};
 */
   // turn in place
   mprim_cell_22p5[IN_PLACE_ROTATE_LEFT] = {0, 0, 1, turn_in_place_cost_mult_};

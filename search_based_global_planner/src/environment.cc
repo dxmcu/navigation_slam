@@ -78,69 +78,69 @@ Environment::Environment(unsigned int size_x, unsigned int size_y, double resolu
 
 void Environment::ComputeDXY() {
   // initialize some constants for computing heuristic
-  heuristic_dx_[0] = 2;
-  heuristic_dy_[0] = 2;
-  heuristic_dx0_intersects_[0] = -2;
-  heuristic_dy0_intersects_[0] = -2;
-  heuristic_dx_[1] = 2;
+  heuristic_dx_[0] = 1;
+  heuristic_dy_[0] = 1;
+  heuristic_dx0_intersects_[0] = -1;
+  heuristic_dy0_intersects_[0] = -1;
+  heuristic_dx_[1] = 1;
   heuristic_dy_[1] = 0;
-  heuristic_dx0_intersects_[1] = -2;
-  heuristic_dy0_intersects_[1] = -2;
-  heuristic_dx_[2] = 2;
-  heuristic_dy_[2] = -2;
-  heuristic_dx0_intersects_[2] = -2;
-  heuristic_dy0_intersects_[2] = -2;
+  heuristic_dx0_intersects_[1] = -1;
+  heuristic_dy0_intersects_[1] = -1;
+  heuristic_dx_[2] = 1;
+  heuristic_dy_[2] = -1;
+  heuristic_dx0_intersects_[2] = -1;
+  heuristic_dy0_intersects_[2] = -1;
   heuristic_dx_[3] = 0;
-  heuristic_dy_[3] = 2;
-  heuristic_dx0_intersects_[3] = -2;
-  heuristic_dy0_intersects_[3] = -2;
+  heuristic_dy_[3] = 1;
+  heuristic_dx0_intersects_[3] = -1;
+  heuristic_dy0_intersects_[3] = -1;
   heuristic_dx_[4] = 0;
-  heuristic_dy_[4] = -2;
-  heuristic_dx0_intersects_[4] = -2;
-  heuristic_dy0_intersects_[4] = -2;
-  heuristic_dx_[5] = -2;
-  heuristic_dy_[5] = 2;
-  heuristic_dx0_intersects_[5] = -2;
-  heuristic_dy0_intersects_[5] = -2;
-  heuristic_dx_[6] = -2;
+  heuristic_dy_[4] = -1;
+  heuristic_dx0_intersects_[4] = -1;
+  heuristic_dy0_intersects_[4] = -1;
+  heuristic_dx_[5] = -1;
+  heuristic_dy_[5] = 1;
+  heuristic_dx0_intersects_[5] = -1;
+  heuristic_dy0_intersects_[5] = -1;
+  heuristic_dx_[6] = -1;
   heuristic_dy_[6] = 0;
-  heuristic_dx0_intersects_[6] = -2;
-  heuristic_dy0_intersects_[6] = -2;
-  heuristic_dx_[7] = -2;
-  heuristic_dy_[7] = -2;
-  heuristic_dx0_intersects_[7] = -2;
-  heuristic_dy0_intersects_[7] = -2;
+  heuristic_dx0_intersects_[6] = -1;
+  heuristic_dy0_intersects_[6] = -1;
+  heuristic_dx_[7] = -1;
+  heuristic_dy_[7] = -1;
+  heuristic_dx0_intersects_[7] = -1;
+  heuristic_dy0_intersects_[7] = -1;
 
   // Note: these actions have to be starting at 8 and through 15, since they
   // get multiplied correspondingly in Dijkstra's search based on index
-  heuristic_dx_[8] = 4; heuristic_dy_[8] = 2;
-  heuristic_dx0_intersects_[8] = 2; heuristic_dy0_intersects_[8] = 0; heuristic_dx1_intersects_[8] = 2; heuristic_dy1_intersects_[8] = 2;
-  heuristic_dx_[9] = 2; heuristic_dy_[9] = 4;
-  heuristic_dx0_intersects_[9] = 0; heuristic_dy0_intersects_[9] = 2; heuristic_dx1_intersects_[9] = 2; heuristic_dy1_intersects_[9] = 2;
-  heuristic_dx_[10] = -2; heuristic_dy_[10] = 4;
-  heuristic_dx0_intersects_[10] = 0; heuristic_dy0_intersects_[10] = 2; heuristic_dx1_intersects_[10] = -2; heuristic_dy1_intersects_[10] = 2;
-  heuristic_dx_[11] = -4; heuristic_dy_[11] = 2;
-  heuristic_dx0_intersects_[11] = -2; heuristic_dy0_intersects_[11] = 0; heuristic_dx1_intersects_[11] = -2; heuristic_dy1_intersects_[11] = 2;
-  heuristic_dx_[12] = -4; heuristic_dy_[12] = -2;
-  heuristic_dx0_intersects_[12] = -2; heuristic_dy0_intersects_[12] = 0; heuristic_dx1_intersects_[12] = -2; heuristic_dy1_intersects_[12] = -2;
-  heuristic_dx_[13] = -2; heuristic_dy_[13] = -4;
-  heuristic_dx0_intersects_[13] = 0; heuristic_dy0_intersects_[13] = -2; heuristic_dx1_intersects_[13] = -2; heuristic_dy1_intersects_[13] = -2;
-  heuristic_dx_[14] = 2; heuristic_dy_[14] = -4;
-  heuristic_dx0_intersects_[14] = 0; heuristic_dy0_intersects_[14] = -2; heuristic_dx1_intersects_[14] = 2; heuristic_dy1_intersects_[14] = -2;
-  heuristic_dx_[15] = 4; heuristic_dy_[15] = -2;
-  heuristic_dx0_intersects_[15] = 2; heuristic_dy0_intersects_[15] = 0; heuristic_dx1_intersects_[15] = 2; heuristic_dy1_intersects_[15] = -2;
+  heuristic_dx_[8] = 2; heuristic_dy_[8] = 1;
+  heuristic_dx0_intersects_[8] = 1; heuristic_dy0_intersects_[8] = 0; heuristic_dx1_intersects_[8] = 1; heuristic_dy1_intersects_[8] = 1;
+  heuristic_dx_[9] = 1; heuristic_dy_[9] = 2;
+  heuristic_dx0_intersects_[9] = 0; heuristic_dy0_intersects_[9] = 1; heuristic_dx1_intersects_[9] = 1; heuristic_dy1_intersects_[9] = 1;
+  heuristic_dx_[10] = -1; heuristic_dy_[10] = 2;
+  heuristic_dx0_intersects_[10] = 0; heuristic_dy0_intersects_[10] = 1; heuristic_dx1_intersects_[10] = -1; heuristic_dy1_intersects_[10] = 1;
+  heuristic_dx_[11] = -2; heuristic_dy_[11] = 1;
+  heuristic_dx0_intersects_[11] = -1; heuristic_dy0_intersects_[11] = 0; heuristic_dx1_intersects_[11] = -1; heuristic_dy1_intersects_[11] = 1;
+  heuristic_dx_[12] = -2; heuristic_dy_[12] = -1;
+  heuristic_dx0_intersects_[12] = -1; heuristic_dy0_intersects_[12] = 0; heuristic_dx1_intersects_[12] = -1; heuristic_dy1_intersects_[12] = -1;
+  heuristic_dx_[13] = -1; heuristic_dy_[13] = -2;
+  heuristic_dx0_intersects_[13] = 0; heuristic_dy0_intersects_[13] = -1; heuristic_dx1_intersects_[13] = -1; heuristic_dy1_intersects_[13] = -1;
+  heuristic_dx_[14] = 1; heuristic_dy_[14] = -2;
+  heuristic_dx0_intersects_[14] = 0; heuristic_dy0_intersects_[14] = -1; heuristic_dx1_intersects_[14] = 1; heuristic_dy1_intersects_[14] = -1;
+  heuristic_dx_[15] = 2; heuristic_dy_[15] = -1;
+  heuristic_dx0_intersects_[15] = 1; heuristic_dy0_intersects_[15] = 0; heuristic_dx1_intersects_[15] = 1; heuristic_dy1_intersects_[15] = -1;
 
   // compute distances
   for (unsigned int dind = 0; dind < NUM_OF_HEURISTIC_SEARCH_DIR; dind++) {
     if (heuristic_dx_[dind] != 0 && heuristic_dy_[dind] != 0) {
       if (dind <= 7)
         // the cost of a diagonal move in millimeters
-        heuristic_dxy_distance_mm_[dind] = static_cast<int>(resolution_ * 2828);
+        heuristic_dxy_distance_mm_[dind] = static_cast<int>(resolution_ * 1414);
       else
         // the cost of a move to 1,2 or 2,1 or so on in millimeters
-        heuristic_dxy_distance_mm_[dind] = static_cast<int>(resolution_ * 4472);
+        heuristic_dxy_distance_mm_[dind] = static_cast<int>(resolution_ * 2236);
     } else {
-      heuristic_dxy_distance_mm_[dind] = static_cast<int>(resolution_ * 2000);  // the cost of a horizontal move in millimeters
+      heuristic_dxy_distance_mm_[dind] = static_cast<int>(resolution_ * 1000);  // the cost of a horizontal move in millimeters
     }
   }
 }
@@ -261,8 +261,6 @@ EnvironmentEntry3D* Environment::SetStart(double x_m, double y_m, double theta_r
     ROS_WARN("[SEARCH BASED GLOBAL PLANNER] start configuration %d %d %d is invalid", x, y, theta);
   }
 
-  AdjustStartEntry(&x, &y, &theta);
-
   // we're using backward search, once start changes, heuristics must be updated
   if (x != start_cell_.x || y != start_cell_.y || theta != start_cell_.theta) {
     need_to_update_heuristics_ = true;
@@ -274,73 +272,6 @@ EnvironmentEntry3D* Environment::SetStart(double x_m, double y_m, double theta_r
   start_cell_.theta = theta;
 
   return &env_[x][y][theta];
-}
-
-void Environment::AdjustStartEntry(int* x, int* y, int* theta) {
-  bool padding_x = false;
-  bool padding_y = false;
-  if ((goal_cell_.x + *x) % 2 != 0) padding_x = true;
-  if ((goal_cell_.y + *y) % 2 != 0) padding_y = true;
-
-  ROS_INFO_COND(padding_x, "[SEARCH BASED GLOBAL PLANNER] padding_x: true");
-  ROS_INFO_COND(!padding_x, "[SEARCH BASED GLOBAL PLANNER] padding_x: false");
-  ROS_INFO_COND(padding_y, "[SEARCH BASED GLOBAL PLANNER] padding_y: true");
-  ROS_INFO_COND(!padding_y, "[SEARCH BASED GLOBAL PLANNER] padding_y: false");
-
-  std::vector<XYThetaCell> padding_cells;
-  if (padding_x && padding_y) {
-    padding_cells.push_back(XYThetaCell(*x + 1, *y + 1, *theta));
-    padding_cells.push_back(XYThetaCell(*x + 1, *y - 1, *theta));
-    padding_cells.push_back(XYThetaCell(*x - 1, *y + 1, *theta));
-    padding_cells.push_back(XYThetaCell(*x - 1, *y - 1, *theta));
-  } else if (padding_x && !padding_y) {
-    padding_cells.push_back(XYThetaCell(*x + 1, *y, *theta));
-    padding_cells.push_back(XYThetaCell(*x - 1, *y, *theta));
-  } else if (!padding_x && padding_y) {
-    padding_cells.push_back(XYThetaCell(*x, *y + 1, *theta));
-    padding_cells.push_back(XYThetaCell(*x, *y - 1, *theta));
-  }
-
-  int best_index = -1;
-  int best_cost = INFINITECOST;
-  for (unsigned int i = 0; i < padding_cells.size(); ++i) {
-    int x = padding_cells[i].x;
-    int y = padding_cells[i].y;
-    uint8_t theta = padding_cells[i].theta;
-    if (!IsWithinMapCell(x, y)) continue;
-
-    std::set<XYCell> footprint_points;
-    XYThetaPoint pose;
-
-    // compute continuous pose
-    pose.x = DISCXY2CONT(x, resolution_);
-    pose.y = DISCXY2CONT(y, resolution_);
-    pose.theta = DiscTheta2Cont(theta, num_of_angles_);
-
-    // compute footprint cells
-    Get2DFootprintCells(footprint_, &footprint_points, pose, resolution_);
-
-    // iterate over all footprint cells
-    int max_cost = 0;
-    for (const auto& p : footprint_points) {
-      if (!IsCellValid(p.x, p.y)) {
-        max_cost = INFINITECOST;
-      } else {
-        max_cost = std::max(max_cost, static_cast<int>(grid_[p.x][p.y].cost));
-      }
-    }
-
-    if (max_cost != INFINITECOST && max_cost < best_cost) {
-      best_cost = max_cost;
-      best_index = i;
-    }
-  }
-
-  if (best_index == -1) return;
-
-  *x = padding_cells[best_index].x;
-  *y = padding_cells[best_index].y;
-  *theta = padding_cells[best_index].theta;
 }
 
 void Environment::UpdateCost(unsigned int x, unsigned int y, unsigned char cost) {

@@ -351,8 +351,7 @@ void TrajectoryPlanner::generateTrajectory(
     time += dt;
   }  //  end for i < numsteps
 
-//  traj.cost_ = pdist_scale_ * path_dist + occdist_scale_ * occ_dist;
-  traj.cost_ = pdist_scale_ * path_dist;
+  traj.cost_ = pdist_scale_ * path_dist + occdist_scale_ * occ_dist;
 }
 
 /**
@@ -827,106 +826,42 @@ Trajectory TrajectoryPlanner::createTrajectories(double x, double y, double thet
     comp_traj = swap;
   }
 
-  vtheta_samp = min_vel_theta;
-  // next sample all theta trajectories
-  int begin = 0;
-  int end = vtheta_samples_ - 1;
-  std::vector<double> costs;
-  costs.resize(vtheta_samples_);
-  for (auto&& i : costs) i = -100.0;  // NOLINT
-  while (begin < end) {
-    int mid = (begin + end) / 2;
-    if (fabs(costs[mid]  + 100) < GS_DOUBLE_PRECISION) {
-      CalculatePathCost(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp + dvtheta * mid,
-                        acc_x, acc_y, acc_theta, impossible_cost, *comp_traj, temp_sim_time);
-      costs[mid] = comp_traj->cost_;
-    }
-    int right = mid;
-    while (++right <= end) {
-      if (fabs(costs[right] + 100) < GS_DOUBLE_PRECISION) {
-        CalculatePathCost(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp + dvtheta * right,
-                          acc_x, acc_y, acc_theta, impossible_cost, *comp_traj, temp_sim_time);
-        costs[right] = comp_traj->cost_;
-        if (fabs(costs[right] - costs[mid]) > GS_DOUBLE_PRECISION) break;
-      }
-    }
-    if (right > end) right = end;
-    if (costs[mid] > costs[right])
-      begin = right;
-    else
-      end = mid;
-  }
-  int best_index = end;
+    vtheta_samp = min_vel_theta;
+    // next sample all theta trajectories
+    // calculate average theta if lots of best_traj->thetav_ is equal
+    double average_count = 0;
+    double average_theta = 0;
+    std::vector<double> costs{};
+    std::vector<double> costs_without_footprint{};
+    for(int j = 0; j < vtheta_samples_ - 1; ++j){
+      generateTrajectory(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp,
+          acc_x, acc_y, acc_theta, impossible_cost, *comp_traj, temp_sim_time);
+      all_explored->push_back(*comp_traj);
+      costs.push_back(comp_traj->cost_);
+      Trajectory tmp_traj;
+      generateTrajectoryWithoutCheckingFootprint(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp,
+          acc_x, acc_y, acc_theta, impossible_cost, tmp_traj, temp_sim_time);
+      costs_without_footprint.push_back(tmp_traj.cost_);
 
-  // now check footprint
-  begin = end = best_index;
-  for (auto&& i : costs) i = -100.0;  // NOLINT
-  generateTrajectory(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp + dvtheta * best_index,
-                     acc_x, acc_y, acc_theta, impossible_cost, *comp_traj, temp_sim_time);
-  all_explored->push_back(*comp_traj);
-  costs[best_index] = comp_traj->cost_;
-  if (costs[best_index] >= 0.0) {
-    swap = best_traj;
-    best_traj = comp_traj;
-    comp_traj = swap;
-  }
-  while (best_traj->cost_ < 0.0 && (begin > 0 || end < vtheta_samples_ - 1)) {
-    begin = begin >= 1 ? begin - 1 : 0;
-    end = end < vtheta_samples_ - 1 ? end + 1 : vtheta_samples_ - 1;
-    // if begin reaches 0 and end hasn't reached last, we'll not generate and wait
-    if (fabs(costs[begin] + 100) < GS_DOUBLE_PRECISION) {
-      generateTrajectory(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp + dvtheta * begin,
-                         acc_x, acc_y, acc_theta, impossible_cost, *comp_traj, temp_sim_time);
-      all_explored->push_back(*comp_traj);
-      costs[begin] = comp_traj->cost_;
-    }
-    if (costs[begin] >= 0.0) {
-      swap = best_traj;
-      best_traj = comp_traj;
-      comp_traj = swap;
-    }
-    // if end reaches last and begin hasn't reached 0, we'll not generate and wait
-    if (fabs(costs[end] + 100) < GS_DOUBLE_PRECISION) {
-      generateTrajectory(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp + dvtheta * end,
-                         acc_x, acc_y, acc_theta, impossible_cost, *comp_traj, temp_sim_time);
-      all_explored->push_back(*comp_traj);
-      costs[end] = comp_traj->cost_;
-    }
-    if (costs[end] >= 0.0 && (best_traj->cost_ < 0 || costs[end] < best_traj->cost_)) {
-      swap = best_traj;
-      best_traj = comp_traj;
-      comp_traj = swap;
-      // we want to sample more trajectories to keep a distance from obstacle
-      int search_index = end + 1;
-      while (search_index <= end + avoid_obstacle_traj_num_ && search_index <= vtheta_samples_ - 1) {
-        generateTrajectory(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp + dvtheta * search_index,
-                           acc_x, acc_y, acc_theta, impossible_cost, *comp_traj, temp_sim_time);
-        all_explored->push_back(*comp_traj);
-        costs[search_index] = comp_traj->cost_;
-        if (costs[search_index] >= 0.0) {
-          swap = best_traj;
-          best_traj = comp_traj;
-          comp_traj = swap;
+      //if the new trajectory is better... let's take it
+      if (comp_traj->cost_ >= 0 && (comp_traj->cost_ <= best_traj->cost_ || best_traj->cost_ < 0)) {
+        if (comp_traj->cost_ == best_traj->cost_) {
+          average_theta += comp_traj->thetav_;
+          average_count++;
+        } else {
+          average_theta = comp_traj->thetav_;
+          average_count = 1;
         }
-        search_index++;
+        swap = best_traj;
+        best_traj = comp_traj;
+        comp_traj = swap;
       }
-    } else if (costs[begin] >= 0.0) {
-      // we want to sample more trajectories to keep a distance from obstacle
-      int search_index = begin - 1;
-      while (search_index >= begin - avoid_obstacle_traj_num_ && search_index >= 0) {
-        generateTrajectory(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp + dvtheta * search_index,
-                           acc_x, acc_y, acc_theta, impossible_cost, *comp_traj, temp_sim_time);
-        all_explored->push_back(*comp_traj);
-        costs[search_index] = comp_traj->cost_;
-        if (costs[search_index] >= 0.0) {
-          swap = best_traj;
-          best_traj = comp_traj;
-          comp_traj = swap;
-        }
-        search_index--;
-      }
+
+      vtheta_samp += dvtheta;
     }
-  }
+    if (average_count) {
+      best_traj->thetav_ = average_theta / average_count;
+    }
 
   // if best_traj is valid, just return, as we don't want to rotate in place
   if (best_traj->cost_ >= 0.0) {

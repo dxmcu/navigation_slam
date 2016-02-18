@@ -288,8 +288,8 @@ bool SearchBasedGlobalPlanner::ComputeOrImprovePath() {
   // get start_entry_list
   std::vector<EnvironmentEntry3D*> start_entry_list;
   if (broader_start_and_goal_) {
-    std::vector<int> delta_x{-2, 0, 2};
-    std::vector<int> delta_y{-2, 0, 2};
+    std::vector<int> delta_x{-2, -1, 0, 1, 2};
+    std::vector<int> delta_y{-2, -1, 0, 1, 2};
     int start_x = start_entry_->x;
     int start_y = start_entry_->y;
     uint8_t start_theta = start_entry_->theta;
@@ -433,11 +433,9 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
       path_info->clear();
       return;
     }
-
     // now push in the actual path
     double source_x = DISCXY2CONT(source_entry->x, resolution_);
     double source_y = DISCXY2CONT(source_entry->y, resolution_);
-
     for (int ipind = 0; ipind < static_cast<int>(actions[best_index]->interm_pts.size()) - 1; ++ipind) {
       // translate appropriately
       XYThetaPoint interm_point = actions[best_index]->interm_pts[ipind];
@@ -568,9 +566,9 @@ void SearchBasedGlobalPlanner::ReInitializeSearchEnvironment() {
 
   // put goal_entry_ to open_, entries around goal_entry_ too
   if (broader_start_and_goal_) {
-    std::vector<int> delta_x{-2, 0, 2};
-    std::vector<int> delta_y{-2, 0, 2};
-    std::vector<int> delta_theta{-1, 0, 1};
+    std::vector<int> delta_x{-3, -2, -1, 0, 1, 2, 3};
+    std::vector<int> delta_y{-3, -2, -1, 0, 1, 2, 3};
+    std::vector<int> delta_theta{0}; // -1, 0, 1
     int goal_x = goal_entry_->x;
     int goal_y = goal_entry_->y;
     uint8_t goal_theta = goal_entry_->theta;

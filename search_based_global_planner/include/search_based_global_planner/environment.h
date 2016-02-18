@@ -13,7 +13,6 @@
 #define SEARCH_BASED_GLOBAL_PLANNER_INCLUDE_SEARCH_BASED_GLOBAL_PLANNER_ENVIRONMENT_H_
 
 #include <vector>
-#include <algorithm>
 #include "search_based_global_planner/utils.h"
 #include "search_based_global_planner/pointer_heap.h"
 #include "search_based_global_planner/motion_primitive_manager.h"
@@ -100,7 +99,6 @@ class Environment {
   void ReInitialize();
   EnvironmentEntry3D* SetStart(double x_m, double y_m, double theta_rad);
   EnvironmentEntry3D* SetGoal(double x_m, double y_m, double theta_rad);
-  void AdjustStartEntry(int* x, int* y, int* theta);
   void UpdateCost(unsigned int x, unsigned int y, unsigned char cost);
   void GetPreds(EnvironmentEntry3D* entry, std::vector<EnvironmentEntry3D*>* pred_entries, std::vector<int>* costs);
   void GetSuccs(EnvironmentEntry3D* entry, std::vector<EnvironmentEntry3D*>* succ_entries,
