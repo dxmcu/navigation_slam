@@ -48,6 +48,7 @@ class FootprintChecker {
     double sin_th = sin(theta);
 
     double ret = 0.0;
+    double check_cnt = 0.0;
     for (unsigned int i = 0; i < circle_center_points.size(); ++i) {
       double new_x = x + (circle_center_points[i].x * cos_th - circle_center_points[i].y * sin_th);
       double new_y = y + (circle_center_points[i].x * sin_th + circle_center_points[i].y * cos_th);
@@ -59,11 +60,12 @@ class FootprintChecker {
       }
       unsigned char cost = costmap_.getCost(cell_x, cell_y);
       if (cost >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
-        return -1.0;
+          check_cnt -= 1.0;
+//        return -1.0;
       }
       if (ret < cost) ret = cost;
     }
-    return ret;
+    return check_cnt;
   }
 
   double FootprintCenterCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& footprint_center_points) {

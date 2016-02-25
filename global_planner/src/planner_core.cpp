@@ -175,14 +175,15 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
                 de->setPreciseStart(true);
             planner_ = de;
         } else {
-          int path_cost; 
+          int path_cost, occ_dis_cost; 
           private_nh.param("path_cost", path_cost, 50);
+          private_nh.param("occ_dis_cost", occ_dis_cost, 10);
           // get circle_center
           std::vector<XYPoint> circle_center_point;
           if (!ReadCircleCenterFromParams(private_nh, &circle_center_point)) {
             exit(1);
           }
-          planner_ = new AStarExpansion(p_calc_, cx, cy, path_cost);
+          planner_ = new AStarExpansion(p_calc_, cx, cy, path_cost, occ_dis_cost);
         }
         bool use_grid_path;
         private_nh.param("use_grid_path", use_grid_path, false);
@@ -372,7 +373,7 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
     if (path_costmap_ != NULL) {
       path_costs = path_costmap_->getCharMap();
     }
-    bool found_legal = planner_->calculatePotentials(costmap_->getCharMap(), path_costs, start_x, start_y, goal_x, goal_y,
+    bool found_legal = planner_->calculatePotentials(costmap_ros_, costmap_->getCharMap(), path_costs, start_x, start_y, goal_x, goal_y,
                                                     nx * ny * 2, potential_array_);
 
     if(!old_navfn_behavior_)

@@ -118,6 +118,10 @@ class FixPatternTrajectoryPlannerROS {
 
   bool isRotatingToGoal();
 
+  bool isFootprintSafe() {
+    return is_footprint_safe_;
+  }
+
   bool isGoalXYLatched();
   /**
    * @brief reset reached_goal_, xy_tolerance_latch_, last_rotate_to_goal_dir_ and try_rotate_ etc.
@@ -217,6 +221,7 @@ class FixPatternTrajectoryPlannerROS {
 
 
   bool initialized_;
+  bool is_footprint_safe_;
   fixpattern_local_planner::OdometryHelperRos odom_helper_;
 
   std::vector<geometry_msgs::Point> footprint_spec_;

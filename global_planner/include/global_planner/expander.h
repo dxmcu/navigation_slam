@@ -39,6 +39,7 @@
 #define _EXPANDER_H
 #include <global_planner/potential_calculator.h>
 #include <global_planner/planner_core.h>
+#include <costmap_2d/costmap_2d.h>
 
 namespace global_planner {
 
@@ -59,7 +60,9 @@ class Expander {
 //        virtual bool calculatePotentials(unsigned char* costs, double start_x, double start_y, double end_x, double end_y,
 //                                         int cycles, float* potential) = 0;
 
-        virtual bool calculatePotentials(unsigned char* costs, unsigned char* path_costs, double start_x, double start_y, 
+//        virtual bool calculatePotentials(unsigned char* costs, unsigned char* path_costs, double start_x, double start_y, 
+//                                         double end_x, double end_y, int cycles, float* potential) = 0;
+        virtual bool calculatePotentials(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* costs, unsigned char* path_costs, double start_x, double start_y, 
                                          double end_x, double end_y, int cycles, float* potential) = 0;
         /**
          * @brief  Sets or resets the size of the map

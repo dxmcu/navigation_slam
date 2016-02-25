@@ -46,7 +46,8 @@ typedef enum {
   FIX_GETNEWGOAL_R  = 3,
   FIX_FRONTSAFE_R   = 4,
   FIX_OSCILLATION_R = 5, 
-  LOCATION_RECOVERY_R = 6 
+  LOCATION_RECOVERY_R = 6,
+  BACKWARD_RECOVERY_R = 7
 } AStarRecoveryTrigger;
 
 typedef enum {
@@ -71,10 +72,16 @@ struct AStarControlOption : BaseControlOption {
   double goal_safe_check_duration;
   double sbpl_footprint_padding;
   double fixpattern_footprint_padding; 
+  double switch_corner_dis_diff;
+  double switch_corner_yaw_diff;
+  double switch_normal_dis_diff;
+  double switch_normal_yaw_diff;
+  double stop_to_zero_acc;
   int* fixpattern_reached_goal;
   fixpattern_path::Path* fixpattern_path;
   geometry_msgs::PoseStamped* global_planner_goal;
   std::vector<geometry_msgs::Point> circle_center_points;
+  std::vector<geometry_msgs::Point> backward_center_points;
   std::vector<geometry_msgs::Point> footprint_center_points;
   boost::shared_ptr<nav_core::BaseGlobalPlanner> astar_global_planner;
   boost::shared_ptr<search_based_global_planner::SearchBasedGlobalPlanner> sbpl_global_planner;
@@ -129,6 +136,11 @@ class AStarController : public BaseController {
    * @brief  Publishes a velocity command of zero to the base
    */
   void PublishZeroVelocity();
+  /**
+   * @brief  Publishes a velocity command of zero to the base
+   */
+
+  void PublishVelWithAcc(geometry_msgs::Twist last_cmd_vel, double vel_acc);
   /**
    * @brief  Reset the state of the move_base action and send a zero velocity command to the base
    */

@@ -77,8 +77,8 @@ void DijkstraExpansion::setSize(int xs, int ys) {
 //   or until the Start cell is found (atStart = true)
 // warnning: if we have no path.pgm , path_costs == NULL
 
-bool DijkstraExpansion::calculatePotentials(unsigned char* costs, unsigned char* path_costs, double start_x, double start_y, double end_x, double end_y,
-                                           int cycles, float* potential) {
+bool DijkstraExpansion::calculatePotentials(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* costs, unsigned char* path_costs,
+                                            double start_x, double start_y, double end_x, double end_y, int cycles, float* potential) {
     cells_visited_ = 0;
     // priority buffers
     threshold_ = lethal_cost_;

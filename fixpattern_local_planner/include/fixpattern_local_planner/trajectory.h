@@ -63,6 +63,8 @@ namespace fixpattern_local_planner {
 
       double time_delta_; ///< @brief The time gap between points
 
+      bool is_footprint_safe_; ///< @brief Check footprint safe 
+
       /**
        * @brief  Get a point within the trajectory
        * @param index The index of the point to get

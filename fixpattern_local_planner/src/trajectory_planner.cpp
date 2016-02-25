@@ -260,6 +260,7 @@ void TrajectoryPlanner::generateTrajectory(
   vx_i = vx;
   vy_i = vy;
   vtheta_i = vtheta;
+  traj.is_footprint_safe_ = true;
 
   // discard trajectory that is circle
   if (fabs(vtheta_samp) - 0.0 > 0.00001 && sim_time > M_PI / fabs(vtheta_samp)) {
@@ -300,6 +301,7 @@ void TrajectoryPlanner::generateTrajectory(
     if (!costmap_.worldToMap(x_i, y_i, cell_x, cell_y)) {
       ROS_WARN("[LOCAL PLANNER] world to map failed");
       traj.cost_ = -1.0;
+      traj.is_footprint_safe_ = false;
       return;
     }
     // TODO(lizhen) check if it is needed
@@ -311,6 +313,7 @@ void TrajectoryPlanner::generateTrajectory(
       // if the footprint hits an obstacle this trajectory is invalid
       if (footprint_cost < 0) {
         traj.cost_ = -1.0;
+        traj.is_footprint_safe_ = false;
         return;
       }
     }
@@ -401,6 +404,7 @@ void TrajectoryPlanner::generateTrajectoryWithoutCheckingFootprint(
   traj.yv_ = vy_samp;
   traj.thetav_ = vtheta_samp;
   traj.cost_ = -1.0;
+  traj.is_footprint_safe_ = true;
 
   // initialize the costs for the trajectory
   double path_dist = 0.0;
@@ -416,6 +420,7 @@ void TrajectoryPlanner::generateTrajectoryWithoutCheckingFootprint(
     if (!costmap_.worldToMap(x_i, y_i, cell_x, cell_y)) {
       ROS_WARN("[LOCAL PLANNER] world to map failed");
       traj.cost_ = -1.0;
+      traj.is_footprint_safe_ = false;
       return;
     }
 
@@ -478,6 +483,7 @@ void TrajectoryPlanner::generateTrajectoryForRecovery(
   vx_i = vx;
   vy_i = vy;
   vtheta_i = vtheta;
+  traj.is_footprint_safe_ = true;
 
   // discard trajectory that is circle
   if (fabs(vtheta_samp) - 0.0 > 0.00001 && sim_time > M_PI / fabs(vtheta_samp)) {
@@ -519,6 +525,7 @@ void TrajectoryPlanner::generateTrajectoryForRecovery(
     if (!costmap_.worldToMap(x_i, y_i, cell_x, cell_y)) {
       ROS_WARN("[LOCAL PLANNER] world to map failed");
       traj.cost_ = -1.0;
+      traj.is_footprint_safe_ = false;
       return;
     }
 
@@ -530,6 +537,7 @@ void TrajectoryPlanner::generateTrajectoryForRecovery(
       // if the footprint hits an obstacle this trajectory is invalid
       if (footprint_cost < 0) {
         traj.cost_ = -1.0;
+        traj.is_footprint_safe_ = false;
         if (within_obs)
           within_obs_num++;
         if (!within_obs || within_obs_num > within_obs_thresh)
@@ -785,15 +793,18 @@ Trajectory TrajectoryPlanner::createTrajectories(double x, double y, double thet
   // keep track of the best trajectory seen so far
   Trajectory* best_traj = &traj_one;
   best_traj->cost_ = -1.0;
+  best_traj->is_footprint_safe_ = true;
 
   Trajectory* comp_traj = &traj_two;
   comp_traj->cost_ = -1.0;
+  comp_traj->is_footprint_safe_ = true;
 
   Trajectory* swap = NULL;
 
   // check front safe first, if not safe, return best->cost_ = -1
   if (!checkFrontSafe(x, y, theta, vx, vy, vtheta)) {
     ROS_ERROR("[LOCAL PLANNER] checkFrontSafe failed! vx: %lf, vtheta: %lf", vx, vtheta);
+    best_traj->is_footprint_safe_ = false;
     return *best_traj;
   }
 

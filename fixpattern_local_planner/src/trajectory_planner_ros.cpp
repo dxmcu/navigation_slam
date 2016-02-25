@@ -590,6 +590,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
       } else if (planner_type == LOOKAHEAD_PLANNER) {
         path = la_->GeneratePath(global_pose, robot_vel, traj_vel, highlight, &drive_cmds);
       }
+      is_footprint_safe_ = path.is_footprint_safe_;
 
       // copy over the odometry information
       nav_msgs::Odometry base_odom;
@@ -638,6 +639,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
   } else if (planner_type == LOOKAHEAD_PLANNER) {
     path = la_->GeneratePath(global_pose, robot_vel, traj_vel, highlight, &drive_cmds);
   }
+  is_footprint_safe_ = path.is_footprint_safe_;
 
   /* For timing uncomment
      gettimeofday(&end, NULL);
@@ -758,7 +760,10 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
   cmd_vel->linear.x = drive_cmds.getOrigin().getX();
   cmd_vel->linear.y = drive_cmds.getOrigin().getY();
   cmd_vel->angular.z = tf::getYaw(drive_cmds.getRotation());
-
+  if ((getGoalPositionDistance(global_pose, goal_x, goal_y) <= 0.20) && 
+       cmd_vel->linear.x > 0.05 && fabs(cmd_vel->angular.z > 0.10)) {
+    cmd_vel->angular.z = cmd_vel->angular.z > 0.0 ? 0.10 : -0.10; 
+  }
   // if we cannot move... tell someone
   if (path.cost_ < 0) {
     ROS_DEBUG_NAMED("trajectory_planner_ros",

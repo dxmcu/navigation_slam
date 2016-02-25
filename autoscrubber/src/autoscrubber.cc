@@ -56,6 +56,12 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
 
   private_nh.param("front_safe_check_dis", front_safe_check_dis_, 1.0);
   private_nh.param("backward_check_dis", backward_check_dis_, 0.13);
+  private_nh.param("switch_corner_dis_diff", switch_corner_dis_diff_, 0.10);
+  private_nh.param("switch_corner_yaw_diff", switch_corner_yaw_diff_, M_PI / 4.0);
+  private_nh.param("switch_normal_dis_diff", switch_normal_dis_diff_, 0.15);
+  private_nh.param("switch_normal_yaw_diff", switch_normal_yaw_diff_, M_PI / 12.0);
+  private_nh.param("stop_to_zero_acc", stop_to_zero_acc_, 0.05);
+
 
   private_nh.param("goal_safe_dis_a", goal_safe_dis_a_, 0.5);	// distance after goal poin
   private_nh.param("goal_safe_dis_b", goal_safe_dis_b_, 0.3); // distance before goal point
@@ -67,6 +73,11 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
 
   if (!ReadCircleCenterFromParams(private_nh, &circle_center_points_)) {
     ROS_ERROR("[AUTOSCRUBBER] read circle_center_point failed");
+    exit(1);
+  }
+
+  if (!ReadBackwardCenterFromParams(private_nh, &backward_center_points_)) {
+    ROS_ERROR("[AUTOSCRUBBER] read backward_center_points_ failed");
     exit(1);
   }
 
@@ -132,6 +143,12 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   reinterpret_cast<AStarControlOption*>(options_)->max_path_length_diff = max_path_length_diff_;
   reinterpret_cast<AStarControlOption*>(options_)->front_safe_check_dis = front_safe_check_dis_;
   reinterpret_cast<AStarControlOption*>(options_)->backward_check_dis = backward_check_dis_;
+  reinterpret_cast<AStarControlOption*>(options_)->switch_corner_dis_diff = switch_corner_dis_diff_;
+  reinterpret_cast<AStarControlOption*>(options_)->switch_corner_yaw_diff = switch_corner_yaw_diff_;
+  reinterpret_cast<AStarControlOption*>(options_)->switch_normal_dis_diff = switch_normal_dis_diff_;
+  reinterpret_cast<AStarControlOption*>(options_)->switch_normal_yaw_diff = switch_normal_yaw_diff_;
+  reinterpret_cast<AStarControlOption*>(options_)->stop_to_zero_acc = stop_to_zero_acc_;
+
   reinterpret_cast<AStarControlOption*>(options_)->sbpl_max_distance = sbpl_max_distance_;
   reinterpret_cast<AStarControlOption*>(options_)->goal_safe_dis_a = goal_safe_dis_a_;
   reinterpret_cast<AStarControlOption*>(options_)->goal_safe_dis_b = goal_safe_dis_b_;
@@ -142,6 +159,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   reinterpret_cast<AStarControlOption*>(options_)->sbpl_global_planner = sbpl_global_planner_;
   reinterpret_cast<AStarControlOption*>(options_)->fixpattern_local_planner = fixpattern_local_planner_;
   reinterpret_cast<AStarControlOption*>(options_)->circle_center_points = circle_center_points_;
+  reinterpret_cast<AStarControlOption*>(options_)->backward_center_points = backward_center_points_;
   reinterpret_cast<AStarControlOption*>(options_)->footprint_center_points = footprint_center_points_;
   reinterpret_cast<AStarControlOption*>(options_)->sbpl_footprint_padding = sbpl_footprint_padding_;
   reinterpret_cast<AStarControlOption*>(options_)->fixpattern_footprint_padding = fixpattern_footprint_padding_;
@@ -406,6 +424,24 @@ bool AutoScrubber::ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<g
     nh.getParam(full_param_name, circle_center_xmlrpc);
     if (circle_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
       ReadCircleCenterFromXMLRPC(circle_center_xmlrpc, full_param_name, points);
+      for (int i = 0; i < points->size(); ++i)
+        ROS_INFO("[AUTOSCRUBBER] circle_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
+      return true;
+    } else {
+      ROS_ERROR("[AUTOSCRUBBER] circle_center param's type is not Array!");
+      return false;
+    }
+  }
+}
+
+bool AutoScrubber::ReadBackwardCenterFromParams(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>* points) {
+  std::string full_param_name;
+
+  if (nh.searchParam("backward_center", full_param_name)) {
+    XmlRpc::XmlRpcValue backward_center_xmlrpc;
+    nh.getParam(full_param_name, backward_center_xmlrpc);
+    if (backward_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
+      ReadCircleCenterFromXMLRPC(backward_center_xmlrpc, full_param_name, points);
       for (int i = 0; i < points->size(); ++i)
         ROS_INFO("[AUTOSCRUBBER] circle_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
       return true;
