@@ -14,7 +14,6 @@ find_package(catkin REQUIRED
             nav_core
             rostest
             costmap_2d
-            pluginlib
             angles
             gslib
             fixpattern_path
@@ -62,7 +61,6 @@ catkin_package(
         dynamic_reconfigure
         message_generation
         tf
-        pluginlib
         costmap_2d
         nav_core
         angles
@@ -85,12 +83,10 @@ add_library(${PROJECT_NAME} STATIC
 	src/obstacle_cost_function.cpp
 	src/oscillation_cost_function.cpp
 	src/prefer_forward_cost_function.cpp
-	src/point_grid.cpp
 	src/costmap_model.cpp
 	src/simple_scored_sampling_planner.cpp
 	src/simple_trajectory_generator.cpp
-	src/trajectory.cpp
-	src/voxel_grid_model.cpp)
+	src/trajectory.cpp)
 add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
 add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencpp)
 add_dependencies(${PROJECT_NAME} nav_msgs_gencpp)

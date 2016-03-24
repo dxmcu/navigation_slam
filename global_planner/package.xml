@@ -18,8 +18,6 @@
   <build_depend>geometry_msgs</build_depend>
   <build_depend>nav_core</build_depend>
   <build_depend>nav_msgs</build_depend>
-  <build_depend>navfn</build_depend>
-  <build_depend>pluginlib</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>tf</build_depend>
 
@@ -28,8 +26,6 @@
   <run_depend>geometry_msgs</run_depend>
   <run_depend>nav_core</run_depend>
   <run_depend>nav_msgs</run_depend>
-  <run_depend>navfn</run_depend>
-  <run_depend>pluginlib</run_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>tf</run_depend>
   <export>

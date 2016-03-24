@@ -21,7 +21,6 @@
 #include <move_base_msgs/MoveBaseActionGoal.h>
 #include <costmap_2d/costmap_2d_ros.h>
 #include <costmap_2d/costmap_2d.h>
-#include <pluginlib/class_loader.h>
 #include <autoscrubber_services/Start.h>
 #include <autoscrubber_services/Pause.h>
 #include <autoscrubber_services/Resume.h>
@@ -172,7 +171,7 @@ class AutoScrubber {
   double backward_check_dis_;
   double goal_safe_dis_a_;
   double goal_safe_dis_b_;
-  double goal_safe_check_dis_;	
+  double goal_safe_check_dis_;
   double goal_safe_check_duration_;
   double switch_corner_dis_diff_;
   double switch_corner_yaw_diff_;
@@ -200,10 +199,6 @@ class AutoScrubber {
   ros::Time last_valid_plan_, last_valid_control_, last_oscillation_reset_;
   geometry_msgs::PoseStamped oscillation_pose_;
   geometry_msgs::PoseStamped global_planner_goal_;
- 
-  pluginlib::ClassLoader<nav_core::BaseGlobalPlanner> bgp_loader_;
-  pluginlib::ClassLoader<nav_core::BaseLocalPlanner> blp_loader_;
-  pluginlib::ClassLoader<nav_core::RecoveryBehavior> recovery_loader_;
 
   // set up plan triple buffer
   std::vector<geometry_msgs::PoseStamped>* planner_plan_;

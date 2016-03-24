@@ -15,7 +15,6 @@
 #include <boost/tokenizer.hpp>
 #include <Eigen/Core>
 #include <ros/console.h>
-#include <pluginlib/class_list_macros.h>
 #include <fixpattern_local_planner/goal_functions.h>
 #include <nav_msgs/Path.h>
 #include <fixpattern_local_planner/map_grid_cost_point.h>
@@ -115,17 +114,17 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
     if (private_nh.hasParam("acc_limit_x")) {
       //ROS_ERROR("You are using acc_limit_x where you should be using acc_lim_x."
       //          " Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
-     }	
+     }
 
     if (private_nh.hasParam("acc_limit_y")) {
       //ROS_ERROR("You are using acc_limit_y where you should be using acc_lim_y."
       //          " Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
-     }	
+     }
 
     if (private_nh.hasParam("acc_limit_th")) {
       //ROS_ERROR("You are using acc_limit_th where you should be using acc_lim_th."
       //          " Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
-     }	
+     }
 
     // Assuming this planner is being run within the navigation stack, we can
     // just do an upward search for the frequency at which its being run. This
@@ -482,7 +481,7 @@ bool FixPatternTrajectoryPlannerROS::setPlan(const std::vector<fixpattern_path::
 
   std::vector<fixpattern_path::PathPoint> new_global_plan = orig_global_plan;
   // if global plan is too short, we will extend it to avoid robot shaking when ariving global goal
-  if (getPlanLength(new_global_plan) < 0.35 && new_global_plan.size() > 2) { 
+  if (getPlanLength(new_global_plan) < 0.35 && new_global_plan.size() > 2) {
    // extend path
     double yaw = fixpattern_path::CalculateDirection(new_global_plan.front(), new_global_plan.back());
     for (int i = 0; i < 10; ++i) {
@@ -571,7 +570,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
   // local fram is 'global_frame_', cause this is in local planner
   tf::Stamped<tf::Pose> tf_global_goal;
   tf::Stamped<tf::Pose> tf_front_point;
-  
+
   poseStampedMsgToTF(global_goal_, tf_global_goal);
   geometry_msgs::PoseStamped front_point = global_plan_.front();
   poseStampedMsgToTF(front_point, tf_front_point);
@@ -667,7 +666,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
     // we don't actually want to run the controller when we're just rotating to goal
     return true;
   }
-  // normal path trajectory 
+  // normal path trajectory
   if (planner_type == TRAJECTORY_PLANNER) {
     tc_->UpdateGoalAndPlan(goal_pose, transformed_plan);
   } else if (planner_type == LOOKAHEAD_PLANNER) {
@@ -745,8 +744,8 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
 			acc_dis += fixpattern_path_.at(index).DistanceToPoint(fixpattern_path_.at(index - 1));
 			//acc_dis += getPoseDistance(transformed_plan.at(index), tranformed_plan.at(index + 1));
 			if (acc_dis > 0.1) break;
-		}	
-		double target_yaw = fixpattern_path::CalculateDirection(fixpattern_path_.front(), fixpattern_path_.at(index)); 
+		}
+		double target_yaw = fixpattern_path::CalculateDirection(fixpattern_path_.front(), fixpattern_path_.at(index));
 		double angle_diff = angles::shortest_angular_distance(yaw, target_yaw);
 		if (robot_vel.getOrigin().getX() < GS_DOUBLE_PRECISION && tf::getYaw(robot_vel.getRotation()) < GS_DOUBLE_PRECISION && fabs(angle_diff) > 0.5) {  // > 30 digree{
         need_rotate_to_path_ = true;
@@ -808,9 +807,9 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
   cmd_vel->linear.y = drive_cmds.getOrigin().getY();
   cmd_vel->angular.z = tf::getYaw(drive_cmds.getRotation());
 /*
-  if ((getGoalPositionDistance(global_pose, goal_x, goal_y) <= 0.20) && 
+  if ((getGoalPositionDistance(global_pose, goal_x, goal_y) <= 0.20) &&
        cmd_vel->linear.x > 0.05 && fabs(cmd_vel->angular.z > 0.10)) {
-    cmd_vel->angular.z = cmd_vel->angular.z > 0.0 ? 0.10 : -0.10; 
+    cmd_vel->angular.z = cmd_vel->angular.z > 0.0 ? 0.10 : -0.10;
   }
 */
   // if we cannot move... tell someone
@@ -870,7 +869,7 @@ void FixPatternTrajectoryPlannerROS::resetRotatingToGoalDone() {
   // return flag set in controller
   rotating_to_goal_done_ = false;
 }
- 
+
 
 bool FixPatternTrajectoryPlannerROS::isRotatingToGoal() {
   if (!isInitialized()) {

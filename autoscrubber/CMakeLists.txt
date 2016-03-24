@@ -8,7 +8,6 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-lib
 find_package(catkin REQUIRED
   COMPONENTS
     roscpp
-    pluginlib
     nav_core
     tf
     #gperftools_21

@@ -24,9 +24,6 @@ namespace autoscrubber {
 AutoScrubber::AutoScrubber(tf::TransformListener* tf)
     : tf_(*tf), controller_costmap_ros_(NULL),
       controllers_(NULL), options_(NULL),
-      bgp_loader_("nav_core", "nav_core::BaseGlobalPlanner"),
-      blp_loader_("nav_core", "nav_core::BaseLocalPlanner"),
-      recovery_loader_("nav_core", "nav_core::RecoveryBehavior"),
       new_global_plan_(false) {
   ros::NodeHandle private_nh("~");
   ros::NodeHandle sbpl_nh("~/sbpl_global_planner");
@@ -51,8 +48,8 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   private_nh.param("localization_duration", localization_duration_, 5.0);
 
   private_nh.param("max_path_length_dif", max_path_length_diff_, 5.0);
-  private_nh.param("max_offroad_dis", max_offroad_dis_, 0.7); 
-  private_nh.param("max_offroad_yaw", max_offroad_yaw_, M_PI / 2.5); 
+  private_nh.param("max_offroad_dis", max_offroad_dis_, 0.7);
+  private_nh.param("max_offroad_yaw", max_offroad_yaw_, M_PI / 2.5);
 
   private_nh.param("front_safe_check_dis", front_safe_check_dis_, 1.0);
   private_nh.param("backward_check_dis", backward_check_dis_, 0.13);
@@ -190,7 +187,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   resume_srv_ = private_nh.advertiseService("resume", &AutoScrubber::Resume, this);
   terminate_srv_ = private_nh.advertiseService("terminate", &AutoScrubber::Terminate, this);
   is_goal_reached_srv_ = private_nh.advertiseService("is_goal_reached", &AutoScrubber::IsGoalReached, this);
-} 
+}
 
 void AutoScrubber::SimpleGoalCB(const geometry_msgs::PoseStamped::ConstPtr& goal) {
   ROS_DEBUG_NAMED("move_base", "In ROS goal callback, wrapping the PoseStamped in the action message and start ExecuteCycle.");
@@ -419,7 +416,7 @@ bool AutoScrubber::ReadFootprintCenterFromParams(ros::NodeHandle& nh, std::vecto
       ReadCircleCenterFromXMLRPC(footprint_center_xmlrpc, full_param_name, points);
       for (int i = 0; i < points->size(); ++i) {
         //ROS_INFO("[AUTOSCRUBBER] footprint_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
-      }	
+      }
       return true;
     } else {
       //ROS_ERROR("[AUTOSCRUBBER] footprint_center param's type is not Array!");

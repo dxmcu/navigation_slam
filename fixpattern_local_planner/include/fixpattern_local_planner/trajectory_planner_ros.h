@@ -17,9 +17,7 @@
 #include <costmap_2d/costmap_2d_publisher.h>
 #include <costmap_2d/costmap_2d_ros.h>
 #include <fixpattern_local_planner/world_model.h>
-#include <fixpattern_local_planner/point_grid.h>
 #include <fixpattern_local_planner/costmap_model.h>
-#include <fixpattern_local_planner/voxel_grid_model.h>
 #include <fixpattern_local_planner/trajectory_planner.h>
 #include <fixpattern_local_planner/look_ahead_planner.h>
 #include <fixpattern_local_planner/map_grid_visualizer.h>
@@ -109,7 +107,7 @@ class FixPatternTrajectoryPlannerROS {
   bool isGoalReached();
 
   /**
-   * @brief  Check if rotate to goal has been done 
+   * @brief  Check if rotate to goal has been done
    * @return rotating_to_goal_done_ : True if done, false otherwise
    */
   bool isRotatingToGoalDone();
