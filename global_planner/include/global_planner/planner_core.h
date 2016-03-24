@@ -51,7 +51,6 @@
 #include <global_planner/expander.h>
 #include <global_planner/traceback.h>
 #include <global_planner/orientation_filter.h>
-#include <global_planner/GlobalPlannerConfig.h>
 
 namespace global_planner {
 
