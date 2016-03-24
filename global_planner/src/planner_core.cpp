@@ -80,8 +80,6 @@ GlobalPlanner::~GlobalPlanner() {
         delete planner_;
     if (path_maker_)
         delete path_maker_;
-    if (dsrv_)
-        delete dsrv_;
 }
 
 double GetNumberFromXMLRPC(XmlRpc::XmlRpcValue& value, const std::string& full_param_name) {
@@ -175,7 +173,7 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
                 de->setPreciseStart(true);
             planner_ = de;
         } else {
-          int path_cost, occ_dis_cost; 
+          int path_cost, occ_dis_cost;
           private_nh.param("path_cost", path_cost, 50);
           private_nh.param("occ_dis_cost", occ_dis_cost, 10);
           // get circle_center
@@ -204,6 +202,20 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
         private_nh.param("default_tolerance", default_tolerance_, 0.0);
         private_nh.param("publish_scale", publish_scale_, 100);
 
+        int lethal_cost, neutral_cost, orientation_mode;
+        private_nh.param("lethal_cost", lethal_cost, 253);
+        private_nh.param("neutral_cost", neutral_cost, 50);
+        private_nh.param("orientation_mode", orientation_mode, 1);
+        double cost_factor;
+        private_nh.param("cost_factor", cost_factor, 3.0);
+        bool publish_potential;
+        private_nh.param("publish_potential", publish_potential, true);
+        planner_->setLethalCost(lethal_cost);
+        path_maker_->setLethalCost(lethal_cost);
+        planner_->setNeutralCost(neutral_cost);
+        planner_->setFactor(cost_factor);
+        publish_potential_ = publish_potential;
+        orientation_filter_->setMode(orientation_mode);
         double costmap_pub_freq;
         private_nh.param("planner_costmap_publish_frequency", costmap_pub_freq, 0.0);
 
@@ -213,25 +225,11 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
 
         make_plan_srv_ = private_nh.advertiseService("make_plan", &GlobalPlanner::makePlanService, this);
 
-        dsrv_ = new dynamic_reconfigure::Server<global_planner::GlobalPlannerConfig>(ros::NodeHandle("~/" + name));
-        dynamic_reconfigure::Server<global_planner::GlobalPlannerConfig>::CallbackType cb = boost::bind(
-                &GlobalPlanner::reconfigureCB, this, _1, _2);
-        dsrv_->setCallback(cb);
-
         initialized_ = true;
     } else {
         //ROS_WARN("This planner has already been initialized, you can't call it twice, doing nothing");
     }
 
-}
-
-void GlobalPlanner::reconfigureCB(global_planner::GlobalPlannerConfig& config, uint32_t level) {
-    planner_->setLethalCost(config.lethal_cost);
-    path_maker_->setLethalCost(config.lethal_cost);
-    planner_->setNeutralCost(config.neutral_cost);
-    planner_->setFactor(config.cost_factor);
-    publish_potential_ = config.publish_potential;
-    orientation_filter_->setMode(config.orientation_mode);
 }
 
 void GlobalPlanner::setStaticCosmap(bool is_static) {
@@ -370,7 +368,7 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
 
     outlineMap(costmap_->getCharMap(), nx, ny, costmap_2d::LETHAL_OBSTACLE);
 
-    unsigned char* path_costs = NULL; 
+    unsigned char* path_costs = NULL;
     if (path_costmap_ != NULL) {
       path_costs = path_costmap_->getCharMap();
     }

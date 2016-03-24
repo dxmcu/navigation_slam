@@ -7,7 +7,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC -O3")
 find_package(catkin REQUIRED
   COMPONENTS
     costmap_2d
-    dynamic_reconfigure
     geometry_msgs
     nav_core
     nav_msgs
@@ -15,16 +14,11 @@ find_package(catkin REQUIRED
     tf
 )
 
-generate_dynamic_reconfigure_options(
-  cfg/GlobalPlanner.cfg
-)
-
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
   CATKIN_DEPENDS
     costmap_2d
-    dynamic_reconfigure
     geometry_msgs
     nav_core
     nav_msgs

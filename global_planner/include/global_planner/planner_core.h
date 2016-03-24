@@ -47,7 +47,6 @@
 #include <vector>
 #include <nav_core/base_global_planner.h>
 #include <nav_msgs/GetPlan.h>
-#include <dynamic_reconfigure/server.h>
 #include <global_planner/potential_calculator.h>
 #include <global_planner/expander.h>
 #include <global_planner/traceback.h>
@@ -165,7 +164,7 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
         bool makePlanService(nav_msgs::GetPlan::Request& req, nav_msgs::GetPlan::Response& resp);
 
         /**
-         * @brief set Costmap_ as static or not 
+         * @brief set Costmap_ as static or not
          */
         void setStaticCosmap(bool is_static);
 
@@ -209,9 +208,6 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
 
         bool old_navfn_behavior_;
         float convert_offset_;
-
-        dynamic_reconfigure::Server<global_planner::GlobalPlannerConfig> *dsrv_;
-        void reconfigureCB(global_planner::GlobalPlannerConfig &config, uint32_t level);
 
 };
 
