@@ -36,7 +36,7 @@
 #include <dynamic_reconfigure/server.h>
 #include <fixpattern_local_planner/BaseLocalPlannerConfig.h>
 #include <fixpattern_local_planner/odometry_helper_ros.h>
-#include <pcl_ros/publisher.h>
+//#include <pcl_ros/publisher.h>
 #include <fixpattern_path/path.h>
 
 #include <vector>
@@ -214,7 +214,7 @@ class FixPatternTrajectoryPlannerROS {
   bool latch_xy_goal_tolerance_, xy_tolerance_latch_;
 
   ros::Publisher g_plan_pub_, l_plan_pub_;
-  pcl_ros::Publisher<MapGridCostPoint> traj_cloud_pub_;
+//  pcl_ros::Publisher<MapGridCostPoint> traj_cloud_pub_;
 
   dynamic_reconfigure::Server<BaseLocalPlannerConfig> *dsrv_;
   fixpattern_local_planner::BaseLocalPlannerConfig default_config_;

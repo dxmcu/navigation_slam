@@ -19,7 +19,7 @@
 #include <fixpattern_local_planner/goal_functions.h>
 #include <nav_msgs/Path.h>
 #include <fixpattern_local_planner/map_grid_cost_point.h>
-#include <pcl_conversions/pcl_conversions.h>
+//#include <pcl_conversions/pcl_conversions.h>
 
 #include <cmath>
 #include <string>
@@ -64,7 +64,7 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
     ros::NodeHandle private_nh("~/" + name);
     g_plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
     l_plan_pub_ = private_nh.advertise<nav_msgs::Path>("local_plan", 1);
-    traj_cloud_pub_.advertise(private_nh, "trajectory_cloud", 1);
+//    traj_cloud_pub_.advertise(private_nh, "trajectory_cloud", 1);
 
     tf_ = tf;
     costmap_ros_ = costmap_ros;
@@ -776,6 +776,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
   }
 
   // publish point cloud for debug
+/*
   pcl::PointCloud<MapGridCostPoint> traj_cloud;
   traj_cloud.header.frame_id = global_frame_;
   MapGridCostPoint pt;
@@ -801,7 +802,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
     }
   }
   traj_cloud_pub_.publish(traj_cloud);
-
+*/
   // pass along drive commands
   cmd_vel->linear.x = drive_cmds.getOrigin().getX();
   cmd_vel->linear.y = drive_cmds.getOrigin().getY();

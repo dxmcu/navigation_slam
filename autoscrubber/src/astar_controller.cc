@@ -1811,7 +1811,7 @@ bool AStarController::GetAStarInitalPath(const geometry_msgs::PoseStamped& globa
      double yaw_diff;
      for (int i = 0; i < planner_plan_->size(); ++i) {
        yaw_diff = angles::shortest_angular_distance(tf::getYaw(pre_pose.pose.orientation), tf::getYaw(planner_plan_->at(i).pose.orientation));
-       if (i % 3 == 0 || i == planner_plan_->size() || fabs(yaw_diff) > M_PI / 3.0) {
+       if (i % 5 == 0) {
          fix_path.push_back(fixpattern_path::GeometryPoseToPathPoint(planner_plan_->at(i).pose));
          pre_pose = planner_plan_->at(i);
        }

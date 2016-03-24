@@ -12,7 +12,6 @@ find_package(catkin REQUIRED
             message_generation
             dynamic_reconfigure
             nav_core
-            pcl_conversions
             rostest
             costmap_2d
             pluginlib
@@ -27,12 +26,10 @@ find_package(Boost REQUIRED
         )
 
 find_package(Eigen REQUIRED)
-find_package(PCL REQUIRED)
 include_directories(
     include
     ${catkin_INCLUDE_DIRS}
     ${EIGEN_INCLUDE_DIRS}
-    ${PCL_INCLUDE_DIRS}
 )
 add_definitions(${EIGEN_DEFINITIONS})
 
@@ -99,7 +96,6 @@ add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencpp)
 add_dependencies(${PROJECT_NAME} nav_msgs_gencpp)
 target_link_libraries(${PROJECT_NAME}
     ${catkin_LIBRARIES}
-    ${PCL_LIBRARIES}
     ${Boost_LIBRARIES}
     ${Eigen_LIBRARIES}
     )
