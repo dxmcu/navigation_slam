@@ -94,7 +94,7 @@ void AStarExpansion::add(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* c
     int x = next_i % nx_, y = next_i / nx_;
     float distance = abs(end_x - x) + abs(end_y - y);
     float obstacle_distance = costmap_ros->getObstacleDistance(x, y);
-    int occ_cost = (int)(1.0 / obstacle_distance) * occ_dis_cost_;
+    int occ_cost = (int)(10.0 / obstacle_distance) * occ_dis_cost_;
     int next_cost;
     if (path_costs != NULL) {
       next_cost = potential[next_i] + distance * neutral_cost_ + occ_cost + path_costs[next_i] * path_cost_;

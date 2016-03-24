@@ -80,7 +80,6 @@ class AutoScrubber {
   bool Resume(autoscrubber_services::Resume::Request& req, autoscrubber_services::Resume::Response& res);  // NOLINT
   bool Terminate(autoscrubber_services::Terminate::Request& req, autoscrubber_services::Terminate::Response& res);  // NOLINT
   bool IsGoalReached(autoscrubber_services::IsGoalReached::Request& req, autoscrubber_services::IsGoalReached::Response& res); // NOLINT
-  bool GetCurrentPose(autoscrubber_services::GetCurrentPose::Request& req, autoscrubber_services::GetCurrentPose::Response& res); // NOLINT
 
  private:
   /**
@@ -156,7 +155,6 @@ class AutoScrubber {
   ros::Publisher vel_pub_, goal_reached_pub_;
   ros::Subscriber simple_goal_sub_, goal_sub_, pause_sub_, terminate_sub_;
   ros::ServiceServer start_srv_, pause_srv_, resume_srv_, terminate_srv_, is_goal_reached_srv_;
-  ros::ServiceServer get_current_pose_srv_;
 
   ros::ServiceClient launch_scrubber_client_;
   ros::ServiceClient stop_scrubber_client_;

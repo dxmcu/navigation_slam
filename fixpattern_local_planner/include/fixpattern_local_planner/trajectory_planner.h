@@ -137,9 +137,10 @@ class TrajectoryPlanner{
 
   /**
    * @brief  Update the plan that the controller is following
+   * @param goal Goal of plan
    * @param new_plan A new plan for the controller to follow
    */
-  void updatePlan(const std::vector<geometry_msgs::PoseStamped>& new_plan);
+  void UpdateGoalAndPlan(const geometry_msgs::PoseStamped& goal, const std::vector<geometry_msgs::PoseStamped>& new_plan);
 
   /**
    * @brief  Generate and score a single trajectory

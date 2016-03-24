@@ -202,9 +202,10 @@ class FixPatternTrajectoryPlannerROS {
   bool prune_plan_;
   bool rotating_to_route_direction_;
   bool need_rotate_to_path_;
+  bool final_goal_extended_;
   boost::recursive_mutex odom_lock_;
 
-  double max_vel_th_, min_vel_th_;
+  double max_vel_th_, min_vel_th_, min_vel_abs_th_;
   double acc_lim_x_, acc_lim_y_, acc_lim_theta_;
   double sim_period_;
   bool rotating_to_goal_;
@@ -231,6 +232,7 @@ class FixPatternTrajectoryPlannerROS {
   int last_rotate_to_goal_dir_;
   int max_rotate_try_times_;
   int try_rotate_;
+  geometry_msgs::PoseStamped global_goal_;
 };
 
 };  // namespace fixpattern_local_planner

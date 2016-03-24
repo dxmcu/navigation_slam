@@ -19,9 +19,11 @@
 #include <nav_core/base_global_planner.h>
 #include <nav_core/recovery_behavior.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <costmap_2d/costmap_2d_ros.h>
 #include <costmap_2d/costmap_2d.h>
 #include <pluginlib/class_loader.h>
+#include <autoscrubber_services/GetCurrentPose.h>
 #include <fixpattern_path/path.h>
 #include <search_based_global_planner/search_based_global_planner.h>
 #include <fixpattern_local_planner/trajectory_planner_ros.h>
@@ -54,8 +56,20 @@ typedef enum {
   P_INSERTING_NONE   = 0,
   P_INSERTING_BEGIN  = 1,
   P_INSERTING_END    = 2, 
-  P_INSERTING_MIDDLE = 3 
+  P_INSERTING_MIDDLE = 3,
+  P_INSERTING_SBPL   = 4 
 } AStarPlanningState;
+
+typedef enum {
+  E_NULL = 0,
+  E_INIT_FAILED,
+  E_GOAL_UNREACHED, 
+  E_PATH_NOT_SAFE,
+  E_LOCATION_INVALID,
+  E_PLANNING_INVALID,
+  E_FRONT_NOT_SAFE,
+  E_FOOTPRINT_NOT_SAFE
+} ErrorIndex;
 
 struct AStarControlOption : BaseControlOption {
   double stop_duration;
@@ -116,7 +130,7 @@ class AStarController : public BaseController {
    */
   virtual ~AStarController();
 
-  bool Control(BaseControlOption* option, ControlEnvironment* environment, bool first_run_flag);
+  bool Control(BaseControlOption* option, ControlEnvironment* environment);
   std::vector<geometry_msgs::Point> footprint_spec_;
 
  private:
@@ -168,7 +182,7 @@ class AStarController : public BaseController {
   bool NeedBackward(const geometry_msgs::PoseStamped& pose, double distance);
   bool GetAStarInitalPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
   bool GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, int begin_index = 0);
-  bool GetAStarTempGoal(); 
+  bool GetAStarTempGoal(geometry_msgs::PoseStamped& goal_pose, double offset_dis); 
   bool GetAStarStart(double front_safe_check_dis); 
   bool GetCurrentPosition(geometry_msgs::PoseStamped& current_position);
   unsigned int GetPoseIndexOfPath(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::PoseStamped& pose);
@@ -178,7 +192,8 @@ class AStarController : public BaseController {
 
   void PublishPlan(const ros::Publisher& pub, const std::vector<geometry_msgs::PoseStamped>& plan);
   void PublishAlarm(unsigned char alarm_index);
-  void PublishGoalReached();
+  void PublishHandingGoal(void);
+  void PublishGoalReached(void);
   // rotate recovery
   bool CanRotate(double x, double y, double yaw, int dir);
   bool RotateToYaw(double target_yaw);
@@ -195,6 +210,9 @@ class AStarController : public BaseController {
   bool CanBackward(double distance);
 
   void LocalizationCallBack(const std_msgs::Int8::ConstPtr& param);
+  void SetInitialPoseCallback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& init_pose);
+
+  bool GetCurrentPoseCallBack(autoscrubber_services::GetCurrentPose::Request& req, autoscrubber_services::GetCurrentPose::Response& res); 
  private:
   tf::TransformListener& tf_;
 
@@ -228,6 +246,7 @@ class AStarController : public BaseController {
   // rotate direction of rotate_recovery
   int rotate_recovery_dir_;
   int rotate_failure_times_;
+  int try_recovery_times_;
 
   // set up the planner's thread
   bool runPlanner_;
@@ -236,6 +255,7 @@ class AStarController : public BaseController {
   bool gotStartPlan_;
   bool gotGoalPlan_;
   bool switch_path_;
+  unsigned int origin_path_safe_cnt_;
   unsigned int astar_planner_timeout_cnt_;
   unsigned int local_planner_error_cnt_;
   unsigned int fix_local_planner_error_cnt_;
@@ -251,11 +271,12 @@ class AStarController : public BaseController {
   geometry_msgs::PoseStamped planner_goal_;
   geometry_msgs::PoseStamped global_goal_;
   geometry_msgs::PoseStamped front_goal_;
+  geometry_msgs::PoseStamped sbpl_planner_goal_;
+  geometry_msgs::PoseStamped init_pose_;
   geometry_msgs::PoseStamped success_broader_goal_;
   boost::thread* planner_thread_;
   unsigned int planner_start_index_;
   bool new_global_plan_;
-  bool terminate_controller_;
   bool using_sbpl_directly_;
   bool last_using_bezier_;
   bool replan_directly_;
@@ -264,6 +285,7 @@ class AStarController : public BaseController {
 
   bool first_run_controller_flag_;
   bool localization_valid_;
+  bool localization_start_;
 
   AStarControlOption* co_;
   ControlEnvironment* env_;
@@ -271,10 +293,15 @@ class AStarController : public BaseController {
   // set for fixpattern
   ros::Publisher fixpattern_pub_;
   ros::Publisher goal_reached_pub_;
+  ros::Publisher handing_goal_pub_;
+  ros::Publisher init_finished_pub_;
   ros::Publisher astar_start_pub_;
   ros::Publisher astar_goal_pub_;
+  ros::Publisher sbpl_goal_pub_;
   ros::Publisher alarm_pub_;
+  ros::Subscriber set_init_sub_;
   ros::Subscriber localization_sub_;
+  ros::ServiceServer get_current_pose_srv_;
   ros::ServiceClient start_rotate_client_;
   ros::ServiceClient stop_rotate_client_;
   ros::ServiceClient check_rotate_client_;

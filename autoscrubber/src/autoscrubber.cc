@@ -72,17 +72,17 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   private_nh.param("sbpl_footprint_padding", sbpl_footprint_padding_, 0.1);
 
   if (!ReadCircleCenterFromParams(private_nh, &circle_center_points_)) {
-    ROS_ERROR("[AUTOSCRUBBER] read circle_center_point failed");
+    //ROS_ERROR("[AUTOSCRUBBER] read circle_center_point failed");
     exit(1);
   }
 
   if (!ReadBackwardCenterFromParams(private_nh, &backward_center_points_)) {
-    ROS_ERROR("[AUTOSCRUBBER] read backward_center_points_ failed");
+    //ROS_ERROR("[AUTOSCRUBBER] read backward_center_points_ failed");
     exit(1);
   }
 
   if (!ReadFootprintCenterFromParams(private_nh, &footprint_center_points_)) {
-    ROS_ERROR("[AUTOSCRUBBER] read footprint_center_point failed");
+    //ROS_ERROR("[AUTOSCRUBBER] read footprint_center_point failed");
     exit(1);
   }
   // for comanding the base
@@ -190,12 +190,11 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   resume_srv_ = private_nh.advertiseService("resume", &AutoScrubber::Resume, this);
   terminate_srv_ = private_nh.advertiseService("terminate", &AutoScrubber::Terminate, this);
   is_goal_reached_srv_ = private_nh.advertiseService("is_goal_reached", &AutoScrubber::IsGoalReached, this);
-  get_current_pose_srv_ = private_nh.advertiseService("get_current_pose", &AutoScrubber::GetCurrentPose, this);
 } 
 
 void AutoScrubber::SimpleGoalCB(const geometry_msgs::PoseStamped::ConstPtr& goal) {
   ROS_DEBUG_NAMED("move_base", "In ROS goal callback, wrapping the PoseStamped in the action message and start ExecuteCycle.");
-  ROS_INFO("[AUTOSCRUBBER] Get Goal!x = %.2f, y = %.2f, yaw = %.2f",goal->pose.position.x, goal->pose.position.y, tf::getYaw(goal->pose.orientation));
+  //ROS_INFO("[AUTOSCRUBBER] Get Goal!x = %.2f, y = %.2f, yaw = %.2f",goal->pose.position.x, goal->pose.position.y, tf::getYaw(goal->pose.orientation));
   global_planner_goal_.pose = goal->pose;
   global_planner_goal_.header.frame_id = global_frame_;
 //  reinterpret_cast<AStarControlOption*>(options_)->settle_planner_goal_ = &astar_planner_goal_;
@@ -212,7 +211,7 @@ void AutoScrubber::GoalCB(const move_base_msgs::MoveBaseActionGoal::ConstPtr& go
 }
 
 void AutoScrubber::PauseCB(const std_msgs::UInt32::ConstPtr& param) {
-//  ROS_WARN("[AUTOSCRUBBER] Get Gaussian_Pause topic= %d", (int)param->data);
+//  //ROS_WARN("[AUTOSCRUBBER] Get Gaussian_Pause topic= %d", (int)param->data);
   if (param->data == 1) {
     autoscrubber_services::Pause::Request req;
     autoscrubber_services::Pause::Response res;
@@ -225,7 +224,7 @@ void AutoScrubber::PauseCB(const std_msgs::UInt32::ConstPtr& param) {
 }
 
 void AutoScrubber::TerminateCB(const std_msgs::UInt32::ConstPtr& param) {
-//  ROS_WARN("[AUTOSCRUBBER] Get Gaussian_Cancel");
+//  //ROS_WARN("[AUTOSCRUBBER] Get Gaussian_Cancel");
   autoscrubber_services::Terminate::Request req;
   autoscrubber_services::Terminate::Response res;
   Terminate(req, res);
@@ -249,9 +248,9 @@ AutoScrubber::~AutoScrubber() {
 }
 
 bool AutoScrubber::Start(autoscrubber_services::Start::Request& req, autoscrubber_services::Start::Response& res) {
-  ROS_INFO("[AUTOSCRUBBER] Start called");
+  //ROS_INFO("[AUTOSCRUBBER] Start called");
   if (environment_.run_flag) {
-    ROS_INFO("[AUTOSCRUBBER] Control Thread is Running, Stop it first!");
+    //ROS_INFO("[AUTOSCRUBBER] Control Thread is Running, Stop it first!");
     environment_.run_flag = false;
     environment_.pause_flag = true;
     while (environment_.pause_flag) {
@@ -265,21 +264,21 @@ bool AutoScrubber::Start(autoscrubber_services::Start::Request& req, autoscrubbe
 }
 
 bool AutoScrubber::Pause(autoscrubber_services::Pause::Request& req, autoscrubber_services::Pause::Response& res) {
-  ROS_INFO("[AUTOSCRUBBER] Pause called");
+  //ROS_INFO("[AUTOSCRUBBER] Pause called");
 //  environment_.run_flag = true;
   environment_.pause_flag = true;
   return true;
 }
 
 bool AutoScrubber::Resume(autoscrubber_services::Resume::Request& req, autoscrubber_services::Resume::Response& res) {
-  ROS_INFO("[AUTOSCRUBBER] Resume called");
+  //ROS_INFO("[AUTOSCRUBBER] Resume called");
 //  environment_.run_flag = true;
   environment_.pause_flag = false;
   return true;
 }
 
 bool AutoScrubber::Terminate(autoscrubber_services::Terminate::Request& req, autoscrubber_services::Terminate::Response& res) {
-  ROS_INFO("[AUTOSCRUBBER] Terminate called");
+  //ROS_INFO("[AUTOSCRUBBER] Terminate called");
   environment_.run_flag = false;
   environment_.pause_flag = true;
   return true;
@@ -290,32 +289,6 @@ bool AutoScrubber::IsGoalReached(autoscrubber_services::IsGoalReached::Request& 
   return true;
 }
 
-bool AutoScrubber::GetCurrentPose(autoscrubber_services::GetCurrentPose::Request& req, autoscrubber_services::GetCurrentPose::Response& res) {
-  geometry_msgs::PoseStamped cur_pos;
-/*  cur_pos.pose.position.x = 0.0;
-  cur_pos.pose.position.y = 0.0;
-  cur_pos.pose.position.z = 0.0;
-  cur_pos.pose.orientation.x = 0.0;
-  cur_pos.pose.orientation.y = 0.0;
-  cur_pos.pose.orientation.z = 0.0;
-  cur_pos.pose.orientation.w = 0.0;
-*/
-  // TODO(lizhen) check localization_valid_, if false, return pose(0,0,0)
-  if (controller_costmap_ros_ != NULL) {
-    tf::Stamped<tf::Pose> global_pose;
-    if (controller_costmap_ros_->getRobotPose(global_pose)) {
-      tf::poseStampedTFToMsg(global_pose, cur_pos);
-      res.current_pose = cur_pos; 
-      double x = cur_pos.pose.position.x;
-      double y = cur_pos.pose.position.y;
-      double yaw = tf::getYaw(cur_pos.pose.orientation);
-      ROS_WARN("[AUTOSCRUBBER] clearFootprintInCostmap!");
-      controller_costmap_ros_->clearFootprintInCostmap(controller_costmap_ros_->getStaticCostmap(), x, y, yaw, 0.50);
-      return true;
-    }
-  }
-  return true;
-}
 
 void AutoScrubber::NotifyChassisThread() {
   ros::NodeHandle n;
@@ -335,30 +308,12 @@ void AutoScrubber::NotifyChassisThread() {
 
 void AutoScrubber::ControlThread() {
   ros::NodeHandle n;
-  while (n.ok()) {
-    if (!environment_.run_flag) {
-      usleep(50000);
-      continue;
-    }
+  controllers_->Control(options_, &environment_);
 
-    // do some intialize things
-    bool first_run = true;
-    // loop below quits when navigation finishes
-//    while (!controllers_[nav_mode_]->Control(options_[nav_mode_], &environment_, first_run)) {
-    while (!controllers_->Control(options_, &environment_, first_run)) {
-      first_run = false; 
-    }
-
-    // notify GUI that goal is reached
-    std_msgs::UInt32 msg;
-    msg.data = 1;
-    goal_reached_pub_.publish(msg);
-
-    // do some clean things
-    environment_.launch_scrubber = false;
-    environment_.run_flag = false;
-    environment_.pause_flag = false;
-  }
+  // notify GUI that goal is reached
+//  std_msgs::UInt32 msg;
+//  msg.data = 1;
+//  goal_reached_pub_.publish(msg);
 }
 
 bool AutoScrubber::LoadGlobalPlanner() {
@@ -411,7 +366,7 @@ void ReadCircleCenterFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const
 
     pt.x = GetNumberFromXMLRPC(point[0], full_param_name);
     pt.y = GetNumberFromXMLRPC(point[1], full_param_name);
-//    ROS_INFO("[AUTOSCRUBBER] get circle center[%d] px = %lf, py = %lf", i, pt.x, pt.y);
+//    //ROS_INFO("[AUTOSCRUBBER] get circle center[%d] px = %lf, py = %lf", i, pt.x, pt.y);
     points->push_back(pt);
   }
 }
@@ -424,11 +379,12 @@ bool AutoScrubber::ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<g
     nh.getParam(full_param_name, circle_center_xmlrpc);
     if (circle_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
       ReadCircleCenterFromXMLRPC(circle_center_xmlrpc, full_param_name, points);
-      for (int i = 0; i < points->size(); ++i)
-        ROS_INFO("[AUTOSCRUBBER] circle_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
+      for (int i = 0; i < points->size(); ++i) {
+        //ROS_INFO("[AUTOSCRUBBER] circle_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
+      }
       return true;
     } else {
-      ROS_ERROR("[AUTOSCRUBBER] circle_center param's type is not Array!");
+      //ROS_ERROR("[AUTOSCRUBBER] circle_center param's type is not Array!");
       return false;
     }
   }
@@ -442,11 +398,12 @@ bool AutoScrubber::ReadBackwardCenterFromParams(ros::NodeHandle& nh, std::vector
     nh.getParam(full_param_name, backward_center_xmlrpc);
     if (backward_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
       ReadCircleCenterFromXMLRPC(backward_center_xmlrpc, full_param_name, points);
-      for (int i = 0; i < points->size(); ++i)
-        ROS_INFO("[AUTOSCRUBBER] circle_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
+      for (int i = 0; i < points->size(); ++i) {
+        //ROS_INFO("[AUTOSCRUBBER] circle_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
+      }
       return true;
     } else {
-      ROS_ERROR("[AUTOSCRUBBER] circle_center param's type is not Array!");
+      //ROS_ERROR("[AUTOSCRUBBER] circle_center param's type is not Array!");
       return false;
     }
   }
@@ -460,11 +417,12 @@ bool AutoScrubber::ReadFootprintCenterFromParams(ros::NodeHandle& nh, std::vecto
     nh.getParam(full_param_name, footprint_center_xmlrpc);
     if (footprint_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
       ReadCircleCenterFromXMLRPC(footprint_center_xmlrpc, full_param_name, points);
-      for (int i = 0; i < points->size(); ++i)
-        ROS_INFO("[AUTOSCRUBBER] footprint_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
+      for (int i = 0; i < points->size(); ++i) {
+        //ROS_INFO("[AUTOSCRUBBER] footprint_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
+      }	
       return true;
     } else {
-      ROS_ERROR("[AUTOSCRUBBER] footprint_center param's type is not Array!");
+      //ROS_ERROR("[AUTOSCRUBBER] footprint_center param's type is not Array!");
       return false;
     }
   }

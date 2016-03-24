@@ -69,6 +69,7 @@ namespace fixpattern_local_planner
   }
 
   void prunePlan(const tf::Stamped<tf::Pose>& global_pose, std::vector<geometry_msgs::PoseStamped>& plan, std::vector<geometry_msgs::PoseStamped>& global_plan){
+    if (plan.size() <= 2 || global_plan.size() <= 2) return;
     ROS_ASSERT(global_plan.size() >= plan.size());
     std::vector<geometry_msgs::PoseStamped>::iterator it = plan.begin();
     std::vector<geometry_msgs::PoseStamped>::iterator global_it = global_plan.begin();
@@ -102,7 +103,7 @@ namespace fixpattern_local_planner
 
     try {
       if (!global_plan.size() > 0) {
-        ROS_ERROR("Received plan with zero length");
+        //ROS_ERROR("Received plan with zero length");
         return false;
       }
 
@@ -132,7 +133,7 @@ namespace fixpattern_local_planner
       geometry_msgs::PoseStamped newer_pose;
 
       //now we'll transform until points are outside of our distance threshold
-      while (total_dist_ < highlight_length && i < (unsigned int)global_plan.size() - 1) {
+      while (total_dist_ < highlight_length && i < (unsigned int)global_plan.size()) {
 
         const geometry_msgs::PoseStamped& pose = global_plan[i];
         poseStampedMsgToTF(pose, tf_pose);
@@ -142,26 +143,27 @@ namespace fixpattern_local_planner
         poseStampedTFToMsg(tf_pose, newer_pose);
 
         transformed_plan.push_back(newer_pose);
-
-        total_dist_ += hypot((global_plan[i].pose.position.x - global_plan[i+1].pose.position.x),
-                (global_plan[i].pose.position.y - global_plan[i+1].pose.position.y));
+        if (i < (unsigned int)global_plan.size() - 1) {
+          total_dist_ += hypot((global_plan[i].pose.position.x - global_plan[i + 1].pose.position.x),
+                  (global_plan[i].pose.position.y - global_plan[i + 1].pose.position.y));
+        }
 
         i++;
       }
     }
     catch(tf::LookupException& ex) {
-      ROS_ERROR("No Transform available Error: %s\n", ex.what());
+      //ROS_ERROR("No Transform available Error: %s\n", ex.what());
       return false;
     }
     catch(tf::ConnectivityException& ex) {
-      ROS_ERROR("Connectivity Error: %s\n", ex.what());
+      //ROS_ERROR("Connectivity Error: %s\n", ex.what());
       return false;
     }
     catch(tf::ExtrapolationException& ex) {
-      ROS_ERROR("Extrapolation Error: %s\n", ex.what());
-      if (global_plan.size() > 0)
-        ROS_ERROR("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
-
+      //ROS_ERROR("Extrapolation Error: %s\n", ex.what());
+      if (global_plan.size() > 0) {
+        //ROS_ERROR("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
+      }
       return false;
     }
 
@@ -175,7 +177,7 @@ namespace fixpattern_local_planner
     try{
       if (!global_plan.size() > 0)
       {
-        ROS_ERROR("Recieved plan with zero length");
+        //ROS_ERROR("Recieved plan with zero length");
         return false;
       }
 
@@ -194,17 +196,18 @@ namespace fixpattern_local_planner
 
     }
     catch(tf::LookupException& ex) {
-      ROS_ERROR("No Transform available Error: %s\n", ex.what());
+      //ROS_ERROR("No Transform available Error: %s\n", ex.what());
       return false;
     }
     catch(tf::ConnectivityException& ex) {
-      ROS_ERROR("Connectivity Error: %s\n", ex.what());
+      //ROS_ERROR("Connectivity Error: %s\n", ex.what());
       return false;
     }
     catch(tf::ExtrapolationException& ex) {
-      ROS_ERROR("Extrapolation Error: %s\n", ex.what());
-      if (global_plan.size() > 0)
-        ROS_ERROR("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
+      //ROS_ERROR("Extrapolation Error: %s\n", ex.what());
+      if (global_plan.size() > 0) {
+        //ROS_ERROR("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
+      }
 
       return false;
     }

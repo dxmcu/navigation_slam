@@ -71,12 +71,12 @@ void TrajectoryPlanner::reconfigure(BaseLocalPlannerConfig &cfg) {
   if (vx_samples_ <= 0) {
     config.vx_samples = 1;
     vx_samples_ = config.vx_samples;
-    ROS_WARN("You've specified that you don't want any samples in the x dimension. We'll at least assume that you want to sample one value... so we're going to set vx_samples to 1 instead");
+    //ROS_WARN("You've specified that you don't want any samples in the x dimension. We'll at least assume that you want to sample one value... so we're going to set vx_samples to 1 instead");
   }
   if (vtheta_samples_ <= 0) {
     config.vtheta_samples = 1;
     vtheta_samples_ = config.vtheta_samples;
-    ROS_WARN("You've specified that you don't want any samples in the theta dimension. We'll at least assume that you want to sample one value... so we're going to set vtheta_samples to 1 instead");
+    //ROS_WARN("You've specified that you don't want any samples in the theta dimension. We'll at least assume that you want to sample one value... so we're going to set vtheta_samples to 1 instead");
   }
 
   heading_lookahead_ = config.heading_lookahead;
@@ -103,7 +103,7 @@ void TrajectoryPlanner::reconfigure(BaseLocalPlannerConfig &cfg) {
     double temp;
     iss >> temp;
     y_vels.push_back(temp);
-    // ROS_INFO("Adding y_vel: %e", temp);
+    // //ROS_INFO("Adding y_vel: %e", temp);
   }
 
   y_vels_ = y_vels;
@@ -146,11 +146,10 @@ TrajectoryPlanner::TrajectoryPlanner(WorldModel& world_model,
     dwa_(dwa), heading_scoring_(heading_scoring), heading_scoring_timestep_(heading_scoring_timestep),
     simple_attractor_(simple_attractor), y_vels_(y_vels), stop_time_buffer_(stop_time_buffer), sim_period_(sim_period) {
   if (meter_scoring) {
-    ROS_INFO("[FIXPATTERN LOCAL PLANNER] meter_scoring set to true");
+    //ROS_INFO("[FIXPATTERN LOCAL PLANNER] meter_scoring set to true");
   } else {
-    ROS_INFO("[FIXPATTERN LOCAL PLANNER] meter_scoring set to false");
+    //ROS_INFO("[FIXPATTERN LOCAL PLANNER] meter_scoring set to false");
   }
-  final_goal_position_valid_ = false;
 
   costmap_2d::calculateMinAndMaxDistances(footprint_spec_, inscribed_radius_, circumscribed_radius_);
 }
@@ -265,7 +264,7 @@ void TrajectoryPlanner::generateTrajectory(
   // discard trajectory that is circle
   if (fabs(vtheta_samp) - 0.0 > 0.00001 && sim_time > M_PI / fabs(vtheta_samp)) {
     traj.cost_ = -1.0;
-    // ROS_WARN("[TRAJECTORY PLANNER] trajectory is circle, cost = -1.0, vtheta_samp: %lf, sim_time: %lf", vtheta_samp, sim_time);
+    // //ROS_WARN("[TRAJECTORY PLANNER] trajectory is circle, cost = -1.0, vtheta_samp: %lf, sim_time: %lf", vtheta_samp, sim_time);
     return;
   }
 
@@ -299,7 +298,7 @@ void TrajectoryPlanner::generateTrajectory(
 
     // we don't want a path that goes off the know map
     if (!costmap_.worldToMap(x_i, y_i, cell_x, cell_y)) {
-      ROS_WARN("[LOCAL PLANNER] world to map failed");
+      //ROS_WARN("[LOCAL PLANNER] world to map failed");
       traj.cost_ = -1.0;
       traj.is_footprint_safe_ = false;
       return;
@@ -333,7 +332,7 @@ void TrajectoryPlanner::generateTrajectory(
     // if a point on this trajectory has no clear path it is invalid
     if (impossible_cost <= path_dist) {
       traj.cost_ = -2.0;
-      ROS_WARN("[TRAJECTORY PLANNER] impossible_cost <= path_dist, cost = -2.0");
+      //ROS_WARN("[TRAJECTORY PLANNER] impossible_cost <= path_dist, cost = -2.0");
       return;
     }
 
@@ -418,7 +417,7 @@ void TrajectoryPlanner::generateTrajectoryWithoutCheckingFootprint(
 
     // we don't want a path that goes off the know map
     if (!costmap_.worldToMap(x_i, y_i, cell_x, cell_y)) {
-      ROS_WARN("[LOCAL PLANNER] world to map failed");
+      //ROS_WARN("[LOCAL PLANNER] world to map failed");
       traj.cost_ = -1.0;
       traj.is_footprint_safe_ = false;
       return;
@@ -523,7 +522,7 @@ void TrajectoryPlanner::generateTrajectoryForRecovery(
 
     // we don't want a path that goes off the know map
     if (!costmap_.worldToMap(x_i, y_i, cell_x, cell_y)) {
-      ROS_WARN("[LOCAL PLANNER] world to map failed");
+      //ROS_WARN("[LOCAL PLANNER] world to map failed");
       traj.cost_ = -1.0;
       traj.is_footprint_safe_ = false;
       return;
@@ -583,20 +582,14 @@ void TrajectoryPlanner::generateTrajectoryForRecovery(
   traj.cost_ = pdist_scale_ * path_dist;
 }
 
-void TrajectoryPlanner::updatePlan(const std::vector<geometry_msgs::PoseStamped>& new_plan) {
+void TrajectoryPlanner::UpdateGoalAndPlan(const geometry_msgs::PoseStamped& goal, const std::vector<geometry_msgs::PoseStamped>& new_plan) {
   global_plan_.resize(new_plan.size());
   for (unsigned int i = 0; i < new_plan.size(); ++i) {
     global_plan_[i] = new_plan[i];
   }
 
-  if (global_plan_.size() > 0) {
-    geometry_msgs::PoseStamped& final_goal_pose = global_plan_[ global_plan_.size() - 1 ];
-    final_goal_x_ = final_goal_pose.pose.position.x;
-    final_goal_y_ = final_goal_pose.pose.position.y;
-    final_goal_position_valid_ = true;
-  } else {
-    final_goal_position_valid_ = false;
-  }
+  final_goal_x_ = goal.pose.position.x;
+  final_goal_y_ = goal.pose.position.y;
 
   // set need_backward_ to false every time
   need_backward_ = false;
@@ -612,7 +605,7 @@ bool TrajectoryPlanner::checkTrajectory(double x, double y, double theta, double
   if (cost >= 0) {
     return true;
   }
-  ROS_WARN("Invalid Trajectory %f, %f, %f, cost: %f", vx_samp, vy_samp, vtheta_samp, cost);
+  //ROS_WARN("Invalid Trajectory %f, %f, %f, cost: %f", vx_samp, vy_samp, vtheta_samp, cost);
 
   // otherwise the check fails
   return false;
@@ -772,10 +765,8 @@ Trajectory TrajectoryPlanner::createTrajectories(double x, double y, double thet
   double max_vel_x = max_vel_x_, max_vel_theta;
   double min_vel_x, min_vel_theta;
 
-  if (final_goal_position_valid_) {
-    double final_goal_dist = hypot(final_goal_x_ - x, final_goal_y_ - y);
-    max_vel_x = std::min(max_vel_x, final_goal_dist / sim_time_);
-  }
+  double final_goal_dist = hypot(final_goal_x_ - x, final_goal_y_ - y);
+  max_vel_x = std::min(max_vel_x, final_goal_dist / sim_time_);
 
   max_vel_x = std::max(std::min(max_vel_x, vx + acc_x * sim_time_), min_vel_x_);
   min_vel_x = std::max(min_vel_x_, vx - acc_x * sim_time_);
@@ -803,7 +794,7 @@ Trajectory TrajectoryPlanner::createTrajectories(double x, double y, double thet
 
   // check front safe first, if not safe, return best->cost_ = -1
   if (!checkFrontSafe(x, y, theta, vx, vy, vtheta)) {
-    ROS_ERROR("[LOCAL PLANNER] checkFrontSafe failed! vx: %lf, vtheta: %lf", vx, vtheta);
+    //ROS_ERROR("[LOCAL PLANNER] checkFrontSafe failed! vx: %lf, vtheta: %lf", vx, vtheta);
     best_traj->is_footprint_safe_ = false;
     return *best_traj;
   }
@@ -888,7 +879,7 @@ Trajectory TrajectoryPlanner::createTrajectories(double x, double y, double thet
   generateTrajectoryForRecovery(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp,
                                 acc_x, acc_y, acc_theta, impossible_cost, *comp_traj, sim_time_, 5);
   if (comp_traj->cost_ >= 0.0) {
-    ROS_INFO("[FIXPATTERN LOCAL PLANNER] rotate to right");
+    //ROS_INFO("[FIXPATTERN LOCAL PLANNER] rotate to right");
     swap = best_traj;
     best_traj = comp_traj;
     comp_traj = swap;
@@ -900,7 +891,7 @@ Trajectory TrajectoryPlanner::createTrajectories(double x, double y, double thet
   generateTrajectoryForRecovery(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp,
                                 acc_x, acc_y, acc_theta, impossible_cost, *comp_traj, sim_time_, 5);
   if (comp_traj->cost_ >= 0.0) {
-    ROS_INFO("[FIXPATTERN LOCAL PLANNER] rotate to left");
+    //ROS_INFO("[FIXPATTERN LOCAL PLANNER] rotate to left");
     swap = best_traj;
     best_traj = comp_traj;
     comp_traj = swap;
@@ -908,7 +899,7 @@ Trajectory TrajectoryPlanner::createTrajectories(double x, double y, double thet
   }
 
   // and finally, if we can't do anything else, we want to generate trajectories that move backwards slowly
-  ROS_INFO("[FIXPATTERN LOCAL PLANNER] going back with vel: %lf", backup_vel_);
+  //ROS_INFO("[FIXPATTERN LOCAL PLANNER] going back with vel: %lf", backup_vel_);
   vtheta_samp = 0.0;
   vx_samp = backup_vel_;
   vy_samp = 0.0;
