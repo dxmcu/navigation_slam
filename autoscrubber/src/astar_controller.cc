@@ -456,7 +456,7 @@ void AStarController::PlanThread() {
           origin_path_safe_cnt_ = 0;
           // first_run_controller_flag_ = true;
         } else if (planning_state_ == P_INSERTING_SBPL) {
-          co_->fixpattern_path->insert_middle_path(astar_path_.path(), start, temp_goal);
+          // co_->fixpattern_path->insert_middle_path(astar_path_.path(), start, temp_goal);
           // first_run_controller_flag_ = true;
         } else { // unkonw state
           // switch to FIX_CLEARING state
@@ -622,7 +622,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
         } else {
           // switch to CONTROLLING state and go
           state_ = FIX_CONTROLLING;
-          GetAStarTempGoal(sbpl_planner_goal_, 0.3);
+//          GetAStarTempGoal(sbpl_planner_goal_, 0.3);
         }
       } else { 
         planner_goal_ = global_goal_;
@@ -751,7 +751,7 @@ bool AStarController::IsGoalFootprintSafe(double goal_safe_dis_a, double goal_sa
     double y = fix_path[i].pose.position.y;
     double yaw = tf::getYaw(fix_path[i].pose.orientation);
     if (footprint_checker_->CircleCenterCost(x, y, yaw, co_->circle_center_points) < 0) {
-//      //ROS_WARN("[ASTAR CONTROLLER] goal front not safe");
+//      ROS_WARN("[ASTAR CONTROLLER] goal front not safe");
       return false;
     }
     free_dis_a += PoseStampedDistance(fix_path[i], fix_path[i + 5]);
@@ -765,7 +765,7 @@ bool AStarController::IsGoalFootprintSafe(double goal_safe_dis_a, double goal_sa
     double y = fix_path[i].pose.position.y;
     double yaw = tf::getYaw(fix_path[i].pose.orientation);
     if (footprint_checker_->CircleCenterCost(x, y, yaw, co_->circle_center_points) < 0) {
-//      //ROS_WARN("[ASTAR CONTROLLER] goal back not safe");
+//      ROS_WARN("[ASTAR CONTROLLER] goal back not safe");
       return false;
     }
     free_dis_b += PoseStampedDistance(fix_path[i], fix_path[i - 5]);
@@ -1015,7 +1015,7 @@ bool AStarController::ExecuteCycle() {
     tf::poseStampedTFToMsg(global_pose, current_position);
   }
   double cur_goal_distance = PoseStampedDistance(current_position, global_goal_);
-//  //ROS_INFO("[ASTAR CONTROLLER]:cur_goal_distance = %lf", cur_goal_distance);
+//  ROS_INFO("[ASTAR CONTROLLER]:cur_goal_distance = %lf", cur_goal_distance);
   // check to see if we've moved far enough to reset our oscillation timeout
   if (PoseStampedDistance(current_position, oscillation_pose_) >= co_->oscillation_distance) {
     last_oscillation_reset_ = ros::Time::now();
@@ -1138,7 +1138,7 @@ bool AStarController::ExecuteCycle() {
           }
         }
       }
-
+/*
       if (!runPlanner_ &&
           PoseStampedDistance(current_position, sbpl_planner_goal_) <= 0.5 &&
           PoseStampedDistance(sbpl_planner_goal_, global_goal_) >= 0.1) {
@@ -1150,7 +1150,7 @@ bool AStarController::ExecuteCycle() {
         lock.unlock();
         //ROS_WARN("[FIXPATTERN CONTROLLER] distance to sbpl goal < 0.5, replan");
       }
-
+*/
       t3 = GetTimeInSeconds();
       if (t3 - t2 > 0.04) {
         //ROS_INFO("Prune path cost %lf sec", t3 - t2);
@@ -1578,7 +1578,7 @@ void AStarController::ResetState() {
   recovery_trigger_ = F_CONTROLLING_R;
   PublishZeroVelocity();
 */
-//  //ROS_INFO("[ASTAR CONTROLLER] ResetState");
+//  ROS_INFO("[ASTAR CONTROLLER] ResetState");
   // search planner goal from start
   planner_goal_index_ = 0;
   cmd_vel_ratio_ = 1.0;
@@ -1689,14 +1689,14 @@ bool AStarController::GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, i
 //        if (!cross_obstacle && dis_accu <= co_->front_safe_check_dis) continue;
         if (dis_accu <= goal_safe_dis_a) continue;
         if (PoseStampedDistance(cur_pose, path.at(i)) <= goal_safe_dis_a) continue;
-//        //ROS_INFO("[ASTAR CONTROLLER] dis_accu = %lf", dis_accu);
+//        ROS_INFO("[ASTAR CONTROLLER] dis_accu = %lf", dis_accu);
         double x = path[i].pose.position.x;
         double y = path[i].pose.position.y;
         double yaw = tf::getYaw(path[i].pose.orientation);
         if (footprint_checker_->CircleCenterCost(x, y, yaw, co_->circle_center_points) < 0 ||
              !IsGoalFootprintSafe(goal_safe_dis_a, goal_safe_dis_b, path[i])) {
            cross_obstacle = true;
-//           //ROS_INFO("[ASTAR CONTROLLER] path[%d] not safe", i);
+//           ROS_INFO("[ASTAR CONTROLLER] path[%d] not safe", i);
            continue;
         }
         goal_index = i;
@@ -1811,6 +1811,7 @@ bool AStarController::GetAStarInitalPath(const geometry_msgs::PoseStamped& globa
      double yaw_diff;
      for (int i = 0; i < planner_plan_->size(); ++i) {
        yaw_diff = angles::shortest_angular_distance(tf::getYaw(pre_pose.pose.orientation), tf::getYaw(planner_plan_->at(i).pose.orientation));
+//       if (i % 3 == 0 || i == planner_plan_->size() || fabs(yaw_diff) > M_PI / 3.0) {
        if (i % 5 == 0) {
          fix_path.push_back(fixpattern_path::GeometryPoseToPathPoint(planner_plan_->at(i).pose));
          pre_pose = planner_plan_->at(i);
@@ -2134,38 +2135,28 @@ bool AStarController::RotateRecovery() {
 
   double yaw = tf::getYaw(current_position.pose.orientation);
   if (rotate_recovery_dir_ == 0) rotate_recovery_dir_ = 1;
-  if (try_recovery_times_ < 5) {
-    if (try_recovery_times_ > 4) {
-      rotate_recovery_dir_ = 0;
-    } else if (try_recovery_times_ > 2){
-      rotate_recovery_dir_ *= -1;
-    } else {
-      rotate_recovery_dir_ = 1;
-    }
-    double target_yaw = angles::normalize_angle(yaw + rotate_recovery_dir_ * M_PI / 6);
-    double theta_sim_granularity = rotate_recovery_dir_ > 0 ? 0.1 : -0.1;
+  double target_yaw = angles::normalize_angle(yaw + rotate_recovery_dir_ * M_PI / 6);
+  double theta_sim_granularity = rotate_recovery_dir_ > 0 ? 0.1 : -0.1;
 
-    int num_step = M_PI / 6 / fabs(theta_sim_granularity);
-    if (num_step == 0) num_step = 1;
+  int num_step = M_PI / 6 / fabs(theta_sim_granularity);
+  if (num_step == 0) num_step = 1;
 
-    bool footprint_safe = true;
-    // ignore current footprint
-    for (int i = 1; i <= num_step; ++i) {
-      double sample_yaw = angles::normalize_angle(yaw + i * theta_sim_granularity);
-      if (footprint_checker_->CircleCenterCost(current_position.pose.position.x, current_position.pose.position.y,
-                                               sample_yaw, co_->circle_center_points) < 0) {
-        footprint_safe = false;
-        break;
-      }
-    }
-    ++try_recovery_times_;
-    if (footprint_safe && try_recovery_times_ < 6) {
-      //ROS_INFO("[ASTAR CONTROLLER] RotateToYaw, yaw: %lf, target_yaw: %lf", yaw, target_yaw);
-      RotateToYaw(target_yaw);
-      return true;
+  bool footprint_safe = true;
+  // ignore current footprint
+  for (int i = 1; i <= num_step; ++i) {
+    double sample_yaw = angles::normalize_angle(yaw + i * theta_sim_granularity);
+    if (footprint_checker_->CircleCenterCost(current_position.pose.position.x, current_position.pose.position.y,
+                                             sample_yaw, co_->circle_center_points) < 0) {
+      footprint_safe = false;
+      break;
     }
   }
-/*
+  if (footprint_safe) {
+    ROS_INFO("[ASTAR CONTROLLER] RotateToYaw, yaw: %lf, target_yaw: %lf", yaw, target_yaw);
+    RotateToYaw(target_yaw);
+    return true;
+  }
+
   rotate_failure_times_++;
   // can rotate only if at least one direction is safe
   if (rotate_failure_times_ < 2) {
@@ -2192,7 +2183,7 @@ bool AStarController::RotateRecovery() {
 
     rotate_failure_times_++;
   }
-*/
+
   // we should reset recovery_dir_ and failure_times_ here
   rotate_recovery_dir_ = 0;
   rotate_failure_times_ = 0;

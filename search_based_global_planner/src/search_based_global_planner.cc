@@ -220,10 +220,10 @@ void SearchBasedGlobalPlanner::UpdateSetMembership(EnvironmentEntry3D* entry) {
     if (entry->closed_iteration != iteration_) {
       COMPUTEKEY(entry);
       if (PTRHEAP_OK != open_.contain(entry)) {
-        // //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] push to open_ (%d %d %d)", entry->x, entry->y, entry->theta);
+        // ROS_INFO("[SEARCH BASED GLOBAL PLANNER] push to open_ (%d %d %d)", entry->x, entry->y, entry->theta);
         open_.push(entry);
       } else {
-        // //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] update (%d %d %d)", entry->x, entry->y, entry->theta);
+        // ROS_INFO("[SEARCH BASED GLOBAL PLANNER] update (%d %d %d)", entry->x, entry->y, entry->theta);
         open_.adjust(entry);
       }
     } else {
@@ -231,7 +231,7 @@ void SearchBasedGlobalPlanner::UpdateSetMembership(EnvironmentEntry3D* entry) {
     }
   } else {
     if (PTRHEAP_OK == open_.contain(entry)) {
-      // //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] erase from open_ (%d %d %d)", entry->x, entry->y, entry->theta);
+      // ROS_INFO("[SEARCH BASED GLOBAL PLANNER] erase from open_ (%d %d %d)", entry->x, entry->y, entry->theta);
       open_.erase(entry);
     }
   }
@@ -320,7 +320,7 @@ bool SearchBasedGlobalPlanner::ComputeOrImprovePath() {
     if (open_.size() > max_open_size) max_open_size = open_.size();
 #endif
     // remove state s with the minimum key from OPEN
-    // //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] expand entry in open_ (%d %d %d)", min_entry->x, min_entry->y, min_entry->theta);
+    // ROS_INFO("[SEARCH BASED GLOBAL PLANNER] expand entry in open_ (%d %d %d)", min_entry->x, min_entry->y, min_entry->theta);
     open_.pop();
     if (min_entry->g > min_entry->rhs) {
       min_entry->g = min_entry->rhs;
@@ -413,7 +413,7 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
     costs.clear();
     actions.clear();
     env_->GetSuccs(source_entry, &succ_entries, &costs, &actions);
-//    //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] GetSuccs_entries size = %d, costs size = %d, actions size = %d", (int)succ_entries.size(), (int)costs.size(), (int)actions.size());
+//    ROS_INFO("[SEARCH BASED GLOBAL PLANNER] GetSuccs_entries size = %d, costs size = %d, actions size = %d", (int)succ_entries.size(), (int)costs.size(), (int)actions.size());
 
     int best_cost = INFINITECOST;
     int best_index = -1;
@@ -448,7 +448,7 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
 		}
     actions_path.push_back(*actions.at(best_index));
   }
-//  //ROS_INFO("[SBPL] actions_path size = %d, point_path size = %d", (int)actions_path.size(), (int)point_path->size());
+//  ROS_INFO("[SBPL] actions_path size = %d, point_path size = %d", (int)actions_path.size(), (int)point_path->size());
   ComputeHighlightAndVelocity(actions_path, point_path, path_info);
 }
 
@@ -458,7 +458,7 @@ void setActionIntermStruct(Action* action, double highlight, double max_vel, boo
 		action->interm_struct[ipind].highlight = highlight;
 		action->interm_struct[ipind].max_vel = max_vel;
 		action->interm_struct[ipind].is_corner = is_corner;
-  //  //ROS_INFO("[SBPL] point[%d]set max_vel = %lf", ipind, max_vel);
+  //  ROS_INFO("[SBPL] point[%d]set max_vel = %lf", ipind, max_vel);
 	}
 }	
 
@@ -466,7 +466,7 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Act
                                                          std::vector<XYThetaPoint>* point_path,
                                                          std::vector<IntermPointStruct>* path_info) {
   std::vector<Action> actions_path = origin_actions_path;
-//  //ROS_INFO("[SBPL] 1: actions_path size = %d, path_point size = %d, path_info size = %d", (int)actions_path.size(),(int)point_path->size(), (int)path_info->size());
+//  ROS_INFO("[SBPL] 1: actions_path size = %d, path_point size = %d, path_info size = %d", (int)actions_path.size(),(int)point_path->size(), (int)path_info->size());
   // check corner and set max_vel and highlight of action 
   for (unsigned int pind = 0; pind < actions_path.size(); ++pind) {
     unsigned int corner_size = 0;
@@ -482,7 +482,7 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Act
           break;
         }
       }
-//      //ROS_INFO("[SBPL] corner size = %d", corner_size);
+//      ROS_INFO("[SBPL] corner size = %d", corner_size);
       if(pind == 0 && corner_size >= 1) {
         max_vel = sbpl_min_vel_;	
         is_corner = true;
@@ -863,7 +863,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
   // assign to fixpattern_path::Path
   std::vector<fixpattern_path::PathPoint> tmp_path;
   for (unsigned int i = 0; i < plan.size() - 1; ++i) {
-    ////ROS_INFO("[SBPL] path_info[%d]", i);
+    //ROS_INFO("[SBPL] path_info[%d]", i);
     if (path_info[i].is_corner) {
       unsigned int corner_size = 1;
       for (unsigned int j = i + 1; j < plan.size() - 1; ++j) {

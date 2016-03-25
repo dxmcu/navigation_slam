@@ -495,7 +495,7 @@ bool FixPatternTrajectoryPlannerROS::setPlan(const std::vector<fixpattern_path::
     final_goal_extended_ = false;
   }
 
-//  //ROS_INFO("[FIXPATTERN LOCAL PLANNER] orig plan size = %zu; new plan size = %zu", orig_global_plan.size(), new_global_plan.size());
+//  ROS_INFO("[FIXPATTERN LOCAL PLANNER] orig plan size = %zu; new plan size = %zu", orig_global_plan.size(), new_global_plan.size());
 
   // reset the global plan
   global_plan_.clear();
@@ -695,7 +695,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
      //ROS_INFO("Cycle time: %.9f", t_diff);
  */
 
-  // //ROS_INFO("[FIXPATTERN LOCAL PLANNER] fixpattern_path_.size(): %d", fixpattern_path_.size());
+  // ROS_INFO("[FIXPATTERN LOCAL PLANNER] fixpattern_path_.size(): %d", fixpattern_path_.size());
   for(unsigned int i = 0; i < fixpattern_path_.size(); ++i) {
     if(fixpattern_path_.at(i).IsCornerPoint()) {
       //ROS_INFO("[FIXPATTERN LOCAL PLANNER] fixpattern_path_size = %d, corner_index = %d", (int)fixpattern_path_.size(), i);

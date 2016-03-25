@@ -211,7 +211,7 @@ void AutoScrubber::GoalCB(const move_base_msgs::MoveBaseActionGoal::ConstPtr& go
 }
 
 void AutoScrubber::PauseCB(const std_msgs::UInt32::ConstPtr& param) {
-//  //ROS_WARN("[AUTOSCRUBBER] Get Gaussian_Pause topic= %d", (int)param->data);
+//  ROS_WARN("[AUTOSCRUBBER] Get Gaussian_Pause topic= %d", (int)param->data);
   if (param->data == 1) {
     autoscrubber_services::Pause::Request req;
     autoscrubber_services::Pause::Response res;
@@ -224,7 +224,7 @@ void AutoScrubber::PauseCB(const std_msgs::UInt32::ConstPtr& param) {
 }
 
 void AutoScrubber::TerminateCB(const std_msgs::UInt32::ConstPtr& param) {
-//  //ROS_WARN("[AUTOSCRUBBER] Get Gaussian_Cancel");
+//  ROS_WARN("[AUTOSCRUBBER] Get Gaussian_Cancel");
   autoscrubber_services::Terminate::Request req;
   autoscrubber_services::Terminate::Response res;
   Terminate(req, res);
@@ -366,7 +366,7 @@ void ReadCircleCenterFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const
 
     pt.x = GetNumberFromXMLRPC(point[0], full_param_name);
     pt.y = GetNumberFromXMLRPC(point[1], full_param_name);
-//    //ROS_INFO("[AUTOSCRUBBER] get circle center[%d] px = %lf, py = %lf", i, pt.x, pt.y);
+//    ROS_INFO("[AUTOSCRUBBER] get circle center[%d] px = %lf, py = %lf", i, pt.x, pt.y);
     points->push_back(pt);
   }
 }

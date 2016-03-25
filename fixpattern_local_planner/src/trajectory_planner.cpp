@@ -103,7 +103,7 @@ void TrajectoryPlanner::reconfigure(BaseLocalPlannerConfig &cfg) {
     double temp;
     iss >> temp;
     y_vels.push_back(temp);
-    // //ROS_INFO("Adding y_vel: %e", temp);
+    // ROS_INFO("Adding y_vel: %e", temp);
   }
 
   y_vels_ = y_vels;
@@ -264,7 +264,7 @@ void TrajectoryPlanner::generateTrajectory(
   // discard trajectory that is circle
   if (fabs(vtheta_samp) - 0.0 > 0.00001 && sim_time > M_PI / fabs(vtheta_samp)) {
     traj.cost_ = -1.0;
-    // //ROS_WARN("[TRAJECTORY PLANNER] trajectory is circle, cost = -1.0, vtheta_samp: %lf, sim_time: %lf", vtheta_samp, sim_time);
+    // ROS_WARN("[TRAJECTORY PLANNER] trajectory is circle, cost = -1.0, vtheta_samp: %lf, sim_time: %lf", vtheta_samp, sim_time);
     return;
   }
 
