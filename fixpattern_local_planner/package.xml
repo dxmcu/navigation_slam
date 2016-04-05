@@ -30,7 +30,6 @@
     <build_depend>geometry_msgs</build_depend>
     <build_depend>nav_core</build_depend>
     <build_depend>eigen</build_depend>
-    <build_depend>dynamic_reconfigure</build_depend>
     <build_depend>message_generation</build_depend>
     <build_depend>gslib</build_depend>
     <build_depend>fixpattern_path</build_depend>
@@ -47,12 +46,7 @@
     <run_depend>geometry_msgs</run_depend>
     <run_depend>nav_core</run_depend>
     <run_depend>eigen</run_depend>
-    <run_depend>dynamic_reconfigure</run_depend>
     <run_depend>message_generation</run_depend>
     <run_depend>gslib</run_depend>
     <run_depend>fixpattern_path</run_depend>
-
-    <export>
-        <nav_core plugin="${prefix}/blp_plugin.xml" />
-    </export>
 </package>

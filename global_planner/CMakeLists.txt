@@ -42,16 +42,6 @@ add_library(${PROJECT_NAME} STATIC
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
-add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
-
-add_executable(planner
-  src/plan_node.cpp
-)
-target_link_libraries(planner
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-)
-
 install(TARGETS ${PROJECT_NAME} planner
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
@@ -60,6 +50,3 @@ install(TARGETS ${PROJECT_NAME} planner
 install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
   PATTERN ".svn" EXCLUDE)
-
-install(FILES bgp_plugin.xml
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})

@@ -10,7 +10,6 @@
  */
 
 #include "autoscrubber/autoscrubber.h"
-
 #include <boost/algorithm/string.hpp>
 #include <boost/thread.hpp>
 #include <geometry_msgs/Twist.h>
@@ -32,7 +31,6 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   recovery_trigger_ = PLANNING_R;
 
   // get some parameters that will be global to the move base node
-  private_nh.param("enable_scrubber", enable_scrubber_, false);
   private_nh.param("global_costmap/robot_base_frame", robot_base_frame_, std::string("base_link"));
   private_nh.param("global_costmap/global_frame", global_frame_, std::string("/map"));
   private_nh.param("planner_frequency", planner_frequency_, 0.0);
@@ -164,7 +162,6 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   controllers_ = new AStarController(&tf_, controller_costmap_ros_);
 
   // initialize environment_
-  environment_.launch_scrubber = false;
   environment_.run_flag = false;
   environment_.pause_flag = false;
 
@@ -173,14 +170,7 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
 
   // controlling thread
   control_thread_ = new boost::thread(boost::bind(&AutoScrubber::ControlThread, this));
-/*
-  notify_chassis_thread_ = new boost::thread(boost::bind(&AutoScrubber::NotifyChassisThread, this));
 
-  // install service client
-  ros::NodeHandle chassis_nh;
-  launch_scrubber_client_ = chassis_nh.serviceClient<autoscrubber_services::LaunchScrubber>("launch_scrubber");
-  stop_scrubber_client_ = chassis_nh.serviceClient<autoscrubber_services::StopScrubber>("stop_scrubber");
-*/
   // start service when all done
   start_srv_ = private_nh.advertiseService("start", &AutoScrubber::Start, this);
   pause_srv_ = private_nh.advertiseService("pause", &AutoScrubber::Pause, this);
@@ -284,23 +274,6 @@ bool AutoScrubber::Terminate(autoscrubber_services::Terminate::Request& req, aut
 bool AutoScrubber::IsGoalReached(autoscrubber_services::IsGoalReached::Request& req, autoscrubber_services::IsGoalReached::Response& res) {
   res.reached.data = !environment_.run_flag && !environment_.pause_flag;
   return true;
-}
-
-
-void AutoScrubber::NotifyChassisThread() {
-  ros::NodeHandle n;
-  ros::Rate loop_rate(5.0);
-  while (n.ok()) {
-    if (enable_scrubber_ && environment_.launch_scrubber) {
-      autoscrubber_services::LaunchScrubber launch;
-      launch_scrubber_client_.call(launch);
-    } else {
-      autoscrubber_services::StopScrubber stop;
-      stop_scrubber_client_.call(stop);
-    }
-
-    loop_rate.sleep();
-  }
 }
 
 void AutoScrubber::ControlThread() {

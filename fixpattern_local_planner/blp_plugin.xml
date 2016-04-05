@@ -1,7 +1,0 @@
-<library path="lib/libfixpattern_trajectory_planner_ros">
-    <class name="fixpattern_local_planner/FixPatternTrajectoryPlannerROS" type="fixpattern_local_planner::FixPatternTrajectoryPlannerROS" base_class_type="nav_core::BaseLocalPlanner">
-    <description>
-      A implementation of a local planner using either a DWA or Trajectory Rollout approach based on configuration parameters.
-    </description>
-  </class>
-</library>

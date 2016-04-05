@@ -20,7 +20,7 @@
 #include <fixpattern_local_planner/costmap_model.h>
 #include <fixpattern_local_planner/trajectory_planner.h>
 #include <fixpattern_local_planner/look_ahead_planner.h>
-#include <fixpattern_local_planner/map_grid_visualizer.h>
+//#include <fixpattern_local_planner/map_grid_visualizer.h>
 #include <fixpattern_local_planner/planar_laser_scan.h>
 #include <tf/transform_datatypes.h>
 #include <nav_msgs/Odometry.h>
@@ -31,8 +31,8 @@
 #include <boost/thread.hpp>
 #include <angles/angles.h>
 #include <nav_core/base_local_planner.h>
-#include <dynamic_reconfigure/server.h>
-#include <fixpattern_local_planner/BaseLocalPlannerConfig.h>
+//#include <dynamic_reconfigure/server.h>
+//#include <fixpattern_local_planner/BaseLocalPlannerConfig.h>
 #include <fixpattern_local_planner/odometry_helper_ros.h>
 //#include <pcl_ros/publisher.h>
 #include <fixpattern_path/path.h>
@@ -139,7 +139,7 @@ class FixPatternTrajectoryPlannerROS {
   /**
    * @brief Callback to update the local planner's parameters based on dynamic reconfigure
    */
-  void reconfigureCB(BaseLocalPlannerConfig &config, uint32_t level);  // NOLINT
+//  void reconfigureCB(BaseLocalPlannerConfig &config, uint32_t level);  // NOLINT
 
   /**
    * @brief Once a goal position is reached... rotate to the goal orientation
@@ -176,8 +176,6 @@ class FixPatternTrajectoryPlannerROS {
    */
   bool stopWithAccLimits(PlannerType planner_type, const tf::Stamped<tf::Pose>& global_pose, const tf::Stamped<tf::Pose>& robot_vel, geometry_msgs::Twist* cmd_vel);
 
-  std::vector<double> loadYVels(ros::NodeHandle node);
-
   double sign(double x) {
     return x < 0.0 ? -1.0 : 1.0;
   }
@@ -203,7 +201,8 @@ class FixPatternTrajectoryPlannerROS {
   bool final_goal_extended_;
   boost::recursive_mutex odom_lock_;
 
-  double max_vel_th_, min_vel_th_, min_vel_abs_th_;
+  double max_vel_theta_, min_vel_theta_, min_vel_abs_th_;
+  double min_in_place_rotational_vel_; 
   double acc_lim_x_, acc_lim_y_, acc_lim_theta_;
   double sim_period_;
   bool rotating_to_goal_;
@@ -214,10 +213,8 @@ class FixPatternTrajectoryPlannerROS {
   ros::Publisher g_plan_pub_, l_plan_pub_;
 //  pcl_ros::Publisher<MapGridCostPoint> traj_cloud_pub_;
 
-  dynamic_reconfigure::Server<BaseLocalPlannerConfig> *dsrv_;
-  fixpattern_local_planner::BaseLocalPlannerConfig default_config_;
-  bool setup_;
-
+//  dynamic_reconfigure::Server<BaseLocalPlannerConfig> *dsrv_;
+//  fixpattern_local_planner::BaseLocalPlannerConfig default_config_;
 
   bool initialized_;
   bool is_footprint_safe_;
