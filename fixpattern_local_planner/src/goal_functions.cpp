@@ -39,7 +39,6 @@
 
 namespace fixpattern_local_planner
 {
-
   double getGoalPositionDistance(const tf::Stamped<tf::Pose>& global_pose, double goal_x, double goal_y) {
     return hypot(goal_x - global_pose.getOrigin().x(), goal_y - global_pose.getOrigin().y());
   }
@@ -170,6 +169,39 @@ namespace fixpattern_local_planner
     return true;
   }
 
+  bool CutFixpatternPath(std::vector<fixpattern_path::PathPoint>* fixpattern_path, std::vector<geometry_msgs::PoseStamped>* transformed_plan, const std::string& path_frame) {
+    transformed_plan->clear();
+
+    if (0 == fixpattern_path->size()) {
+      ROS_ERROR("[FIXPATTERN LOCAL PLANNER] Received plan with zero length");
+      return false;
+    }
+
+    double highlight_length = fixpattern_path->front().highlight;
+    if (highlight_length == 0) highlight_length = 2.5;
+    if (highlight_length < 1.0) highlight_length = 1.0;
+
+    unsigned int i = 0;
+    double total_dist_ = 0.0;
+    //now we'll transform until points are outside of our distance threshold
+    while (total_dist_ < highlight_length && i < (unsigned int)fixpattern_path->size()) {
+      transformed_plan->push_back(fixpattern_path::PathPointToGeometryPoseStamped(fixpattern_path->at(i)));
+      transformed_plan->back().header.frame_id = path_frame;
+
+      if (i != fixpattern_path->size() - 1) {
+        total_dist_ += hypot((fixpattern_path->at(i).position.x - fixpattern_path->at(i + 1).position.x),
+                             (fixpattern_path->at(i).position.y - fixpattern_path->at(i + 1).position.y));
+      }
+
+      i++;
+    }
+
+    // erase fixpattern_path too
+    fixpattern_path->erase(fixpattern_path->begin() + i, fixpattern_path->end());
+
+    return true;
+  }
+
   bool getGoalPose(const tf::TransformListener& tf,
       const std::vector<geometry_msgs::PoseStamped>& global_plan,
       const std::string& global_frame, tf::Stamped<tf::Pose> &goal_pose) {
@@ -196,17 +228,17 @@ namespace fixpattern_local_planner
 
     }
     catch(tf::LookupException& ex) {
-      //ROS_ERROR("No Transform available Error: %s\n", ex.what());
+      ROS_ERROR("No Transform available Error: %s\n", ex.what());
       return false;
     }
     catch(tf::ConnectivityException& ex) {
-      //ROS_ERROR("Connectivity Error: %s\n", ex.what());
+      ROS_ERROR("Connectivity Error: %s\n", ex.what());
       return false;
     }
     catch(tf::ExtrapolationException& ex) {
       //ROS_ERROR("Extrapolation Error: %s\n", ex.what());
       if (global_plan.size() > 0) {
-        //ROS_ERROR("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
+        ROS_ERROR("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
       }
 
       return false;

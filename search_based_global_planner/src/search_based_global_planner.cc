@@ -5,7 +5,7 @@
 #include <angles/angles.h>
 
 #include <nav_msgs/Path.h>
-#include <costmap_2d/inflation_layer.h>
+//#include <costmap_2d/inflation_layer.h>
 #ifdef DEBUG
 #include <gperftools/profiler.h>
 #endif
@@ -72,7 +72,7 @@ void ReadCircleCenterFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const
 bool SearchBasedGlobalPlanner::ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<XYPoint>* points) {
   std::string full_param_name;
 
-  if (nh.searchParam("circle_center", full_param_name)) {
+  if (nh.searchParam("p14", full_param_name)) {
     XmlRpc::XmlRpcValue circle_center_xmlrpc;
     nh.getParam(full_param_name, circle_center_xmlrpc);
     if (circle_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
@@ -92,16 +92,16 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
     plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan", 1);
     costmap_ros_ = costmap_ros;
 
-    private_nh.param("allocated_time", allocated_time_, 4.0);
-    private_nh.param("initial_epsilon", initial_epsilon_, 3.0);
-    private_nh.param("force_scratch_limit", force_scratch_limit_, 500);
-    private_nh.param("sbpl_max_vel", sbpl_max_vel_, 0.6);
-    private_nh.param("sbpl_low_vel", sbpl_low_vel_, 0.45);
-    private_nh.param("sbpl_min_vel", sbpl_min_vel_, 0.0);
+    private_nh.param("p1", allocated_time_, 4.0);
+    private_nh.param("p2", initial_epsilon_, 3.0);
+    private_nh.param("p3", force_scratch_limit_, 500);
+    private_nh.param("p4", sbpl_max_vel_, 0.6);
+    private_nh.param("p5", sbpl_low_vel_, 0.45);
+    private_nh.param("p6", sbpl_min_vel_, 0.0);
 
     double nominalvel_mpersec, timetoturn45degsinplace_secs;
-    private_nh.param("nominalvel_mpersecs", nominalvel_mpersec, 0.4);
-    private_nh.param("timetoturn45degsinplace_secs", timetoturn45degsinplace_secs, 0.6);
+    private_nh.param("p7", nominalvel_mpersec, 0.4);
+    private_nh.param("p8", timetoturn45degsinplace_secs, 0.6);
 
     // get circle_center
     std::vector<XYPoint> circle_center_point;
@@ -131,7 +131,7 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
     // }
 
     int lethal_cost = 20;
-    private_nh.param("lethal_cost", lethal_cost, 20);
+    private_nh.param("p9", lethal_cost, 20);
     lethal_cost_ = static_cast<unsigned char>(lethal_cost);
     inscribed_inflated_cost_ = lethal_cost_ - 1;
     cost_multiplier_ = static_cast<unsigned char>(costmap_2d::INSCRIBED_INFLATED_OBSTACLE / inscribed_inflated_cost_ + 1);
@@ -142,11 +142,11 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
 //    const int num_of_prims_per_angle = 7;
     const int num_of_prims_per_angle = MAX_MPRIM_INDEX;
     int forward_cost_mult, forward_and_turn_cost_mult, turn_in_place_cost_mult;
-    private_nh.param("forward_cost_mult", forward_cost_mult, 1);
-    private_nh.param("forward_and_turn_cost_mult", forward_and_turn_cost_mult, 2);
-    private_nh.param("turn_in_place_cost_mult", turn_in_place_cost_mult, 50);
+    private_nh.param("p10", forward_cost_mult, 1);
+    private_nh.param("p11", forward_and_turn_cost_mult, 2);
+    private_nh.param("p12", turn_in_place_cost_mult, 50);
 
-    private_nh.param("map_size", map_size_, 400);
+    private_nh.param("p13", map_size_, 400);
 
     unsigned int size_x = costmap_ros_->getCostmap()->getSizeInCellsX();
     unsigned int size_y = costmap_ros_->getCostmap()->getSizeInCellsY();
@@ -220,10 +220,10 @@ void SearchBasedGlobalPlanner::UpdateSetMembership(EnvironmentEntry3D* entry) {
     if (entry->closed_iteration != iteration_) {
       COMPUTEKEY(entry);
       if (PTRHEAP_OK != open_.contain(entry)) {
-        // ROS_INFO("[SEARCH BASED GLOBAL PLANNER] push to open_ (%d %d %d)", entry->x, entry->y, entry->theta);
+        // //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] push to open_ (%d %d %d)", entry->x, entry->y, entry->theta);
         open_.push(entry);
       } else {
-        // ROS_INFO("[SEARCH BASED GLOBAL PLANNER] update (%d %d %d)", entry->x, entry->y, entry->theta);
+        // //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] update (%d %d %d)", entry->x, entry->y, entry->theta);
         open_.adjust(entry);
       }
     } else {
@@ -231,7 +231,7 @@ void SearchBasedGlobalPlanner::UpdateSetMembership(EnvironmentEntry3D* entry) {
     }
   } else {
     if (PTRHEAP_OK == open_.contain(entry)) {
-      // ROS_INFO("[SEARCH BASED GLOBAL PLANNER] erase from open_ (%d %d %d)", entry->x, entry->y, entry->theta);
+      // //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] erase from open_ (%d %d %d)", entry->x, entry->y, entry->theta);
       open_.erase(entry);
     }
   }
@@ -320,7 +320,7 @@ bool SearchBasedGlobalPlanner::ComputeOrImprovePath() {
     if (open_.size() > max_open_size) max_open_size = open_.size();
 #endif
     // remove state s with the minimum key from OPEN
-    // ROS_INFO("[SEARCH BASED GLOBAL PLANNER] expand entry in open_ (%d %d %d)", min_entry->x, min_entry->y, min_entry->theta);
+    // //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] expand entry in open_ (%d %d %d)", min_entry->x, min_entry->y, min_entry->theta);
     open_.pop();
     if (min_entry->g > min_entry->rhs) {
       min_entry->g = min_entry->rhs;
@@ -413,7 +413,7 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
     costs.clear();
     actions.clear();
     env_->GetSuccs(source_entry, &succ_entries, &costs, &actions);
-//    ROS_INFO("[SEARCH BASED GLOBAL PLANNER] GetSuccs_entries size = %d, costs size = %d, actions size = %d", (int)succ_entries.size(), (int)costs.size(), (int)actions.size());
+//    //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] GetSuccs_entries size = %d, costs size = %d, actions size = %d", (int)succ_entries.size(), (int)costs.size(), (int)actions.size());
 
     int best_cost = INFINITECOST;
     int best_index = -1;
@@ -448,7 +448,7 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
 		}
     actions_path.push_back(*actions.at(best_index));
   }
-//  ROS_INFO("[SBPL] actions_path size = %d, point_path size = %d", (int)actions_path.size(), (int)point_path->size());
+//  //ROS_INFO("[SBPL] actions_path size = %d, point_path size = %d", (int)actions_path.size(), (int)point_path->size());
   ComputeHighlightAndVelocity(actions_path, point_path, path_info);
 }
 
@@ -458,7 +458,7 @@ void setActionIntermStruct(Action* action, double highlight, double max_vel, boo
 		action->interm_struct[ipind].highlight = highlight;
 		action->interm_struct[ipind].max_vel = max_vel;
 		action->interm_struct[ipind].is_corner = is_corner;
-  //  ROS_INFO("[SBPL] point[%d]set max_vel = %lf", ipind, max_vel);
+  //  //ROS_INFO("[SBPL] point[%d]set max_vel = %lf", ipind, max_vel);
 	}
 }	
 
@@ -466,7 +466,7 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Act
                                                          std::vector<XYThetaPoint>* point_path,
                                                          std::vector<IntermPointStruct>* path_info) {
   std::vector<Action> actions_path = origin_actions_path;
-//  ROS_INFO("[SBPL] 1: actions_path size = %d, path_point size = %d, path_info size = %d", (int)actions_path.size(),(int)point_path->size(), (int)path_info->size());
+//  //ROS_INFO("[SBPL] 1: actions_path size = %d, path_point size = %d, path_info size = %d", (int)actions_path.size(),(int)point_path->size(), (int)path_info->size());
   // check corner and set max_vel and highlight of action 
   for (unsigned int pind = 0; pind < actions_path.size(); ++pind) {
     unsigned int corner_size = 0;
@@ -482,7 +482,7 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Act
           break;
         }
       }
-//      ROS_INFO("[SBPL] corner size = %d", corner_size);
+//      //ROS_INFO("[SBPL] corner size = %d", corner_size);
       if(pind == 0 && corner_size >= 1) {
         max_vel = sbpl_min_vel_;	
         is_corner = true;
@@ -533,7 +533,7 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Act
 					sum_highlight = MAX_HIGHLIGHT_DIS;
 					break;
 				}
-				if (path_info->at(j).max_vel == sbpl_min_vel_) {
+				if (path_info->at(j).max_vel == sbpl_min_vel_ || path_info->at(j).max_vel == sbpl_low_vel_) { //corner, cut highlight here
 					break;
 				}
         // TODO(lizhen) check break theta
@@ -863,7 +863,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
   // assign to fixpattern_path::Path
   std::vector<fixpattern_path::PathPoint> tmp_path;
   for (unsigned int i = 0; i < plan.size() - 1; ++i) {
-    //ROS_INFO("[SBPL] path_info[%d]", i);
+    ////ROS_INFO("[SBPL] path_info[%d]", i);
     if (path_info[i].is_corner) {
       unsigned int corner_size = 1;
       for (unsigned int j = i + 1; j < plan.size() - 1; ++j) {

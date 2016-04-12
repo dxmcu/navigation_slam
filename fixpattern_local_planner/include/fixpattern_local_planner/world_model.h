@@ -38,7 +38,6 @@
 #define FIXPATTERN_LOCAL_PLANNER_INCLUDE_FIXPATTERN_LOCAL_PLANNER_WORLD_MODEL_H_
 
 #include <vector>
-#include <costmap_2d/observation.h>
 #include <costmap_2d/footprint.h>
 #include <geometry_msgs/Point.h>
 #include <fixpattern_local_planner/planar_laser_scan.h>

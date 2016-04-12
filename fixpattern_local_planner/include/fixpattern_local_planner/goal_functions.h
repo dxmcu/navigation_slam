@@ -46,6 +46,7 @@
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Point.h>
 #include <tf/transform_listener.h>
+#include <fixpattern_path/path.h>
 
 #include <string>
 #include <cmath>
@@ -107,6 +108,14 @@ namespace fixpattern_local_planner {
       const std::string& global_frame,
       std::vector<geometry_msgs::PoseStamped>& transformed_plan,
       double highlight_length);
+
+  /**
+   * @brief Cut path to highlight length.
+   * @param fixpattern_path The plan to be cut
+   * @param transformed_plan Populated with the transformed plan
+   * @param path_frame Frame id of transformed plan
+   */
+  bool CutFixpatternPath(std::vector<fixpattern_path::PathPoint>* fixpattern_path, std::vector<geometry_msgs::PoseStamped>* transformed_plan, const std::string& path_frame);
 
   /**
      * @brief  Returns last pose in plan

@@ -8,7 +8,6 @@ find_package(catkin REQUIRED
   COMPONENTS
     cmake_modules
     roscpp
-    pluginlib
     nav_core
     tf
     #gperftools_21

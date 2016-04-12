@@ -23,8 +23,10 @@
 #include <vector>
 #include <algorithm>
 
-namespace fixpattern_local_planner {
+#include <Eigen/Dense>
 
+namespace fixpattern_local_planner {
+/*
 void TrajectoryPlanner::reconfigure(BaseLocalPlannerConfig &cfg) {
   BaseLocalPlannerConfig config(cfg);
 
@@ -103,59 +105,49 @@ void TrajectoryPlanner::reconfigure(BaseLocalPlannerConfig &cfg) {
     double temp;
     iss >> temp;
     y_vels.push_back(temp);
-    // ROS_INFO("Adding y_vel: %e", temp);
+    // //ROS_INFO("Adding y_vel: %e", temp);
   }
 
   y_vels_ = y_vels;
 }
+*/
 
 TrajectoryPlanner::TrajectoryPlanner(WorldModel& world_model,
                                      const costmap_2d::Costmap2D& costmap,
                                      std::vector<geometry_msgs::Point> footprint_spec,
                                      double acc_lim_x, double acc_lim_y, double acc_lim_theta,
-                                     int num_calc_footprint_cost, int trajectory_range_check_obstacle_avoidance,
-                                     int avoid_obstacle_traj_num,
+                                     int num_calc_footprint_cost,
                                      double sim_time, double sim_granularity,
                                      double front_safe_sim_time, double front_safe_sim_granularity,
-                                     int vx_samples, int vtheta_samples,
+                                     int vtheta_samples,
                                      double pdist_scale, double gdist_scale, double occdist_scale,
-                                     double heading_lookahead, double oscillation_reset_dist,
-                                     double escape_reset_dist, double escape_reset_theta,
-                                     bool holonomic_robot,
                                      double max_vel_x, double min_vel_x,
                                      double max_vel_th, double min_vel_th, double min_in_place_vel_th,
-                                     double backup_vel,
-                                     bool dwa, bool heading_scoring, double heading_scoring_timestep, bool meter_scoring, bool simple_attractor,
-                                     std::vector<double> y_vels, double stop_time_buffer, double sim_period, double angular_sim_granularity)
+                                     double backup_vel)
   : costmap_(costmap),
     world_model_(world_model), footprint_spec_(footprint_spec),
     num_calc_footprint_cost_(num_calc_footprint_cost),
-    trajectory_range_check_obstacle_avoidance_(trajectory_range_check_obstacle_avoidance),
-    avoid_obstacle_traj_num_(avoid_obstacle_traj_num),
-    sim_time_(sim_time), sim_granularity_(sim_granularity), angular_sim_granularity_(angular_sim_granularity),
+    sim_time_(sim_time), sim_granularity_(sim_granularity), 
     front_safe_sim_time_(front_safe_sim_time), front_safe_sim_granularity_(front_safe_sim_granularity),
-    vx_samples_(vx_samples), vtheta_samples_(vtheta_samples),
+    vtheta_samples_(vtheta_samples),
     pdist_scale_(pdist_scale), gdist_scale_(gdist_scale), occdist_scale_(occdist_scale),
     acc_lim_x_(acc_lim_x), acc_lim_y_(acc_lim_y), acc_lim_theta_(acc_lim_theta),
-    prev_x_(0), prev_y_(0), escape_x_(0), escape_y_(0), escape_theta_(0), heading_lookahead_(heading_lookahead),
-    oscillation_reset_dist_(oscillation_reset_dist), escape_reset_dist_(escape_reset_dist),
-    escape_reset_theta_(escape_reset_theta), holonomic_robot_(holonomic_robot),
     max_vel_x_(max_vel_x), min_vel_x_(min_vel_x),
     max_vel_th_(max_vel_th), min_vel_th_(min_vel_th), min_in_place_vel_th_(min_in_place_vel_th),
-    backup_vel_(backup_vel),
-    dwa_(dwa), heading_scoring_(heading_scoring), heading_scoring_timestep_(heading_scoring_timestep),
-    simple_attractor_(simple_attractor), y_vels_(y_vels), stop_time_buffer_(stop_time_buffer), sim_period_(sim_period) {
-  if (meter_scoring) {
-    //ROS_INFO("[FIXPATTERN LOCAL PLANNER] meter_scoring set to true");
-  } else {
-    //ROS_INFO("[FIXPATTERN LOCAL PLANNER] meter_scoring set to false");
-  }
+    backup_vel_(backup_vel) {
 
   costmap_2d::calculateMinAndMaxDistances(footprint_spec_, inscribed_radius_, circumscribed_radius_);
 }
 
 TrajectoryPlanner::~TrajectoryPlanner() { }
-
+/*
+void TrajectoryPlanner::SetParameters(double max_vel_x, double max_vel_theta, double sim_time) {
+  boost::mutex::scoped_lock l(configuration_mutex_);
+  max_vel_x_ = max_vel_x;
+  max_vel_theta_ = max_vel_theta;
+  sim_time_ = sim_time;
+}
+*/
 void TrajectoryPlanner::CalculatePathCost(
     double x, double y, double theta,
     double vx, double vy, double vtheta,
@@ -264,7 +256,7 @@ void TrajectoryPlanner::generateTrajectory(
   // discard trajectory that is circle
   if (fabs(vtheta_samp) - 0.0 > 0.00001 && sim_time > M_PI / fabs(vtheta_samp)) {
     traj.cost_ = -1.0;
-    // ROS_WARN("[TRAJECTORY PLANNER] trajectory is circle, cost = -1.0, vtheta_samp: %lf, sim_time: %lf", vtheta_samp, sim_time);
+    // //ROS_WARN("[TRAJECTORY PLANNER] trajectory is circle, cost = -1.0, vtheta_samp: %lf, sim_time: %lf", vtheta_samp, sim_time);
     return;
   }
 
@@ -290,7 +282,7 @@ void TrajectoryPlanner::generateTrajectory(
   // initialize the costs for the trajectory
   double path_dist = 0.0;
   double occ_dist = 0.0;
-  double heading_diff = 0.0;
+//  double heading_diff = 0.0;
 
   for (int i = 0; i < num_steps; ++i) {
     // get map coordinates of a point
@@ -320,7 +312,7 @@ void TrajectoryPlanner::generateTrajectory(
     // get cell cost
     occ_dist += costmap_.getCost(cell_x, cell_y) / 255.0;
     // update path and goal distances
-    double point_cost = 0x7ffffff;
+    double point_cost = DBL_MAX;
     for (auto it = global_plan_.begin(); it != global_plan_.end(); ++it) {
       double loop_cost = hypot(x_i - it->pose.position.x, y_i - it->pose.position.y);
       if (loop_cost < point_cost) {
@@ -547,7 +539,7 @@ void TrajectoryPlanner::generateTrajectoryForRecovery(
     }
 
     // update path and goal distances
-    double point_cost = 0x7ffffff;
+    double point_cost = DBL_MAX;
     for (auto it = global_plan_.begin(); it != global_plan_.end(); ++it) {
       double loop_cost = hypot(x_i - it->pose.position.x, y_i - it->pose.position.y);
       if (loop_cost < point_cost) {
@@ -802,7 +794,7 @@ Trajectory TrajectoryPlanner::createTrajectories(double x, double y, double thet
   // any cell with a cost greater than the size of the map is impossible
   double impossible_cost = costmap_.getSizeInCellsX() * costmap_.getSizeInCellsY();
 
-  if (highlight < 0.5) highlight = 0.5;
+  if (highlight < 0.4) highlight = 0.4;
   vx_samp = max_vel;
   if (vx_samp > max_vel_x) vx_samp = max_vel_x;
   if (vx_samp < min_vel_x_) vx_samp = min_vel_x_;

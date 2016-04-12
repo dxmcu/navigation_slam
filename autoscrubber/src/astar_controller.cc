@@ -751,7 +751,7 @@ bool AStarController::IsGoalFootprintSafe(double goal_safe_dis_a, double goal_sa
     double y = fix_path[i].pose.position.y;
     double yaw = tf::getYaw(fix_path[i].pose.orientation);
     if (footprint_checker_->CircleCenterCost(x, y, yaw, co_->circle_center_points) < 0) {
-//      ROS_WARN("[ASTAR CONTROLLER] goal front not safe");
+//      //ROS_WARN("[ASTAR CONTROLLER] goal front not safe");
       return false;
     }
     free_dis_a += PoseStampedDistance(fix_path[i], fix_path[i + 5]);
@@ -765,7 +765,7 @@ bool AStarController::IsGoalFootprintSafe(double goal_safe_dis_a, double goal_sa
     double y = fix_path[i].pose.position.y;
     double yaw = tf::getYaw(fix_path[i].pose.orientation);
     if (footprint_checker_->CircleCenterCost(x, y, yaw, co_->circle_center_points) < 0) {
-//      ROS_WARN("[ASTAR CONTROLLER] goal back not safe");
+//      //ROS_WARN("[ASTAR CONTROLLER] goal back not safe");
       return false;
     }
     free_dis_b += PoseStampedDistance(fix_path[i], fix_path[i - 5]);
@@ -1015,7 +1015,7 @@ bool AStarController::ExecuteCycle() {
     tf::poseStampedTFToMsg(global_pose, current_position);
   }
   double cur_goal_distance = PoseStampedDistance(current_position, global_goal_);
-//  ROS_INFO("[ASTAR CONTROLLER]:cur_goal_distance = %lf", cur_goal_distance);
+//  //ROS_INFO("[ASTAR CONTROLLER]:cur_goal_distance = %lf", cur_goal_distance);
   // check to see if we've moved far enough to reset our oscillation timeout
   if (PoseStampedDistance(current_position, oscillation_pose_) >= co_->oscillation_distance) {
     last_oscillation_reset_ = ros::Time::now();
@@ -1094,7 +1094,7 @@ bool AStarController::ExecuteCycle() {
           break;  //(lee)
         } else  {
           // publish goal reached 
-          PublishGoalReached();
+          PublishGoalReached(global_goal_);
           //ROS_WARN("[FIXPATTERN CONTROLLER] global goal reached, teminate controller");
           return true;  //(lee)
         }
@@ -1206,7 +1206,7 @@ bool AStarController::ExecuteCycle() {
               co_->fixpattern_path->FinishPath();
 
               // publish goal reached 
-              PublishGoalReached();
+              PublishGoalReached(getNullPose());
 
               // TODO(chenkan): check if this is needed
               co_->fixpattern_local_planner->reset_planner();
@@ -1578,7 +1578,7 @@ void AStarController::ResetState() {
   recovery_trigger_ = F_CONTROLLING_R;
   PublishZeroVelocity();
 */
-//  ROS_INFO("[ASTAR CONTROLLER] ResetState");
+//  //ROS_INFO("[ASTAR CONTROLLER] ResetState");
   // search planner goal from start
   planner_goal_index_ = 0;
   cmd_vel_ratio_ = 1.0;
@@ -1689,14 +1689,14 @@ bool AStarController::GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, i
 //        if (!cross_obstacle && dis_accu <= co_->front_safe_check_dis) continue;
         if (dis_accu <= goal_safe_dis_a) continue;
         if (PoseStampedDistance(cur_pose, path.at(i)) <= goal_safe_dis_a) continue;
-//        ROS_INFO("[ASTAR CONTROLLER] dis_accu = %lf", dis_accu);
+//        //ROS_INFO("[ASTAR CONTROLLER] dis_accu = %lf", dis_accu);
         double x = path[i].pose.position.x;
         double y = path[i].pose.position.y;
         double yaw = tf::getYaw(path[i].pose.orientation);
         if (footprint_checker_->CircleCenterCost(x, y, yaw, co_->circle_center_points) < 0 ||
              !IsGoalFootprintSafe(goal_safe_dis_a, goal_safe_dis_b, path[i])) {
            cross_obstacle = true;
-//           ROS_INFO("[ASTAR CONTROLLER] path[%d] not safe", i);
+//           //ROS_INFO("[ASTAR CONTROLLER] path[%d] not safe", i);
            continue;
         }
         goal_index = i;
@@ -1791,9 +1791,9 @@ void AStarController::PublishHandingGoal() {
   handing_goal_pub_.publish(global_goal_);
 }
 
-void AStarController::PublishGoalReached() {
+void AStarController::PublishGoalReached(geometry_msgs::PoseStamped goal_pose) {
   // publish
-  goal_reached_pub_.publish(global_goal_);
+  goal_reached_pub_.publish(goal_pose);
 }
 
 bool AStarController::GetAStarInitalPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal) {

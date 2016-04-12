@@ -231,7 +231,7 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
         Eigen::Vector2d error;
         error(0) = end_point.x - interm_pts[num_of_interm_pts - 1].x;
         error(1) = end_point.y - interm_pts[num_of_interm_pts - 1].y;
-        // ROS_INFO("l=%f errx=%f erry=%f", l, error(0), error(1));
+        // //ROS_INFO("l=%f errx=%f erry=%f", l, error(0), error(1));
         for (int i = 0; i < num_of_interm_pts; ++i) {
           interm_pts[i].x += error(0) * i * 1.0 / (num_of_interm_pts - 1);
           interm_pts[i].y += error(1) * i * 1.0 / (num_of_interm_pts - 1);

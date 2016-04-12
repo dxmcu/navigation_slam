@@ -13,6 +13,7 @@
 
 #include <gslib/gslib.h>
 #include <vector>
+#include <Eigen/Dense>
 
 namespace fixpattern_local_planner {
 

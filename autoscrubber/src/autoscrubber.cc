@@ -10,7 +10,6 @@
  */
 
 #include "autoscrubber/autoscrubber.h"
-
 #include <boost/algorithm/string.hpp>
 #include <boost/thread.hpp>
 #include <geometry_msgs/Twist.h>
@@ -24,9 +23,6 @@ namespace autoscrubber {
 AutoScrubber::AutoScrubber(tf::TransformListener* tf)
     : tf_(*tf), controller_costmap_ros_(NULL),
       controllers_(NULL), options_(NULL),
-      bgp_loader_("nav_core", "nav_core::BaseGlobalPlanner"),
-      blp_loader_("nav_core", "nav_core::BaseLocalPlanner"),
-      recovery_loader_("nav_core", "nav_core::RecoveryBehavior"),
       new_global_plan_(false) {
   ros::NodeHandle private_nh("~");
   ros::NodeHandle sbpl_nh("~/sbpl_global_planner");
@@ -35,41 +31,40 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   recovery_trigger_ = PLANNING_R;
 
   // get some parameters that will be global to the move base node
-  private_nh.param("enable_scrubber", enable_scrubber_, false);
   private_nh.param("global_costmap/robot_base_frame", robot_base_frame_, std::string("base_link"));
   private_nh.param("global_costmap/global_frame", global_frame_, std::string("/map"));
-  private_nh.param("planner_frequency", planner_frequency_, 0.0);
-  private_nh.param("sbpl_max_distance", sbpl_max_distance_, 12.0);
+  private_nh.param("p1", sbpl_max_distance_, 12.0);
+  private_nh.param("p2", stop_duration_, 4.0);
 
-  private_nh.param("controller_frequency", controller_frequency_, 20.0);
-  private_nh.param("planner_patience", planner_patience_, 5.0);
-  private_nh.param("controller_patience", controller_patience_, 1.0);
+  private_nh.param("p22", controller_frequency_, 20.0);
+  private_nh.param("p23", controller_patience_, 1.0);
+  private_nh.param("p24", planner_patience_, 5.0);
+  private_nh.param("p25", planner_frequency_, 0.0);
 
   private_nh.param("oscillation_timeout", oscillation_timeout_, 0.0);
   private_nh.param("oscillation_distance", oscillation_distance_, 0.5);
-  private_nh.param("stop_duration", stop_duration_, 4.0);
   private_nh.param("localization_duration", localization_duration_, 5.0);
 
-  private_nh.param("max_path_length_dif", max_path_length_diff_, 5.0);
-  private_nh.param("max_offroad_dis", max_offroad_dis_, 0.7); 
-  private_nh.param("max_offroad_yaw", max_offroad_yaw_, M_PI / 2.5); 
+  private_nh.param("p9", max_path_length_diff_, 5.0);
+  private_nh.param("p7", max_offroad_dis_, 0.7);
+  private_nh.param("p8", max_offroad_yaw_, M_PI / 2.5);
 
-  private_nh.param("front_safe_check_dis", front_safe_check_dis_, 1.0);
-  private_nh.param("backward_check_dis", backward_check_dis_, 0.13);
-  private_nh.param("switch_corner_dis_diff", switch_corner_dis_diff_, 0.10);
-  private_nh.param("switch_corner_yaw_diff", switch_corner_yaw_diff_, M_PI / 4.0);
-  private_nh.param("switch_normal_dis_diff", switch_normal_dis_diff_, 0.15);
-  private_nh.param("switch_normal_yaw_diff", switch_normal_yaw_diff_, M_PI / 12.0);
-  private_nh.param("stop_to_zero_acc", stop_to_zero_acc_, 0.05);
+  private_nh.param("p21", front_safe_check_dis_, 1.0);
+  private_nh.param("p15", backward_check_dis_, 0.13);
+  private_nh.param("p16", switch_corner_dis_diff_, 0.10);
+  private_nh.param("p17", switch_corner_yaw_diff_, M_PI / 4.0);
+  private_nh.param("p18", switch_normal_dis_diff_, 0.15);
+  private_nh.param("p19", switch_normal_yaw_diff_, M_PI / 12.0);
+  private_nh.param("p20", stop_to_zero_acc_, 0.05);
 
 
-  private_nh.param("goal_safe_dis_a", goal_safe_dis_a_, 0.5);	// distance after goal poin
-  private_nh.param("goal_safe_dis_b", goal_safe_dis_b_, 0.3); // distance before goal point
-  private_nh.param("goal_safe_check_dis", goal_safe_check_dis_, 1.0);
-  private_nh.param("goal_safe_check_duration", goal_safe_check_duration_, 5.0);
+  private_nh.param("p3", goal_safe_dis_a_, 0.5);	// distance after goal poin
+  private_nh.param("p4", goal_safe_dis_b_, 0.3); // distance before goal point
+  private_nh.param("p5", goal_safe_check_dis_, 1.0);
+  private_nh.param("p6", goal_safe_check_duration_, 5.0);
 
-  private_nh.param("fixpattern_footprint_padding", fixpattern_footprint_padding_, 0.2);
-  private_nh.param("sbpl_footprint_padding", sbpl_footprint_padding_, 0.1);
+  private_nh.param("p13", fixpattern_footprint_padding_, 0.2);
+  private_nh.param("p14", sbpl_footprint_padding_, 0.1);
 
   if (!ReadCircleCenterFromParams(private_nh, &circle_center_points_)) {
     //ROS_ERROR("[AUTOSCRUBBER] read circle_center_point failed");
@@ -167,7 +162,6 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
   controllers_ = new AStarController(&tf_, controller_costmap_ros_);
 
   // initialize environment_
-  environment_.launch_scrubber = false;
   environment_.run_flag = false;
   environment_.pause_flag = false;
 
@@ -176,21 +170,14 @@ AutoScrubber::AutoScrubber(tf::TransformListener* tf)
 
   // controlling thread
   control_thread_ = new boost::thread(boost::bind(&AutoScrubber::ControlThread, this));
-/*
-  notify_chassis_thread_ = new boost::thread(boost::bind(&AutoScrubber::NotifyChassisThread, this));
 
-  // install service client
-  ros::NodeHandle chassis_nh;
-  launch_scrubber_client_ = chassis_nh.serviceClient<autoscrubber_services::LaunchScrubber>("launch_scrubber");
-  stop_scrubber_client_ = chassis_nh.serviceClient<autoscrubber_services::StopScrubber>("stop_scrubber");
-*/
   // start service when all done
   start_srv_ = private_nh.advertiseService("start", &AutoScrubber::Start, this);
   pause_srv_ = private_nh.advertiseService("pause", &AutoScrubber::Pause, this);
   resume_srv_ = private_nh.advertiseService("resume", &AutoScrubber::Resume, this);
   terminate_srv_ = private_nh.advertiseService("terminate", &AutoScrubber::Terminate, this);
   is_goal_reached_srv_ = private_nh.advertiseService("is_goal_reached", &AutoScrubber::IsGoalReached, this);
-} 
+}
 
 void AutoScrubber::SimpleGoalCB(const geometry_msgs::PoseStamped::ConstPtr& goal) {
   ROS_DEBUG_NAMED("move_base", "In ROS goal callback, wrapping the PoseStamped in the action message and start ExecuteCycle.");
@@ -211,7 +198,7 @@ void AutoScrubber::GoalCB(const move_base_msgs::MoveBaseActionGoal::ConstPtr& go
 }
 
 void AutoScrubber::PauseCB(const std_msgs::UInt32::ConstPtr& param) {
-//  ROS_WARN("[AUTOSCRUBBER] Get Gaussian_Pause topic= %d", (int)param->data);
+//  //ROS_WARN("[AUTOSCRUBBER] Get Gaussian_Pause topic= %d", (int)param->data);
   if (param->data == 1) {
     autoscrubber_services::Pause::Request req;
     autoscrubber_services::Pause::Response res;
@@ -224,7 +211,7 @@ void AutoScrubber::PauseCB(const std_msgs::UInt32::ConstPtr& param) {
 }
 
 void AutoScrubber::TerminateCB(const std_msgs::UInt32::ConstPtr& param) {
-//  ROS_WARN("[AUTOSCRUBBER] Get Gaussian_Cancel");
+//  //ROS_WARN("[AUTOSCRUBBER] Get Gaussian_Cancel");
   autoscrubber_services::Terminate::Request req;
   autoscrubber_services::Terminate::Response res;
   Terminate(req, res);
@@ -289,23 +276,6 @@ bool AutoScrubber::IsGoalReached(autoscrubber_services::IsGoalReached::Request& 
   return true;
 }
 
-
-void AutoScrubber::NotifyChassisThread() {
-  ros::NodeHandle n;
-  ros::Rate loop_rate(5.0);
-  while (n.ok()) {
-    if (enable_scrubber_ && environment_.launch_scrubber) {
-      autoscrubber_services::LaunchScrubber launch;
-      launch_scrubber_client_.call(launch);
-    } else {
-      autoscrubber_services::StopScrubber stop;
-      stop_scrubber_client_.call(stop);
-    }
-
-    loop_rate.sleep();
-  }
-}
-
 void AutoScrubber::ControlThread() {
   ros::NodeHandle n;
   controllers_->Control(options_, &environment_);
@@ -319,17 +289,17 @@ void AutoScrubber::ControlThread() {
 bool AutoScrubber::LoadGlobalPlanner() {
   // check if a non fully qualified name has potentially been passed in
   astar_global_planner_ = boost::shared_ptr<nav_core::BaseGlobalPlanner>(new global_planner::GlobalPlanner());
-  astar_global_planner_->initialize("astar_global_planner", controller_costmap_ros_);
+  astar_global_planner_->initialize("PA", controller_costmap_ros_);
   sbpl_global_planner_ = boost::shared_ptr<search_based_global_planner::SearchBasedGlobalPlanner>(
       new search_based_global_planner::SearchBasedGlobalPlanner());
-  sbpl_global_planner_->initialize("sbpl_global_planner", controller_costmap_ros_);
+  sbpl_global_planner_->initialize("PS", controller_costmap_ros_);
   return true;
 }
 
 bool AutoScrubber::LoadLocalPlanner() {
   fixpattern_local_planner_ = boost::shared_ptr<fixpattern_local_planner::FixPatternTrajectoryPlannerROS>(
       new fixpattern_local_planner::FixPatternTrajectoryPlannerROS());
-  fixpattern_local_planner_->initialize("fixpattern_local_planner", &tf_, controller_costmap_ros_);
+  fixpattern_local_planner_->initialize("PF", &tf_, controller_costmap_ros_);
   return true;
 }
 
@@ -366,7 +336,7 @@ void ReadCircleCenterFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const
 
     pt.x = GetNumberFromXMLRPC(point[0], full_param_name);
     pt.y = GetNumberFromXMLRPC(point[1], full_param_name);
-//    ROS_INFO("[AUTOSCRUBBER] get circle center[%d] px = %lf, py = %lf", i, pt.x, pt.y);
+//    //ROS_INFO("[AUTOSCRUBBER] get circle center[%d] px = %lf, py = %lf", i, pt.x, pt.y);
     points->push_back(pt);
   }
 }
@@ -374,7 +344,7 @@ void ReadCircleCenterFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const
 bool AutoScrubber::ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>* points) {
   std::string full_param_name;
 
-  if (nh.searchParam("circle_center", full_param_name)) {
+  if (nh.searchParam("p10", full_param_name)) {
     XmlRpc::XmlRpcValue circle_center_xmlrpc;
     nh.getParam(full_param_name, circle_center_xmlrpc);
     if (circle_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
@@ -393,7 +363,7 @@ bool AutoScrubber::ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<g
 bool AutoScrubber::ReadBackwardCenterFromParams(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>* points) {
   std::string full_param_name;
 
-  if (nh.searchParam("backward_center", full_param_name)) {
+  if (nh.searchParam("p11", full_param_name)) {
     XmlRpc::XmlRpcValue backward_center_xmlrpc;
     nh.getParam(full_param_name, backward_center_xmlrpc);
     if (backward_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
@@ -412,14 +382,14 @@ bool AutoScrubber::ReadBackwardCenterFromParams(ros::NodeHandle& nh, std::vector
 bool AutoScrubber::ReadFootprintCenterFromParams(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>* points) {
   std::string full_param_name;
 
-  if (nh.searchParam("footprint_center", full_param_name)) {
+  if (nh.searchParam("p12", full_param_name)) {
     XmlRpc::XmlRpcValue footprint_center_xmlrpc;
     nh.getParam(full_param_name, footprint_center_xmlrpc);
     if (footprint_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
       ReadCircleCenterFromXMLRPC(footprint_center_xmlrpc, full_param_name, points);
       for (int i = 0; i < points->size(); ++i) {
         //ROS_INFO("[AUTOSCRUBBER] footprint_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
-      }	
+      }
       return true;
     } else {
       //ROS_ERROR("[AUTOSCRUBBER] footprint_center param's type is not Array!");

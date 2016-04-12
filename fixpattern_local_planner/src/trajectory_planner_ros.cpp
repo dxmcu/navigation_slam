@@ -15,10 +15,8 @@
 #include <boost/tokenizer.hpp>
 #include <Eigen/Core>
 #include <ros/console.h>
-#include <pluginlib/class_list_macros.h>
 #include <fixpattern_local_planner/goal_functions.h>
 #include <nav_msgs/Path.h>
-#include <fixpattern_local_planner/map_grid_cost_point.h>
 //#include <pcl_conversions/pcl_conversions.h>
 
 #include <cmath>
@@ -27,7 +25,7 @@
 #include <vector>
 
 namespace fixpattern_local_planner {
-
+/*
 void FixPatternTrajectoryPlannerROS::reconfigureCB(BaseLocalPlannerConfig &config, uint32_t level) {
   if (setup_ && config.restore_defaults) {
     config = default_config_;
@@ -41,9 +39,10 @@ void FixPatternTrajectoryPlannerROS::reconfigureCB(BaseLocalPlannerConfig &confi
   tc_->reconfigure(config);
   reached_goal_ = false;
 }
+*/
 
 FixPatternTrajectoryPlannerROS::FixPatternTrajectoryPlannerROS()
-  : world_model_(NULL), tc_(NULL), la_(NULL), costmap_ros_(NULL), tf_(NULL), setup_(false), initialized_(false), odom_helper_("odom") {
+  : world_model_(NULL), tc_(NULL), la_(NULL), costmap_ros_(NULL), tf_(NULL), initialized_(false), odom_helper_("odom") {
   rotate_to_goal_k_ = 0.9;
   last_rotate_to_goal_dir_ = 0;
   last_target_yaw_ = 0.0;
@@ -52,13 +51,13 @@ FixPatternTrajectoryPlannerROS::FixPatternTrajectoryPlannerROS()
 }
 
 FixPatternTrajectoryPlannerROS::FixPatternTrajectoryPlannerROS(std::string name, tf::TransformListener* tf, costmap_2d::Costmap2DROS* costmap_ros)
-  : world_model_(NULL), tc_(NULL), la_(NULL), costmap_ros_(NULL), tf_(NULL), setup_(false), initialized_(false), odom_helper_("odom") {
+  : world_model_(NULL), tc_(NULL), la_(NULL), costmap_ros_(NULL), tf_(NULL), initialized_(false), odom_helper_("odom") {
   // initialize the planner
   initialize(name, tf, costmap_ros);
 }
 
 void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformListener* tf, costmap_2d::Costmap2DROS* costmap_ros) {
-  if (!isInitialized()) {
+  if (!initialized_) {
     //ROS_INFO("[Local Planner] FixPatternTrajectoryPlannerROS initialize");
 
     ros::NodeHandle private_nh("~/" + name);
@@ -70,67 +69,52 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
     costmap_ros_ = costmap_ros;
     rot_stopped_velocity_ = 1e-2;
     trans_stopped_velocity_ = 1e-2;
-    int num_calc_footprint_cost, trajectory_range_check_obstacle_avoidance, avoid_obstacle_traj_num;
-    double sim_time, sim_granularity, angular_sim_granularity, front_safe_sim_time, front_safe_sim_granularity;
-    int vx_samples, vtheta_samples;
-    double pdist_scale, gdist_scale, occdist_scale, heading_lookahead, oscillation_reset_dist, escape_reset_dist, escape_reset_theta;
-    bool holonomic_robot, dwa, simple_attractor, heading_scoring;
-    double heading_scoring_timestep;
+    int num_calc_footprint_cost;
+    double sim_time, sim_granularity, front_safe_sim_time, front_safe_sim_granularity;
+    int vtheta_samples;
+    double pdist_scale, gdist_scale, occdist_scale;
     double max_vel_x, min_vel_x;
     double backup_vel;
-    double stop_time_buffer;
     std::string world_model_type;
     rotating_to_goal_ = false;
     rotating_to_goal_done_ = false;
-//    rotating_to_route_direction_ = false;
 
     // initialize the copy of the costmap the controller will use
     costmap_ = costmap_ros_->getCostmap();
-
 
     global_frame_ = costmap_ros_->getGlobalFrameID();
     robot_base_frame_ = costmap_ros_->getBaseFrameID();
     private_nh.param("prune_plan", prune_plan_, true); //
 
-    private_nh.param("yaw_goal_tolerance", yaw_goal_tolerance_, 0.05);
+    private_nh.param("p14", latch_xy_goal_tolerance_, false);
+    private_nh.param("p13", yaw_goal_tolerance_, 0.05);
     //ROS_INFO("[LOCAL PLANNER] yaw_goal_tolerance: %lf", yaw_goal_tolerance_);
-    private_nh.param("xy_goal_tolerance", xy_goal_tolerance_, 0.50);
+    private_nh.param("p12", xy_goal_tolerance_, 0.50);
     //ROS_INFO("[LOCAL PLANNER] xy_goal_tolerance: %lf", xy_goal_tolerance_);
-    private_nh.param("acc_lim_x", acc_lim_x_, 2.5);
-    private_nh.param("acc_lim_y", acc_lim_y_, 2.5);
-    // this was improperly set as acc_lim_th -- TODO: remove this when we get to J turtle
-    acc_lim_theta_ = 3.2;
-    if (private_nh.hasParam("acc_lim_th")) {
-      //ROS_WARN("%s/acc_lim_th should be acc_lim_theta, this param will be removed in J-turtle", private_nh.getNamespace().c_str());
-      private_nh.param("acc_lim_th", acc_lim_theta_, 3.2);
-    }
-    private_nh.param("acc_lim_theta", acc_lim_theta_, acc_lim_theta_);
-
-    private_nh.param("stop_time_buffer", stop_time_buffer, 0.2);
-
-    private_nh.param("latch_xy_goal_tolerance", latch_xy_goal_tolerance_, false);
+    private_nh.param("p10", acc_lim_x_, 2.5);
+    private_nh.param("p11", acc_lim_y_, 2.5);
+    private_nh.param("p9", acc_lim_theta_, acc_lim_theta_);
 
     // Since I screwed up nicely in my documentation, I'm going to add errors
     // informing the user if they've set one of the wrong parameters
     if (private_nh.hasParam("acc_limit_x")) {
       //ROS_ERROR("You are using acc_limit_x where you should be using acc_lim_x."
       //          " Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
-     }	
+     }
 
     if (private_nh.hasParam("acc_limit_y")) {
       //ROS_ERROR("You are using acc_limit_y where you should be using acc_lim_y."
       //          " Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
-     }	
+     }
 
     if (private_nh.hasParam("acc_limit_th")) {
       //ROS_ERROR("You are using acc_limit_th where you should be using acc_lim_th."
       //          " Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
-     }	
+     }
 
     // Assuming this planner is being run within the navigation stack, we can
     // just do an upward search for the frequency at which its being run. This
     // also allows the frequency to be overwritten locally.
-
     std::string controller_frequency_param_name;
     if (!private_nh.searchParam("controller_frequency", controller_frequency_param_name)) {
       sim_period_ = 0.05;
@@ -146,55 +130,27 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
     }
     //ROS_INFO("Sim period is set to %.2f", sim_period_);
 
-    private_nh.param("num_calc_footprint_cost", num_calc_footprint_cost, 5);
-    private_nh.param("trajectory_range_check_obstacle_avoidance", trajectory_range_check_obstacle_avoidance, 3);
-    private_nh.param("avoid_obstacle_traj_num", avoid_obstacle_traj_num, 6);
-    private_nh.param("rotate_to_goal_k", rotate_to_goal_k_, 1.2);
-    private_nh.param("max_rotate_try_times", max_rotate_try_times_, 1);
-    private_nh.param("sim_time", sim_time, 6.0);
-    private_nh.param("sim_granularity", sim_granularity, 0.025);
-    private_nh.param("angular_sim_granularity", angular_sim_granularity, sim_granularity);
-    private_nh.param("front_safe_sim_time", front_safe_sim_time, 1.0);
-    private_nh.param("front_safe_sim_granularity", front_safe_sim_granularity, 1.0);
-    private_nh.param("vx_samples", vx_samples, 3);
-    private_nh.param("vtheta_samples", vtheta_samples, 20);
+    private_nh.param("p15", num_calc_footprint_cost, 5);
+    private_nh.param("p16", rotate_to_goal_k_, 1.2);
+    private_nh.param("p17", max_rotate_try_times_, 1);
+    private_nh.param("p18", sim_time, 6.0);
+    private_nh.param("p19", sim_granularity, 0.025);
+    private_nh.param("p20", front_safe_sim_time, 1.0);
+    private_nh.param("p21", front_safe_sim_granularity, 1.0);
+    private_nh.param("p25", vtheta_samples, 20);
 
-    private_nh.param("path_distance_bias", pdist_scale, 0.6);
-    private_nh.param("goal_distance_bias", gdist_scale, 0.8);
-    private_nh.param("occdist_scale", occdist_scale, 0.01);
+    private_nh.param("p22", pdist_scale, 0.6);
+    private_nh.param("p23", gdist_scale, 0.8);
+    private_nh.param("p24", occdist_scale, 0.01);
 
-    bool meter_scoring;
-    if (!private_nh.hasParam("meter_scoring")) {
-      //ROS_WARN("Trajectory Rollout planner initialized with param meter_scoring not set. Set it to true to make your settins robust against changes of costmap resolution.");
-    } else {
-      private_nh.param("meter_scoring", meter_scoring, false);
-
-      if (meter_scoring) {
-        // if we use meter scoring, then we want to multiply the biases by the resolution of the costmap
-        double resolution = costmap_->getResolution();
-        gdist_scale *= resolution;
-        pdist_scale *= resolution;
-        occdist_scale *= resolution;
-      } else {
-        //ROS_WARN("Trajectory Rollout planner initialized with param meter_scoring set to false. Set it to true to make your settins robust against changes of costmap resolution.");
-      }
-    }
-
-    private_nh.param("heading_lookahead", heading_lookahead, 0.325);
-    private_nh.param("oscillation_reset_dist", oscillation_reset_dist, 0.05);
-    private_nh.param("escape_reset_dist", escape_reset_dist, 0.10);
-    private_nh.param("escape_reset_theta", escape_reset_theta, M_PI_4);
-    private_nh.param("holonomic_robot", holonomic_robot, true);
-    private_nh.param("max_vel_x", max_vel_x, 0.5);
-    private_nh.param("min_vel_x", min_vel_x, 0.1);
-
-    double max_rotational_vel, min_rotational_vel;
-    private_nh.param("max_rotational_vel", max_rotational_vel, 1.0);
-    private_nh.param("min_rotational_vel", min_rotational_vel, 0.05);
-    max_vel_th_ = max_rotational_vel;
-    min_vel_th_ = -1.0 * max_rotational_vel;
-    min_vel_abs_th_ = min_rotational_vel;
-    private_nh.param("min_in_place_rotational_vel", min_in_place_vel_th_, 0.4);
+    private_nh.param("p1", max_vel_x, 0.5);
+    private_nh.param("p2", min_vel_x, 0.08);
+    private_nh.param("p4", max_vel_theta_, 0.6);
+    private_nh.param("p3", min_vel_theta_, -0.6);
+    private_nh.param("p8", min_in_place_rotational_vel_, 0.1);
+//    private_nh.param("min_in_place_rotational_vel", min_in_place_vel_th_, 0.4);
+    private_nh.param("p6", min_vel_abs_th_, 0.1);
+    
     reached_goal_ = false;
     backup_vel = -0.1;
     if (private_nh.getParam("backup_vel", backup_vel)) {
@@ -210,75 +166,37 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
     }
 
     private_nh.param("world_model", world_model_type, std::string("costmap"));
-    private_nh.param("dwa", dwa, true);
-    private_nh.param("heading_scoring", heading_scoring, false);
-    private_nh.param("heading_scoring_timestep", heading_scoring_timestep, 0.8);
-
-    simple_attractor = false;
-
-    // parameters for using the freespace controller
-    double min_pt_separation, max_obstacle_height, grid_resolution;
-    private_nh.param("point_grid/max_sensor_range", max_sensor_range_, 2.0);
-    private_nh.param("point_grid/min_pt_separation", min_pt_separation, 0.01);
-    private_nh.param("point_grid/max_obstacle_height", max_obstacle_height, 2.0);
-    private_nh.param("point_grid/grid_resolution", grid_resolution, 0.2);
 
     ROS_ASSERT_MSG(world_model_type == "costmap", "At this time, only costmap world models are supported by this controller");
     world_model_ = new CostmapModel(*costmap_);
-    std::vector<double> y_vels = loadYVels(private_nh);
 
     footprint_spec_ = costmap_ros_->getRobotFootprint();
 
     tc_ = new TrajectoryPlanner(*world_model_, *costmap_, footprint_spec_,
-                                acc_lim_x_, acc_lim_y_, acc_lim_theta_, num_calc_footprint_cost, trajectory_range_check_obstacle_avoidance,
-                                avoid_obstacle_traj_num,
+                                acc_lim_x_, acc_lim_y_, acc_lim_theta_, num_calc_footprint_cost,
                                 sim_time, sim_granularity, front_safe_sim_time, front_safe_sim_granularity,
-                                vx_samples, vtheta_samples, pdist_scale,
-                                gdist_scale, occdist_scale, heading_lookahead, oscillation_reset_dist, escape_reset_dist, escape_reset_theta, holonomic_robot,
-                                max_vel_x, min_vel_x, max_vel_th_, min_vel_th_, min_in_place_vel_th_, backup_vel,
-                                dwa, heading_scoring, heading_scoring_timestep, meter_scoring, simple_attractor, y_vels, stop_time_buffer, sim_period_, angular_sim_granularity);
+                                vtheta_samples,
+                                pdist_scale, gdist_scale, occdist_scale, 
+                                max_vel_x, min_vel_x, max_vel_theta_, min_vel_theta_, min_in_place_rotational_vel_, backup_vel);
 
     la_ = new LookAheadPlanner(*world_model_, *costmap_, footprint_spec_,
                                sim_granularity, acc_lim_x_, acc_lim_y_, acc_lim_theta_,
-                               max_vel_x, min_vel_x, max_vel_th_, min_vel_th_, min_in_place_vel_th_);
+                               max_vel_x, min_vel_x, max_vel_theta_, min_vel_theta_, min_in_place_rotational_vel_);
 
     initialized_ = true;
 
-    dsrv_ = new dynamic_reconfigure::Server<BaseLocalPlannerConfig>(private_nh);
-    dynamic_reconfigure::Server<BaseLocalPlannerConfig>::CallbackType cb = boost::bind(&FixPatternTrajectoryPlannerROS::reconfigureCB, this, _1, _2);
-    dsrv_->setCallback(cb);
+//    dsrv_ = new dynamic_reconfigure::Server<BaseLocalPlannerConfig>(private_nh);
+//    dynamic_reconfigure::Server<BaseLocalPlannerConfig>::CallbackType cb = boost::bind(&FixPatternTrajectoryPlannerROS::reconfigureCB, this, _1, _2);
+//    dsrv_->setCallback(cb);
 
   } else {
     //ROS_WARN("This planner has already been initialized, doing nothing");
   }
 }
 
-std::vector<double> FixPatternTrajectoryPlannerROS::loadYVels(ros::NodeHandle node) {
-  std::vector<double> y_vels;
-
-  std::string y_vel_list;
-  if (node.getParam("y_vels", y_vel_list)) {
-    typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
-    boost::char_separator<char> sep("[], ");
-    tokenizer tokens(y_vel_list, sep);
-
-    for (tokenizer::iterator i = tokens.begin(); i != tokens.end(); i++) {
-      y_vels.push_back(atof((*i).c_str()));
-    }
-  } else {
-    // if no values are passed in, we'll provide defaults
-    y_vels.push_back(-0.3);
-    y_vels.push_back(-0.1);
-    y_vels.push_back(0.1);
-    y_vels.push_back(0.3);
-  }
-
-  return y_vels;
-}
-
 FixPatternTrajectoryPlannerROS::~FixPatternTrajectoryPlannerROS() {
   // make sure to clean things up
-  delete dsrv_;
+//  delete dsrv_;
 
   if (tc_ != NULL)
     delete tc_;
@@ -346,8 +264,8 @@ bool FixPatternTrajectoryPlannerROS::rotateToGoal(PlannerType planner_type, cons
   last_rotate_to_goal_dir_ = ang_diff < 0.0 ? -1 : 1;;
 
   double v_theta_samp = ang_diff > 0.0 ?
-      std::min(max_vel_th_, std::max(min_in_place_vel_th_, ang_diff * rotate_to_goal_k_)) :
-      std::max(min_vel_th_, std::min(-1.0 * min_in_place_vel_th_, ang_diff * rotate_to_goal_k_));
+      std::min(max_vel_theta_, std::max(min_in_place_rotational_vel_, ang_diff * rotate_to_goal_k_)) :
+      std::max(min_vel_theta_, std::min(-1.0 * min_in_place_rotational_vel_, ang_diff * rotate_to_goal_k_));
 
   // take the acceleration limits of the robot into account
   double max_acc_vel = fabs(vel_yaw) + acc_lim_theta_ * sim_period_;
@@ -360,10 +278,10 @@ bool FixPatternTrajectoryPlannerROS::rotateToGoal(PlannerType planner_type, cons
 
   v_theta_samp = sign(v_theta_samp) * std::min(max_speed_to_stop, fabs(v_theta_samp));
 
-  // Re-enforce min_in_place_vel_th_.  It is more important than the acceleration limits.
+  // Re-enforce min_in_place_rotational_vel_.  It is more important than the acceleration limits.
   v_theta_samp = v_theta_samp > 0.0
-      ? std::min(max_vel_th_, std::max(min_in_place_vel_th_, v_theta_samp))
-      : std::max(min_vel_th_, std::min(-1.0 * min_in_place_vel_th_, v_theta_samp));
+      ? std::min(max_vel_theta_, std::max(min_in_place_rotational_vel_, v_theta_samp))
+      : std::max(min_vel_theta_, std::min(-1.0 * min_in_place_rotational_vel_, v_theta_samp));
 
   double angle_diff = angles::shortest_angular_distance(yaw, goal_th);
   //ROS_INFO("[FIXPATTERN LOCAL PLANNER] rotate to goal: angle_diff = %lf", angle_diff);
@@ -417,7 +335,7 @@ bool FixPatternTrajectoryPlannerROS::needBackward(PlannerType planner_type, cons
   // we want to lay down the footprint of the robot and check if the action is legal
   bool valid_cmd = false;
   // rotating left
-  double v_theta_samp = min_in_place_vel_th_;
+  double v_theta_samp = min_in_place_rotational_vel_;
   if (planner_type == TRAJECTORY_PLANNER) {
     valid_cmd |= tc_->checkTrajectory(global_pose.getOrigin().getX(),
                                       global_pose.getOrigin().getY(), yaw,
@@ -432,7 +350,7 @@ bool FixPatternTrajectoryPlannerROS::needBackward(PlannerType planner_type, cons
                                       vel_yaw, 0.0, 0.0, v_theta_samp);
   }
   // rotating right
-  v_theta_samp = -min_in_place_vel_th_;
+  v_theta_samp = -min_in_place_rotational_vel_;
   if (planner_type == TRAJECTORY_PLANNER) {
     valid_cmd |= tc_->checkTrajectory(global_pose.getOrigin().getX(),
                                       global_pose.getOrigin().getY(), yaw,
@@ -482,7 +400,7 @@ bool FixPatternTrajectoryPlannerROS::setPlan(const std::vector<fixpattern_path::
 
   std::vector<fixpattern_path::PathPoint> new_global_plan = orig_global_plan;
   // if global plan is too short, we will extend it to avoid robot shaking when ariving global goal
-  if (getPlanLength(new_global_plan) < 0.35 && new_global_plan.size() > 2) { 
+  if (getPlanLength(new_global_plan) < 0.35 && new_global_plan.size() > 2) {
    // extend path
     double yaw = fixpattern_path::CalculateDirection(new_global_plan.front(), new_global_plan.back());
     for (int i = 0; i < 10; ++i) {
@@ -495,7 +413,7 @@ bool FixPatternTrajectoryPlannerROS::setPlan(const std::vector<fixpattern_path::
     final_goal_extended_ = false;
   }
 
-//  ROS_INFO("[FIXPATTERN LOCAL PLANNER] orig plan size = %zu; new plan size = %zu", orig_global_plan.size(), new_global_plan.size());
+//  //ROS_INFO("[FIXPATTERN LOCAL PLANNER] orig plan size = %zu; new plan size = %zu", orig_global_plan.size(), new_global_plan.size());
 
   // reset the global plan
   global_plan_.clear();
@@ -514,7 +432,7 @@ bool FixPatternTrajectoryPlannerROS::setPlan(const std::vector<fixpattern_path::
 }
 
 bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner_type, geometry_msgs::Twist* cmd_vel) {
-  if (!isInitialized()) {
+  if (!initialized_) {
     //ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
     return false;
   }
@@ -571,7 +489,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
   // local fram is 'global_frame_', cause this is in local planner
   tf::Stamped<tf::Pose> tf_global_goal;
   tf::Stamped<tf::Pose> tf_front_point;
-  
+
   poseStampedMsgToTF(global_goal_, tf_global_goal);
   geometry_msgs::PoseStamped front_point = global_plan_.front();
   poseStampedMsgToTF(front_point, tf_front_point);
@@ -667,7 +585,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
     // we don't actually want to run the controller when we're just rotating to goal
     return true;
   }
-  // normal path trajectory 
+  // normal path trajectory
   if (planner_type == TRAJECTORY_PLANNER) {
     tc_->UpdateGoalAndPlan(goal_pose, transformed_plan);
   } else if (planner_type == LOOKAHEAD_PLANNER) {
@@ -695,7 +613,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
      //ROS_INFO("Cycle time: %.9f", t_diff);
  */
 
-  // ROS_INFO("[FIXPATTERN LOCAL PLANNER] fixpattern_path_.size(): %d", fixpattern_path_.size());
+  // //ROS_INFO("[FIXPATTERN LOCAL PLANNER] fixpattern_path_.size(): %d", fixpattern_path_.size());
   for(unsigned int i = 0; i < fixpattern_path_.size(); ++i) {
     if(fixpattern_path_.at(i).IsCornerPoint()) {
       //ROS_INFO("[FIXPATTERN LOCAL PLANNER] fixpattern_path_size = %d, corner_index = %d", (int)fixpattern_path_.size(), i);
@@ -745,8 +663,8 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
 			acc_dis += fixpattern_path_.at(index).DistanceToPoint(fixpattern_path_.at(index - 1));
 			//acc_dis += getPoseDistance(transformed_plan.at(index), tranformed_plan.at(index + 1));
 			if (acc_dis > 0.1) break;
-		}	
-		double target_yaw = fixpattern_path::CalculateDirection(fixpattern_path_.front(), fixpattern_path_.at(index)); 
+		}
+		double target_yaw = fixpattern_path::CalculateDirection(fixpattern_path_.front(), fixpattern_path_.at(index));
 		double angle_diff = angles::shortest_angular_distance(yaw, target_yaw);
 		if (robot_vel.getOrigin().getX() < GS_DOUBLE_PRECISION && tf::getYaw(robot_vel.getRotation()) < GS_DOUBLE_PRECISION && fabs(angle_diff) > 0.5) {  // > 30 digree{
         need_rotate_to_path_ = true;
@@ -808,9 +726,9 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
   cmd_vel->linear.y = drive_cmds.getOrigin().getY();
   cmd_vel->angular.z = tf::getYaw(drive_cmds.getRotation());
 /*
-  if ((getGoalPositionDistance(global_pose, goal_x, goal_y) <= 0.20) && 
+  if ((getGoalPositionDistance(global_pose, goal_x, goal_y) <= 0.20) &&
        cmd_vel->linear.x > 0.05 && fabs(cmd_vel->angular.z > 0.10)) {
-    cmd_vel->angular.z = cmd_vel->angular.z > 0.0 ? 0.10 : -0.10; 
+    cmd_vel->angular.z = cmd_vel->angular.z > 0.0 ? 0.10 : -0.10;
   }
 */
   // if we cannot move... tell someone
@@ -870,7 +788,7 @@ void FixPatternTrajectoryPlannerROS::resetRotatingToGoalDone() {
   // return flag set in controller
   rotating_to_goal_done_ = false;
 }
- 
+
 
 bool FixPatternTrajectoryPlannerROS::isRotatingToGoal() {
   if (!isInitialized()) {
@@ -895,7 +813,6 @@ void FixPatternTrajectoryPlannerROS::reset_planner() {
    rotating_to_goal_done_ = false;
    xy_tolerance_latch_ = false;
    final_goal_extended_ = false;
-//   rotating_to_route_direction_ = false;
 
    last_target_yaw_ = 0.0;
    last_rotate_to_goal_dir_ = 0;

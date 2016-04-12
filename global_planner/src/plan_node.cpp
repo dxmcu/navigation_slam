@@ -36,7 +36,6 @@
  *         David V. Lu!!
  *********************************************************************/
 #include <global_planner/planner_core.h>
-#include <navfn/MakeNavPlan.h>
 #include <boost/shared_ptr.hpp>
 #include <costmap_2d/costmap_2d_ros.h>
 
@@ -54,28 +53,12 @@ namespace global_planner {
 class PlannerWithCostmap : public GlobalPlanner {
     public:
         PlannerWithCostmap(string name, Costmap2DROS* cmap);
-        bool makePlanService(navfn::MakeNavPlan::Request& req, navfn::MakeNavPlan::Response& resp);
 
     private:
         void poseCallback(const rm::PoseStamped::ConstPtr& goal);
         Costmap2DROS* cmap_;
-        ros::ServiceServer make_plan_service_;
         ros::Subscriber pose_sub_;
 };
-
-bool PlannerWithCostmap::makePlanService(navfn::MakeNavPlan::Request& req, navfn::MakeNavPlan::Response& resp) {
-    vector<PoseStamped> path;
-
-    req.start.header.frame_id = "/map";
-    req.goal.header.frame_id = "/map";
-    bool success = makePlan(req.start, req.goal, path);
-    resp.plan_found = success;
-    if (success) {
-        resp.path = path;
-    }
-
-    return true;
-}
 
 void PlannerWithCostmap::poseCallback(const rm::PoseStamped::ConstPtr& goal) {
     tf::Stamped<tf::Pose> global_pose;
@@ -98,7 +81,6 @@ PlannerWithCostmap::PlannerWithCostmap(string name, Costmap2DROS* cmap) :
         GlobalPlanner(name, cmap->getCostmap(), cmap->getGlobalFrameID()) {
     ros::NodeHandle private_nh("~");
     cmap_ = cmap;
-    make_plan_service_ = private_nh.advertiseService("make_plan", &PlannerWithCostmap::makePlanService, this);
     pose_sub_ = private_nh.subscribe<rm::PoseStamped>("goal", 1, &PlannerWithCostmap::poseCallback, this);
 }
 
