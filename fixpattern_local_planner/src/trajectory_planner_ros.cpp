@@ -25,21 +25,7 @@
 #include <vector>
 
 namespace fixpattern_local_planner {
-/*
-void FixPatternTrajectoryPlannerROS::reconfigureCB(BaseLocalPlannerConfig &config, uint32_t level) {
-  if (setup_ && config.restore_defaults) {
-    config = default_config_;
-    // Avoid looping
-    config.restore_defaults = false;
-  }
-  if (!setup_) {
-    default_config_ = config;
-    setup_ = true;
-  }
-  tc_->reconfigure(config);
-  reached_goal_ = false;
-}
-*/
+
 
 FixPatternTrajectoryPlannerROS::FixPatternTrajectoryPlannerROS()
   : world_model_(NULL), tc_(NULL), la_(NULL), costmap_ros_(NULL), tf_(NULL), initialized_(false), odom_helper_("odom") {
@@ -184,10 +170,6 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
                                max_vel_x, min_vel_x, max_vel_theta_, min_vel_theta_, min_in_place_rotational_vel_);
 
     initialized_ = true;
-
-//    dsrv_ = new dynamic_reconfigure::Server<BaseLocalPlannerConfig>(private_nh);
-//    dynamic_reconfigure::Server<BaseLocalPlannerConfig>::CallbackType cb = boost::bind(&FixPatternTrajectoryPlannerROS::reconfigureCB, this, _1, _2);
-//    dsrv_->setCallback(cb);
 
   } else {
     //ROS_WARN("This planner has already been initialized, doing nothing");
@@ -620,7 +602,8 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
     }
   }
   if (fixpattern_path_.front().IsCornerPoint()) {
-/*    if (needBackward(planner_type, global_pose, robot_vel, cmd_vel)) {
+/*
+    if (needBackward(planner_type, global_pose, robot_vel, cmd_vel)) {
       publishPlan(transformed_plan, g_plan_pub_);
       publishPlan(local_plan, l_plan_pub_);
       // we don't actually want to run the controller when we're just moving backward
