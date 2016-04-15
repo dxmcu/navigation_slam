@@ -39,8 +39,17 @@
 #define _EXPANDER_H
 #include <global_planner/potential_calculator.h>
 #include <global_planner/planner_core.h>
+#include <costmap_2d/costmap_2d.h>
 
 namespace global_planner {
+
+typedef struct _XYPoint {                                                                                                                                                                                
+   double x;
+   double y;
+ 
+   _XYPoint() { }
+   _XYPoint(double x, double y) : x(x), y(y) { }
+} XYPoint;
 
 class Expander {
     public:
@@ -48,9 +57,13 @@ class Expander {
                 unknown_(true), lethal_cost_(253), neutral_cost_(50), factor_(3.0), p_calc_(p_calc) {
             setSize(nx, ny);
         }
-        virtual bool calculatePotentials(unsigned char* costs, double start_x, double start_y, double end_x, double end_y,
-                                        int cycles, float* potential) = 0;
+//        virtual bool calculatePotentials(unsigned char* costs, double start_x, double start_y, double end_x, double end_y,
+//                                         int cycles, float* potential) = 0;
 
+//        virtual bool calculatePotentials(unsigned char* costs, unsigned char* path_costs, double start_x, double start_y, 
+//                                         double end_x, double end_y, int cycles, float* potential) = 0;
+        virtual bool calculatePotentials(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* costs, unsigned char* path_costs, double start_x, double start_y, 
+                                         double end_x, double end_y, int cycles, float* potential) = 0;
         /**
          * @brief  Sets or resets the size of the map
          * @param nx The x size of the map

@@ -44,29 +44,32 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
   // x aligned with the heading of the robot, angles are positive
   // counterclockwise
   // 0 theta change
-  mprim_cell_0[0] = {1, 0, 0, forward_cost_mult_};
-  mprim_cell_0[1] = {8, 0, 0, forward_cost_mult_};
-  // 1/16 theta change
-  mprim_cell_0[2] = {8, 1, 1, forward_and_turn_cost_mult_};
-  mprim_cell_0[3] = {8, -1, -1, forward_and_turn_cost_mult_};
+  mprim_cell_0[SHORT_FORWARD] = {1, 0, 0, forward_cost_mult_};
+  mprim_cell_0[NORMAL_FORWARD] = {8, 0, 0, forward_cost_mult_};
+  mprim_cell_0[LONG_FORWARD] = {16, 0, 0, forward_cost_mult_};
+/*  // 1/16 theta change
+  mprim_cell_0[FORWARD_TURN_LEFT] = {8, 1, 1, forward_and_turn_cost_mult_};
+  mprim_cell_0[FORWARD_TURN_RIGHT] = {8, -1, -1, forward_and_turn_cost_mult_};
+*/
   // turn in place
-  mprim_cell_0[4] = {0, 0, 1, turn_in_place_cost_mult_};
-  mprim_cell_0[5] = {0, 0, -1, turn_in_place_cost_mult_};
-
+  mprim_cell_0[IN_PLACE_ROTATE_LEFT] = {0, 0, 1, turn_in_place_cost_mult_};
+  mprim_cell_0[IN_PLACE_ROTATE_RIGHT] = {0, 0, -1, turn_in_place_cost_mult_};
   // 45 degrees
   std::vector<std::vector<int>> mprim_cell_45;
   mprim_cell_45.resize(num_of_prims_per_angle_);
   // x aligned with the heading of the robot, angles are positive
   // counterclockwise
   // 0 theta change
-  mprim_cell_45[0] = {1, 1, 0, forward_cost_mult_};
-  mprim_cell_45[1] = {6, 6, 0, forward_cost_mult_};
-  // 1/16 theta change
-  mprim_cell_45[2] = {5, 7, 1, forward_and_turn_cost_mult_};
-  mprim_cell_45[3] = {7, 5, -1, forward_and_turn_cost_mult_};
+  mprim_cell_45[SHORT_FORWARD] = {1, 1, 0, forward_cost_mult_};
+  mprim_cell_45[NORMAL_FORWARD] = {6, 6, 0, forward_cost_mult_};
+  mprim_cell_45[LONG_FORWARD] = {12, 12, 0, forward_cost_mult_};
+/*  // 1/16 theta change
+  mprim_cell_45[FORWARD_TURN_LEFT] = {5, 7, 1, forward_and_turn_cost_mult_};
+  mprim_cell_45[FORWARD_TURN_RIGHT] = {7, 5, -1, forward_and_turn_cost_mult_};
+*/
   // turn in place
-  mprim_cell_45[4] = {0, 0, 1, turn_in_place_cost_mult_};
-  mprim_cell_45[5] = {0, 0, -1, turn_in_place_cost_mult_};
+  mprim_cell_45[IN_PLACE_ROTATE_LEFT] = {0, 0, 1, turn_in_place_cost_mult_};
+  mprim_cell_45[IN_PLACE_ROTATE_RIGHT] = {0, 0, -1, turn_in_place_cost_mult_};
 
   // 22.5 degrees
   std::vector<std::vector<int>> mprim_cell_22p5;
@@ -74,14 +77,16 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
   // x aligned with the heading of the robot, angles are positive
   // counterclockwise
   // 0 theta change
-  mprim_cell_22p5[0] = {2, 1, 0, forward_cost_mult_};
-  mprim_cell_22p5[1] = {6, 3, 0, forward_cost_mult_};
-  // 1/16 theta change
-  mprim_cell_22p5[2] = {5, 4, 1, forward_and_turn_cost_mult_};
-  mprim_cell_22p5[3] = {7, 2, -1, forward_and_turn_cost_mult_};
+  mprim_cell_22p5[SHORT_FORWARD] = {2, 1, 0, forward_cost_mult_};
+  mprim_cell_22p5[NORMAL_FORWARD] = {6, 3, 0, forward_cost_mult_};
+  mprim_cell_22p5[LONG_FORWARD] = {14, 6, 0, forward_cost_mult_};
+/*  // 1/16 theta change
+  mprim_cell_22p5[FORWARD_TURN_LEFT] = {5, 4, 1, forward_and_turn_cost_mult_};
+  mprim_cell_22p5[FORWARD_TURN_RIGHT] = {7, 2, -1, forward_and_turn_cost_mult_};
+*/
   // turn in place
-  mprim_cell_22p5[4] = {0, 0, 1, turn_in_place_cost_mult_};
-  mprim_cell_22p5[5] = {0, 0, -1, turn_in_place_cost_mult_};
+  mprim_cell_22p5[IN_PLACE_ROTATE_LEFT] = {0, 0, 1, turn_in_place_cost_mult_};
+  mprim_cell_22p5[IN_PLACE_ROTATE_RIGHT] = {0, 0, -1, turn_in_place_cost_mult_};
 
   env_->actions_.resize(num_of_angles_);
   env_->pred_actions_.resize(num_of_angles_);
@@ -119,7 +124,7 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
         angle = current_angle - 22.5 * M_PI / 180;
         rotate_direction = mprim_cell[2];
       } else {
-        ROS_ERROR("ERROR: invalid angular resolution. angle = %d", current_angle_36000);
+        //ROS_ERROR("ERROR: invalid angular resolution. angle = %d", current_angle_36000);
         return;
       }
 
@@ -163,6 +168,16 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
             interm_struct[i].is_corner = false;
             interm_struct[i].theta_out = 0.0;  // shouldn't be used
             interm_struct[i].rotate_direction = 0;
+            if(mprim_index == SHORT_FORWARD) { // linear primitive 2
+              interm_struct[i].max_vel = 0.2;
+              //interm_struct[i].highlight = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE;
+            } else if(mprim_index == NORMAL_FORWARD) { // linear primitive 16
+              interm_struct[i].max_vel = 0.4;
+              //interm_struct[i].highlight = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE;
+            } else if(mprim_index == LONG_FORWARD) { // linear primitive 32
+              interm_struct[i].max_vel = 0.6;
+              //interm_struct[i].highlight = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE;
+            }
           }
         }
       } else {  // unicycle-based move forward or backward
@@ -180,18 +195,18 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
         // length of straight line
         double l = S(0);
         // radius of turn
-        double tv_over_rv = S(1);
-        double rv = base_end_cell.theta * 2 * M_PI / num_of_angles_ + l / tv_over_rv;
+        double tv_over_rv = S(1); // radius of circle
+        double rv = base_end_cell.theta * 2 * M_PI / num_of_angles_ + l / tv_over_rv; 
         // total length
         double tv = tv_over_rv * rv;
         if (l < 0) {
-          // ROS_WARN("[SEARCH BASED GLOBAL PLANNER] l = %lf < 0 -> bad action start/end points", l);
+          //ROS_WARN("[SEARCH BASED GLOBAL PLANNER] l = %lf < 0 -> bad action start/end points", l);
           l = 0;
         }
         // generate samples
         for (int i = 0; i < num_of_interm_pts; ++i) {
           double dt = static_cast<double>(i) / (num_of_interm_pts - 1);
-          if (dt * tv < l) {
+          if (dt * tv < l) { // straight length
             interm_pts[i].x = start_point.x + dt * tv * cos(start_point.theta);
             interm_pts[i].y = start_point.y + dt * tv * sin(start_point.theta);
             interm_pts[i].theta = start_point.theta;
@@ -200,8 +215,8 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
             interm_struct[i].is_corner = false;
             interm_struct[i].theta_out = 0.0;
             interm_struct[i].rotate_direction = 0;
-          } else {
-            double dtheta = rv * (dt - l / tv) + start_point.theta;
+          } else { //circle length
+            double dtheta = rv * (dt - l / tv) + start_point.theta; //change of theta
             interm_pts[i].x = start_point.x + l * cos(start_point.theta) + tv_over_rv * (sin(dtheta) - sin(start_point.theta));
             interm_pts[i].y = start_point.y + l * sin(start_point.theta) - tv_over_rv * (cos(dtheta) - cos(start_point.theta));
             interm_pts[i].theta = dtheta;
@@ -216,7 +231,7 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
         Eigen::Vector2d error;
         error(0) = end_point.x - interm_pts[num_of_interm_pts - 1].x;
         error(1) = end_point.y - interm_pts[num_of_interm_pts - 1].y;
-        // ROS_INFO("l=%f errx=%f erry=%f", l, error(0), error(1));
+        // //ROS_INFO("l=%f errx=%f erry=%f", l, error(0), error(1));
         for (int i = 0; i < num_of_interm_pts; ++i) {
           interm_pts[i].x += error(0) * i * 1.0 / (num_of_interm_pts - 1);
           interm_pts[i].y += error(1) * i * 1.0 / (num_of_interm_pts - 1);
@@ -251,7 +266,7 @@ Action* MPrimitiveManager::CreateAction(const MotionPrimitive& mprim) {
   action->dx = mprim.end_cell.x;
   action->dy = mprim.end_cell.y;
   // compute and store interm points as well as intersecting cells
-  action->intersecting_cells.clear();
+  action->intersecting_cells.clear(); //footprint
   action->interm_cells_3d.clear();
   action->interm_pts = mprim.interm_pts;
   action->interm_struct = mprim.interm_struct;
@@ -298,8 +313,11 @@ Action* MPrimitiveManager::CreateAction(const MotionPrimitive& mprim) {
     double y1 = action->interm_pts[i].y;
     double dx = x1 - x0;
     double dy = y1 - y0;
-    linear_distance += sqrt(dx * dx + dy * dy);
+    double distance = sqrt(dx * dx + dy * dy); 
+    linear_distance += distance;
+    action->interm_struct[i - 1].distance = distance;
   }
+  action->interm_struct[action->interm_pts.size() - 1].distance = 0.0;
   double linear_time = linear_distance / nominalvel_mpersec_;
   double angular_distance = fabs(MinUnsignedAngleDiff(DiscTheta2Cont(action->end_theta, num_of_angles_),
                                                       DiscTheta2Cont(action->start_theta, num_of_angles_)));
@@ -309,6 +327,7 @@ Action* MPrimitiveManager::CreateAction(const MotionPrimitive& mprim) {
   // use any additional cost multiplier
   action->cost *= mprim.cost_mult;
 
+  action->distance = linear_distance; 
   // now compute the intersecting cells for this motion (including ignoring the source footprint)
   Get2DMotionCells(footprint_, mprim.interm_pts, &action->intersecting_cells, resolution_);
   Get2DMotionCellsCircleCenter(circle_center_, mprim.interm_pts, &action->circle_center_cells, resolution_);

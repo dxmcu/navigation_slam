@@ -38,6 +38,7 @@
 #ifndef _ASTAR_H
 #define _ASTAR_H
 
+#include <costmap_2d/costmap_2d.h>
 #include <global_planner/planner_core.h>
 #include <global_planner/expander.h>
 #include <vector>
@@ -63,11 +64,14 @@ struct greater1 {
 class AStarExpansion : public Expander {
     public:
         AStarExpansion(PotentialCalculator* p_calc, int nx, int ny);
-        bool calculatePotentials(unsigned char* costs, double start_x, double start_y, double end_x, double end_y, int cycles,
-                                float* potential);
+        AStarExpansion(PotentialCalculator* p_calc, int xs, int ys, unsigned char path_cost, unsigned char occ_dis_cost);
+        bool calculatePotentials(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* costs, unsigned char* path_costs,
+                                 double start_x, double start_y, double end_x, double end_y, int cycles, float* potential);
     private:
-        void add(unsigned char* costs, float* potential, float prev_potential, int next_i, int end_x, int end_y);
+        void add(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* costs, unsigned char* path_costs, float* potential, float prev_potential, int next_i, int end_x, int end_y);
         std::vector<Index> queue_;
+        unsigned char path_cost_;
+        unsigned char occ_dis_cost_;
 };
 
 } //end namespace global_planner

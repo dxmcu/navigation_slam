@@ -17,12 +17,10 @@
 #include <costmap_2d/costmap_2d_publisher.h>
 #include <costmap_2d/costmap_2d_ros.h>
 #include <fixpattern_local_planner/world_model.h>
-#include <fixpattern_local_planner/point_grid.h>
 #include <fixpattern_local_planner/costmap_model.h>
-#include <fixpattern_local_planner/voxel_grid_model.h>
 #include <fixpattern_local_planner/trajectory_planner.h>
 #include <fixpattern_local_planner/look_ahead_planner.h>
-#include <fixpattern_local_planner/map_grid_visualizer.h>
+//#include <fixpattern_local_planner/map_grid_visualizer.h>
 #include <fixpattern_local_planner/planar_laser_scan.h>
 #include <tf/transform_datatypes.h>
 #include <nav_msgs/Odometry.h>
@@ -33,10 +31,10 @@
 #include <boost/thread.hpp>
 #include <angles/angles.h>
 #include <nav_core/base_local_planner.h>
-#include <dynamic_reconfigure/server.h>
-#include <fixpattern_local_planner/BaseLocalPlannerConfig.h>
+//#include <dynamic_reconfigure/server.h>
+//#include <fixpattern_local_planner/BaseLocalPlannerConfig.h>
 #include <fixpattern_local_planner/odometry_helper_ros.h>
-#include <pcl_ros/publisher.h>
+//#include <pcl_ros/publisher.h>
 #include <fixpattern_path/path.h>
 
 #include <vector>
@@ -109,18 +107,24 @@ class FixPatternTrajectoryPlannerROS {
   bool isGoalReached();
 
   /**
+   * @brief  Check if rotate to goal has been done
+   * @return rotating_to_goal_done_ : True if done, false otherwise
+   */
+  bool isRotatingToGoalDone();
+
+  void resetRotatingToGoalDone();
+
+  bool isRotatingToGoal();
+
+  bool isFootprintSafe() {
+    return is_footprint_safe_;
+  }
+
+  bool isGoalXYLatched();
+  /**
    * @brief reset reached_goal_, xy_tolerance_latch_, last_rotate_to_goal_dir_ and try_rotate_ etc.
    */
   void reset_planner();
-
-  /**
-   * @brief return if need to avoid obstacle
-   *
-   * @return true if need, otherwise false
-   */
-  bool NeedAvoidObstacle() {
-    tc_->need_avoid_obstacle();
-  }
 
   bool isInitialized() {
     return initialized_;
@@ -129,11 +133,13 @@ class FixPatternTrajectoryPlannerROS {
   /** @brief Return the inner TrajectoryPlanner object.  Only valid after initialize(). */
   TrajectoryPlanner* getPlanner() const { return tc_; }
 
+  double xy_goal_tolerance_, yaw_goal_tolerance_;
+
  private:
   /**
    * @brief Callback to update the local planner's parameters based on dynamic reconfigure
    */
-  void reconfigureCB(BaseLocalPlannerConfig &config, uint32_t level);  // NOLINT
+//  void reconfigureCB(BaseLocalPlannerConfig &config, uint32_t level);  // NOLINT
 
   /**
    * @brief Once a goal position is reached... rotate to the goal orientation
@@ -170,8 +176,6 @@ class FixPatternTrajectoryPlannerROS {
    */
   bool stopWithAccLimits(PlannerType planner_type, const tf::Stamped<tf::Pose>& global_pose, const tf::Stamped<tf::Pose>& robot_vel, geometry_msgs::Twist* cmd_vel);
 
-  std::vector<double> loadYVels(ros::NodeHandle node);
-
   double sign(double x) {
     return x < 0.0 ? -1.0 : 1.0;
   }
@@ -188,36 +192,42 @@ class FixPatternTrajectoryPlannerROS {
   nav_msgs::Odometry base_odom_;           ///< @brief Used to get the velocity of the robot
   std::string robot_base_frame_;           ///< @brief Used as the base frame id of the robot
   double rot_stopped_velocity_, trans_stopped_velocity_;
-  double xy_goal_tolerance_, yaw_goal_tolerance_, min_in_place_vel_th_;
+  double min_in_place_vel_th_;
   std::vector<geometry_msgs::PoseStamped> global_plan_;
   std::vector<fixpattern_path::PathPoint> fixpattern_path_;
   bool prune_plan_;
+  bool rotating_to_route_direction_;
+  bool need_rotate_to_path_;
+  bool final_goal_extended_;
   boost::recursive_mutex odom_lock_;
 
-  double max_vel_th_, min_vel_th_;
+  double max_vel_theta_, min_vel_theta_, min_vel_abs_th_;
+  double min_in_place_rotational_vel_; 
   double acc_lim_x_, acc_lim_y_, acc_lim_theta_;
   double sim_period_;
   bool rotating_to_goal_;
   bool reached_goal_;
+  bool rotating_to_goal_done_;
   bool latch_xy_goal_tolerance_, xy_tolerance_latch_;
 
   ros::Publisher g_plan_pub_, l_plan_pub_;
-  pcl_ros::Publisher<MapGridCostPoint> traj_cloud_pub_;
+//  pcl_ros::Publisher<MapGridCostPoint> traj_cloud_pub_;
 
-  dynamic_reconfigure::Server<BaseLocalPlannerConfig> *dsrv_;
-  fixpattern_local_planner::BaseLocalPlannerConfig default_config_;
-  bool setup_;
-
+//  dynamic_reconfigure::Server<BaseLocalPlannerConfig> *dsrv_;
+//  fixpattern_local_planner::BaseLocalPlannerConfig default_config_;
 
   bool initialized_;
+  bool is_footprint_safe_;
   fixpattern_local_planner::OdometryHelperRos odom_helper_;
 
   std::vector<geometry_msgs::Point> footprint_spec_;
 
   double rotate_to_goal_k_;
+  double last_target_yaw_;
   int last_rotate_to_goal_dir_;
   int max_rotate_try_times_;
   int try_rotate_;
+  geometry_msgs::PoseStamped global_goal_;
 };
 
 };  // namespace fixpattern_local_planner

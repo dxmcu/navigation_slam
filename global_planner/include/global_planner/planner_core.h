@@ -47,12 +47,10 @@
 #include <vector>
 #include <nav_core/base_global_planner.h>
 #include <nav_msgs/GetPlan.h>
-#include <dynamic_reconfigure/server.h>
 #include <global_planner/potential_calculator.h>
 #include <global_planner/expander.h>
 #include <global_planner/traceback.h>
 #include <global_planner/orientation_filter.h>
-#include <global_planner/GlobalPlannerConfig.h>
 
 namespace global_planner {
 
@@ -91,8 +89,8 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
          */
         void initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros);
 
-        void initialize(std::string name, costmap_2d::Costmap2D* costmap, std::string frame_id);
-
+//        void initialize(std::string name, costmap_2d::Costmap2D* costmap, std::string frame_id);
+        void initialize(std::string name, costmap_2d::Costmap2D* costmap, costmap_2d::Costmap2D* path_costmap, std::string frame_id);
         /**
          * @brief Given a goal pose in the world, compute a plan
          * @param start The start pose
@@ -164,12 +162,19 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
 
         bool makePlanService(nav_msgs::GetPlan::Request& req, nav_msgs::GetPlan::Response& resp);
 
+        /**
+         * @brief set Costmap_ as static or not
+         */
+        void setStaticCosmap(bool is_static);
+
     protected:
 
         /**
          * @brief Store a copy of the current costmap in \a costmap.  Called by makePlan.
          */
+        costmap_2d::Costmap2DROS* costmap_ros_;
         costmap_2d::Costmap2D* costmap_;
+        costmap_2d::Costmap2D* path_costmap_;
         std::string frame_id_;
         ros::Publisher plan_pub_;
         bool initialized_, allow_unknown_, visualize_potential_;
@@ -179,6 +184,7 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
         bool worldToMap(double wx, double wy, double& mx, double& my);
         void clearRobotCell(const tf::Stamped<tf::Pose>& global_pose, unsigned int mx, unsigned int my);
         void publishPotential(float* potential);
+        bool ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<XYPoint>* points);
 
         double planner_window_x_, planner_window_y_, default_tolerance_;
         std::string tf_prefix_;
@@ -201,9 +207,6 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
 
         bool old_navfn_behavior_;
         float convert_offset_;
-
-        dynamic_reconfigure::Server<global_planner::GlobalPlannerConfig> *dsrv_;
-        void reconfigureCB(global_planner::GlobalPlannerConfig &config, uint32_t level);
 
 };
 

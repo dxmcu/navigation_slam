@@ -2,9 +2,10 @@
  */
 
 #include "search_based_global_planner/search_based_global_planner.h"
+#include <angles/angles.h>
 
 #include <nav_msgs/Path.h>
-#include <costmap_2d/inflation_layer.h>
+//#include <costmap_2d/inflation_layer.h>
 #ifdef DEBUG
 #include <gperftools/profiler.h>
 #endif
@@ -12,6 +13,15 @@
 #include "search_based_global_planner/utils.h"
 
 #define COMPUTEKEY(entry) (entry)->ComputeKey(eps_, env_->GetHeuristic((entry)->x, (entry)->y))
+#define CHECK_INPLACE_ROTATE(action) (action.action_index == IN_PLACE_ROTATE_LEFT || action.action_index == IN_PLACE_ROTATE_RIGHT)
+#define CHECK_SHORT_FORWARD(action) (action.action_index == SHORT_FORWARD)
+
+const double MAX_HIGHLIGHT_DIS = fixpattern_path::Path::MAX_HIGHLIGHT_DISTANCE * 2.0 / 3.0;
+const double LOW_HIGHLIGHT_DIS = 0.7;
+const double MIN_HIGHLIGHT_DIS = fixpattern_path::Path::MIN_HIGHLIGHT_DISTANCE;
+//const double MAX_VEL = 0.6; 
+//const double LOW_VEL = 0.4; 
+//const double MIN_VEL = 0.0; 
 
 namespace search_based_global_planner {
 
@@ -19,7 +29,7 @@ SearchBasedGlobalPlanner::SearchBasedGlobalPlanner() : initialized_(false) { }
 
 SearchBasedGlobalPlanner::~SearchBasedGlobalPlanner() { }
 
-double GetNumberFromXMLRPC(XmlRpc::XmlRpcValue& value, const std::string& full_param_name) {
+double GetNumberFromXMLRPC(XmlRpc::XmlRpcValue& value, const std::string& full_param_name) {  // NOLINT
   // Make sure that the value we're looking at is either a double or an int.
   if (value.getType() != XmlRpc::XmlRpcValue::TypeInt &&
       value.getType() != XmlRpc::XmlRpcValue::TypeDouble) {
@@ -31,7 +41,7 @@ double GetNumberFromXMLRPC(XmlRpc::XmlRpcValue& value, const std::string& full_p
   return value.getType() == XmlRpc::XmlRpcValue::TypeInt ? static_cast<int>(value) : static_cast<double>(value);
 }
 
-void ReadFootprintFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const std::string& full_param_name, std::vector<XYPoint>* points) {
+void ReadCircleCenterFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const std::string& full_param_name, std::vector<XYPoint>* points) {  // NOLINT
   // Make sure we have an array of at least 3 elements.
   if (circle_center_xmlrpc.getType() != XmlRpc::XmlRpcValue::TypeArray || circle_center_xmlrpc.size() < 1) {
     ROS_FATAL("The circle_center must be specified as list of lists on the parameter server, %s was specified as %s",
@@ -46,8 +56,10 @@ void ReadFootprintFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const st
     XmlRpc::XmlRpcValue point = circle_center_xmlrpc[ i ];
     if (point.getType() != XmlRpc::XmlRpcValue::TypeArray ||
         point.size() != 2) {
-      ROS_FATAL("The circle_center (parameter %s) must be specified as list of lists on the parameter server eg: [[x1, y1], [x2, y2], ..., [xn, yn]], but this spec is not of that form.", full_param_name.c_str());
-      throw std::runtime_error( "The circle_center must be specified as list of lists on the parameter server eg: [[x1, y1], [x2, y2], ..., [xn, yn]], but this spec is not of that form");
+      ROS_FATAL("The circle_center (parameter %s) must be specified as list of lists on the parameter server eg:"
+                " [[x1, y1], [x2, y2], ..., [xn, yn]], but this spec is not of that form.", full_param_name.c_str());
+      throw std::runtime_error("The circle_center must be specified as list of lists on the parameter server eg:"
+                               " [[x1, y1], [x2, y2], ..., [xn, yn]], but this spec is not of that form");
     }
 
     pt.x = GetNumberFromXMLRPC(point[0], full_param_name);
@@ -60,14 +72,14 @@ void ReadFootprintFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const st
 bool SearchBasedGlobalPlanner::ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<XYPoint>* points) {
   std::string full_param_name;
 
-  if (nh.searchParam("circle_center", full_param_name)) {
+  if (nh.searchParam("p14", full_param_name)) {
     XmlRpc::XmlRpcValue circle_center_xmlrpc;
     nh.getParam(full_param_name, circle_center_xmlrpc);
     if (circle_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
-      ReadFootprintFromXMLRPC(circle_center_xmlrpc, full_param_name, points);
+      ReadCircleCenterFromXMLRPC(circle_center_xmlrpc, full_param_name, points);
       return true;
     } else {
-      ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] circle_center param's type is not Array!");
+      //ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] circle_center param's type is not Array!");
       return false;
     }
   }
@@ -80,13 +92,16 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
     plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan", 1);
     costmap_ros_ = costmap_ros;
 
-    private_nh.param("allocated_time", allocated_time_, 4.0);
-    private_nh.param("initial_epsilon", initial_epsilon_, 3.0);
-    private_nh.param("force_scratch_limit", force_scratch_limit_, 500);
+    private_nh.param("p1", allocated_time_, 4.0);
+    private_nh.param("p2", initial_epsilon_, 3.0);
+    private_nh.param("p3", force_scratch_limit_, 500);
+    private_nh.param("p4", sbpl_max_vel_, 0.6);
+    private_nh.param("p5", sbpl_low_vel_, 0.45);
+    private_nh.param("p6", sbpl_min_vel_, 0.0);
 
     double nominalvel_mpersec, timetoturn45degsinplace_secs;
-    private_nh.param("nominalvel_mpersecs", nominalvel_mpersec, 0.4);
-    private_nh.param("timetoturn45degsinplace_secs", timetoturn45degsinplace_secs, 0.6);
+    private_nh.param("p7", nominalvel_mpersec, 0.4);
+    private_nh.param("p8", timetoturn45degsinplace_secs, 0.6);
 
     // get circle_center
     std::vector<XYPoint> circle_center_point;
@@ -105,32 +120,33 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
 
     // check if the costmap has an inflation layer
     // Warning: footprint updates after initialization are not supported here
-    unsigned char cost_possibly_circumscribed_thresh = 0;
-    for (std::vector<boost::shared_ptr<costmap_2d::Layer> >::const_iterator layer = costmap_ros_->getLayeredCostmap()->getPlugins()->begin();
-        layer != costmap_ros_->getLayeredCostmap()->getPlugins()->end();
-        ++layer) {
-      boost::shared_ptr<costmap_2d::InflationLayer> inflation_layer = boost::dynamic_pointer_cast<costmap_2d::InflationLayer>(*layer);
-      if (!inflation_layer) continue;
+    unsigned char cost_possibly_circumscribed_thresh = costmap_ros_->getCostPossiblyCircumscribedThresh();
+    // for (std::vector<boost::shared_ptr<costmap_2d::Layer> >::const_iterator layer = costmap_ros_->getLayeredCostmap()->getPlugins()->begin();
+    //     layer != costmap_ros_->getLayeredCostmap()->getPlugins()->end();
+    //     ++layer) {
+    //   boost::shared_ptr<costmap_2d::InflationLayer> inflation_layer = boost::dynamic_pointer_cast<costmap_2d::InflationLayer>(*layer);
+    //   if (!inflation_layer) continue;
 
-      cost_possibly_circumscribed_thresh = inflation_layer->computeCost(costmap_ros_->getLayeredCostmap()->getCircumscribedRadius() / resolution_);
-    }
+    //   cost_possibly_circumscribed_thresh = inflation_layer->computeCost(costmap_ros_->getLayeredCostmap()->getCircumscribedRadius() / resolution_);
+    // }
 
     int lethal_cost = 20;
-    private_nh.param("lethal_cost", lethal_cost, 20);
+    private_nh.param("p9", lethal_cost, 20);
     lethal_cost_ = static_cast<unsigned char>(lethal_cost);
     inscribed_inflated_cost_ = lethal_cost_ - 1;
     cost_multiplier_ = static_cast<unsigned char>(costmap_2d::INSCRIBED_INFLATED_OBSTACLE / inscribed_inflated_cost_ + 1);
     cost_possibly_circumscribed_thresh = TransformCostmapCost(cost_possibly_circumscribed_thresh);
-    ROS_INFO("[SEARCH BASED GLOBAL PLANNER] cost_possibly_circumscribed_thresh: %d", static_cast<int>(cost_possibly_circumscribed_thresh));
+    //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] cost_possibly_circumscribed_thresh: %d", static_cast<int>(cost_possibly_circumscribed_thresh));
 
     const int num_of_angles = 16;
-    const int num_of_prims_per_angle = 6;
+//    const int num_of_prims_per_angle = 7;
+    const int num_of_prims_per_angle = MAX_MPRIM_INDEX;
     int forward_cost_mult, forward_and_turn_cost_mult, turn_in_place_cost_mult;
-    private_nh.param("forward_cost_mult", forward_cost_mult, 1);
-    private_nh.param("forward_and_turn_cost_mult", forward_and_turn_cost_mult, 2);
-    private_nh.param("turn_in_place_cost_mult", turn_in_place_cost_mult, 50);
+    private_nh.param("p10", forward_cost_mult, 1);
+    private_nh.param("p11", forward_and_turn_cost_mult, 2);
+    private_nh.param("p12", turn_in_place_cost_mult, 50);
 
-    private_nh.param("map_size", map_size_, 400);
+    private_nh.param("p13", map_size_, 400);
 
     unsigned int size_x = costmap_ros_->getCostmap()->getSizeInCellsX();
     unsigned int size_y = costmap_ros_->getCostmap()->getSizeInCellsY();
@@ -140,7 +156,7 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
     environment_iteration_ = 0;
 
     if (size_x < map_size_ || size_y < map_size_) {
-      ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] map_size is too big");
+      //ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] map_size is too big");
       exit(1);
     }
     size_x = size_y = map_size_;
@@ -152,17 +168,17 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
                            forward_and_turn_cost_mult, turn_in_place_cost_mult);
 
     need_to_reinitialize_environment_ = true;
-    ROS_INFO("[SEARCH BASED GLOBAL PLANNER] Search Based Global Planner initialized");
+    //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] Search Based Global Planner initialized");
   } else {
-    ROS_WARN("[SEARCH BASED GLOBAL PLANNER] This planner has already been initialized,"
-             " you can't call it twice, doing nothing");
+    //ROS_WARN("[SEARCH BASED GLOBAL PLANNER] This planner has already been initialized,"
+    //         " you can't call it twice, doing nothing");
   }
 }
 
 void SearchBasedGlobalPlanner::PublishPlan(const std::vector<geometry_msgs::PoseStamped>& plan) {
   if (!initialized_) {
-    ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] publishPlan This planner has not been initialized yet,"
-              " but it is being used, please call initialize() before use");
+    //ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] publishPlan This planner has not been initialized yet,"
+    //          " but it is being used, please call initialize() before use");
     return;
   }
 
@@ -204,10 +220,10 @@ void SearchBasedGlobalPlanner::UpdateSetMembership(EnvironmentEntry3D* entry) {
     if (entry->closed_iteration != iteration_) {
       COMPUTEKEY(entry);
       if (PTRHEAP_OK != open_.contain(entry)) {
-        // ROS_INFO("[SEARCH BASED GLOBAL PLANNER] push to open_ (%d %d %d)", entry->x, entry->y, entry->theta);
+        // //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] push to open_ (%d %d %d)", entry->x, entry->y, entry->theta);
         open_.push(entry);
       } else {
-        // ROS_INFO("[SEARCH BASED GLOBAL PLANNER] update (%d %d %d)", entry->x, entry->y, entry->theta);
+        // //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] update (%d %d %d)", entry->x, entry->y, entry->theta);
         open_.adjust(entry);
       }
     } else {
@@ -215,7 +231,7 @@ void SearchBasedGlobalPlanner::UpdateSetMembership(EnvironmentEntry3D* entry) {
     }
   } else {
     if (PTRHEAP_OK == open_.contain(entry)) {
-      // ROS_INFO("[SEARCH BASED GLOBAL PLANNER] erase from open_ (%d %d %d)", entry->x, entry->y, entry->theta);
+      // //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] erase from open_ (%d %d %d)", entry->x, entry->y, entry->theta);
       open_.erase(entry);
     }
   }
@@ -234,7 +250,7 @@ void SearchBasedGlobalPlanner::UpdateStateOfUnderConsist(EnvironmentEntry3D* ent
       pred_entry->visited_iteration = environment_iteration_;
     }
 
-    if (pred_entry != goal_entry_ && pred_entry->best_next_entry == entry) {
+    if (pred_entry->best_next_entry == entry) {
       RecomputeRHSVal(pred_entry);
       UpdateSetMembership(pred_entry);
     }
@@ -254,15 +270,13 @@ void SearchBasedGlobalPlanner::UpdateStateOfOverConsist(EnvironmentEntry3D* entr
       pred_entry->visited_iteration = environment_iteration_;
     }
 
-    if (*pred_entry != *goal_entry_) {
-      if (pred_entry->rhs > costs[i] + entry->g) {
-        // optimization: assume entry is the best
-        pred_entry->rhs = costs[i] + entry->g;
-        // update parent entry
-        pred_entry->best_next_entry = entry;
+    if (pred_entry->rhs > costs[i] + entry->g) {
+      // optimization: assume entry is the best
+      pred_entry->rhs = costs[i] + entry->g;
+      // update parent entry
+      pred_entry->best_next_entry = entry;
 
-        UpdateSetMembership(pred_entry);
-      }
+      UpdateSetMembership(pred_entry);
     }
   }
 }
@@ -271,14 +285,42 @@ bool SearchBasedGlobalPlanner::ComputeOrImprovePath() {
 #ifdef DEBUG
   size_t max_open_size = 0;
 #endif
+  // get start_entry_list
+  std::vector<EnvironmentEntry3D*> start_entry_list;
+  if (broader_start_and_goal_) {
+    std::vector<int> delta_x{-2, -1, 0, 1, 2};
+    std::vector<int> delta_y{-2, -1, 0, 1, 2};
+    int start_x = start_entry_->x;
+    int start_y = start_entry_->y;
+    uint8_t start_theta = start_entry_->theta;
+    for (const auto& i : delta_x) {
+      for (const auto& j : delta_y) {
+        if (i != 0 && j != 0) continue;
+        EnvironmentEntry3D* entry = env_->GetEnvEntry(start_x + i, start_y + j, start_theta);
+        if (entry) start_entry_list.push_back(entry);
+      }
+    }
+  } else {
+    start_entry_list.push_back(start_entry_);
+  }
+  first_met_entry_ = start_entry_;
+  // begin compute
   EnvironmentEntry3D* min_entry = open_.top();
-  while (min_entry != NULL && (COMPUTEKEY(min_entry) < COMPUTEKEY(start_entry_) || start_entry_->rhs != start_entry_->g)
-         && GetTimeInSeconds() - start_time_ < allocated_time_ ) {
+  while (min_entry != NULL && GetTimeInSeconds() - start_time_ < allocated_time_) {
+    bool search_over = false;
+    for (const auto& start_entry : start_entry_list) {
+      if (COMPUTEKEY(min_entry) >= COMPUTEKEY(start_entry) && start_entry->rhs == start_entry->g) {
+        first_met_entry_ = start_entry;
+        search_over = true;
+        break;
+      }
+    }
+    if (search_over) break;
 #ifdef DEBUG
     if (open_.size() > max_open_size) max_open_size = open_.size();
 #endif
     // remove state s with the minimum key from OPEN
-    // ROS_INFO("[SEARCH BASED GLOBAL PLANNER] expand entry in open_ (%d %d %d)", min_entry->x, min_entry->y, min_entry->theta);
+    // //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] expand entry in open_ (%d %d %d)", min_entry->x, min_entry->y, min_entry->theta);
     open_.pop();
     if (min_entry->g > min_entry->rhs) {
       min_entry->g = min_entry->rhs;
@@ -295,21 +337,21 @@ bool SearchBasedGlobalPlanner::ComputeOrImprovePath() {
     min_entry = open_.top();
   }
 #ifdef DEBUG
-  ROS_INFO("[SEARCH BASED GLOBAL PLANNER] max_open_size: %d", (int)max_open_size);
+  //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] max_open_size: %d", (int)max_open_size);
 #endif
 
-  if (start_entry_->rhs == INFINITECOST && open_.empty()) {
-    ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] solution does not exist: search exited because heap is empty");
+  if (first_met_entry_->rhs == INFINITECOST && open_.empty()) {
+    //ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] solution does not exist: search exited because heap is empty");
     return false;
   } else if (!open_.empty() &&
-             (min_entry->key < COMPUTEKEY(start_entry_) || start_entry_->rhs > start_entry_->g)) {
-    ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] search exited because it ran out of time");
+             (min_entry->key < COMPUTEKEY(first_met_entry_) || first_met_entry_->rhs > first_met_entry_->g)) {
+    //ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] search exited because it ran out of time");
     return false;
-  } else if (start_entry_->rhs == INFINITECOST && !open_.empty()) {
-    ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] solution does not exist: search exited because all candidates for expansion have infinite heuristics");
+  } else if (first_met_entry_->rhs == INFINITECOST && !open_.empty()) {
+    //ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] solution does not exist: search exited because all candidates for expansion have infinite heuristics");
     return false;
   } else {
-    ROS_INFO("search exited with a solution for eps=%.3f", eps_);
+    //ROS_INFO("search exited with a solution for eps=%.3f", eps_);
     return true;
   }
 }
@@ -318,22 +360,22 @@ void SearchBasedGlobalPlanner::GetEntryPath(std::vector<EnvironmentEntry3D*>* en
   std::vector<int> costs;
   std::vector<EnvironmentEntry3D*> succ_entries;
 
-  EnvironmentEntry3D* entry = start_entry_;
+  EnvironmentEntry3D* entry = first_met_entry_;
 
   entry_path->push_back(entry);
 
   while (*entry != *goal_entry_) {
     if (entry->best_next_entry == NULL) {
-      ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] path does not exist since best_next_entry == NULL");
+      //ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] path does not exist since best_next_entry == NULL");
       break;
     }
     if (entry->rhs == INFINITECOST) {
-      ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] path does not exist since rhs == INFINITECOST");
+      //ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] path does not exist since rhs == INFINITECOST");
       break;
     }
 
     if (entry->g < entry->rhs) {
-      ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] underconsistent entry on the path");
+      //ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] underconsistent entry on the path");
       return;
     }
 
@@ -343,7 +385,7 @@ void SearchBasedGlobalPlanner::GetEntryPath(std::vector<EnvironmentEntry3D*>* en
   }
 
   if (*entry != *goal_entry_) {
-    ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] Failed to GetSearchPath");
+    //ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] Failed to GetSearchPath");
     entry_path->clear();
   }
 }
@@ -356,6 +398,8 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
   std::vector<EnvironmentEntry3D*> succ_entries;
   std::vector<int> costs;
   std::vector<Action*> actions;
+  std::vector<Action> actions_path;
+//  std::vector<Actions_Path> actions_path;
 
   point_path->clear();
   path_info->clear();
@@ -369,6 +413,7 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
     costs.clear();
     actions.clear();
     env_->GetSuccs(source_entry, &succ_entries, &costs, &actions);
+//    //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] GetSuccs_entries size = %d, costs size = %d, actions size = %d", (int)succ_entries.size(), (int)costs.size(), (int)actions.size());
 
     int best_cost = INFINITECOST;
     int best_index = -1;
@@ -379,14 +424,18 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
       }
     }
     if (best_index == -1) {
-      ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] successor not found for transition");
+      if (broader_start_and_goal_) {
+        for (const auto& entry : goal_entry_list_)
+          if (*source_entry == *entry && *target_entry == *goal_entry_) break; //return;
+      }
+      //ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] successor not found for transition");
+      point_path->clear();
+      path_info->clear();
       return;
     }
-
     // now push in the actual path
     double source_x = DISCXY2CONT(source_entry->x, resolution_);
     double source_y = DISCXY2CONT(source_entry->y, resolution_);
-
     for (int ipind = 0; ipind < static_cast<int>(actions[best_index]->interm_pts.size()) - 1; ++ipind) {
       // translate appropriately
       XYThetaPoint interm_point = actions[best_index]->interm_pts[ipind];
@@ -395,9 +444,111 @@ void SearchBasedGlobalPlanner::GetPointPathFromEntryPath(const std::vector<Envir
 
       // store
       point_path->push_back(interm_point);
-      path_info->push_back(actions[best_index]->interm_struct[ipind]);
+  //    path_info->push_back(actions[best_index]->interm_struct[ipind]);
+		}
+    actions_path.push_back(*actions.at(best_index));
+  }
+//  //ROS_INFO("[SBPL] actions_path size = %d, point_path size = %d", (int)actions_path.size(), (int)point_path->size());
+  ComputeHighlightAndVelocity(actions_path, point_path, path_info);
+}
+
+void setActionIntermStruct(Action* action, double highlight, double max_vel, bool is_corner) {
+	for (int ipind = 0; ipind < static_cast<int>(action->interm_pts.size()) - 1; ++ipind) {
+		IntermPointStruct point_info = action->interm_struct[ipind];
+		action->interm_struct[ipind].highlight = highlight;
+		action->interm_struct[ipind].max_vel = max_vel;
+		action->interm_struct[ipind].is_corner = is_corner;
+  //  //ROS_INFO("[SBPL] point[%d]set max_vel = %lf", ipind, max_vel);
+	}
+}	
+
+void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Action>& origin_actions_path, 
+                                                         std::vector<XYThetaPoint>* point_path,
+                                                         std::vector<IntermPointStruct>* path_info) {
+  std::vector<Action> actions_path = origin_actions_path;
+//  //ROS_INFO("[SBPL] 1: actions_path size = %d, path_point size = %d, path_info size = %d", (int)actions_path.size(),(int)point_path->size(), (int)path_info->size());
+  // check corner and set max_vel and highlight of action 
+  for (unsigned int pind = 0; pind < actions_path.size(); ++pind) {
+    unsigned int corner_size = 0;
+		double highlight= MIN_HIGHLIGHT_DIS;
+		double max_vel = sbpl_min_vel_;
+		bool is_corner = false;
+    if (CHECK_INPLACE_ROTATE(actions_path[pind])) {
+      corner_size = 1;
+      for (unsigned int i = pind + 1; i < actions_path.size(); ++i) {
+        if (CHECK_INPLACE_ROTATE(actions_path[i])) {
+          ++corner_size;
+        } else {
+          break;
+        }
+      }
+//      //ROS_INFO("[SBPL] corner size = %d", corner_size);
+      if(pind == 0 && corner_size >= 1) {
+        max_vel = sbpl_min_vel_;	
+        is_corner = true;
+      } else {	
+        if(corner_size == 1) {  // 22p5 digree
+          max_vel = sbpl_max_vel_;	
+          is_corner = false;
+        } else if(corner_size <= 3) { //45 and 67.5 digree
+          max_vel = sbpl_low_vel_;	
+          is_corner = false;
+        } else if(corner_size > 3) { // > 67.5 digree
+          max_vel = sbpl_min_vel_;	
+          is_corner = true;
+        }
+      }
+      for(unsigned int i = pind; i < pind + corner_size; ++i) {
+        actions_path.at(i).max_vel = max_vel;
+        actions_path.at(i).highlight = highlight;
+        setActionIntermStruct(&actions_path.at(i), highlight, max_vel, is_corner);
+      }
+      pind += corner_size - 1;
+    } else if(CHECK_SHORT_FORWARD(actions_path.at(pind))) {
+      max_vel = sbpl_low_vel_;
+      actions_path.at(pind).max_vel = sbpl_low_vel_;
+      setActionIntermStruct(&actions_path.at(pind), highlight, max_vel, is_corner);
+    } else {
+      max_vel = sbpl_max_vel_;
+      actions_path.at(pind).max_vel = sbpl_max_vel_;
+      setActionIntermStruct(&actions_path.at(pind), highlight, max_vel, is_corner);
     }
   }
+ 
+	// push action:interm_struct to path_info(including highlight and max_vel) 
+  for (unsigned int pind = 0; pind < actions_path.size(); ++pind) {
+    for (int ipind = 0; ipind < actions_path.at(pind).interm_struct.size() - 1; ++ipind) {
+      path_info->push_back(actions_path.at(pind).interm_struct[ipind]);
+		}
+	}
+	
+	// calculate hightlight based on max_vel of each point in path_info
+	double sum_highlight;
+  for (unsigned int i = 0; i < path_info->size(); ++i) {
+		if (path_info->at(i).max_vel != sbpl_min_vel_) {
+			sum_highlight = 0.0;
+			for (unsigned int j = i; j < path_info->size(); ++j) {
+				sum_highlight += path_info->at(j).distance;
+				if (sum_highlight > MAX_HIGHLIGHT_DIS) {
+					sum_highlight = MAX_HIGHLIGHT_DIS;
+					break;
+				}
+				if (path_info->at(j).max_vel == sbpl_min_vel_ || path_info->at(j).max_vel == sbpl_low_vel_) { //corner, cut highlight here
+					break;
+				}
+        // TODO(lizhen) check break theta
+        if (fabs(angles::shortest_angular_distance(point_path->at(i).theta, point_path->at(j).theta)) > M_PI / 2.0) { //path_info->at(j).max_vel == sbpl_max_vel && 
+          break;
+        }
+			}
+			if (sum_highlight > MAX_HIGHLIGHT_DIS) {
+				sum_highlight = MAX_HIGHLIGHT_DIS;
+			} else if(sum_highlight < LOW_HIGHLIGHT_DIS) {
+				sum_highlight = LOW_HIGHLIGHT_DIS;
+			}
+			path_info->at(i).highlight = sum_highlight;
+		}
+	}	
 }
 
 void SearchBasedGlobalPlanner::ReInitializeSearchEnvironment() {
@@ -411,10 +562,39 @@ void SearchBasedGlobalPlanner::ReInitializeSearchEnvironment() {
 
   environment_iteration_++;
 
-  goal_entry_->rhs = 0;
-  goal_entry_->visited_iteration = environment_iteration_;
-  COMPUTEKEY(goal_entry_);
-  open_.push(goal_entry_);
+  goal_entry_list_.clear();
+
+  // put goal_entry_ to open_, entries around goal_entry_ too
+  if (broader_start_and_goal_) {
+    std::vector<int> delta_x{-3, -2, -1, 0, 1, 2, 3};
+    std::vector<int> delta_y{-3, -2, -1, 0, 1, 2, 3};
+    std::vector<int> delta_theta{0}; // -1, 0, 1
+    int goal_x = goal_entry_->x;
+    int goal_y = goal_entry_->y;
+    uint8_t goal_theta = goal_entry_->theta;
+    for (const auto& i : delta_x) {
+      for (const auto& j : delta_y) {
+        for (const auto& k : delta_theta) {
+          // if (i != 0 && j != 0) continue;
+
+          EnvironmentEntry3D* entry = env_->GetEnvEntry(goal_x + i, goal_y + j, goal_theta + k);
+          if (!entry) continue;
+          goal_entry_list_.push_back(entry);
+
+          entry->rhs = 0;
+          entry->visited_iteration = environment_iteration_;
+          if (i != 0 || j != 0) entry->best_next_entry = goal_entry_;
+          COMPUTEKEY(entry);
+          open_.push(entry);
+        }
+      }
+    }
+  } else {
+    goal_entry_->rhs = 0;
+    goal_entry_->visited_iteration = environment_iteration_;
+    COMPUTEKEY(goal_entry_);
+    open_.push(goal_entry_);
+  }
 
   need_to_reinitialize_environment_ = false;
 }
@@ -428,7 +608,7 @@ bool SearchBasedGlobalPlanner::search(std::vector<XYThetaPoint>* point_path, std
 
   double before_heuristic = GetTimeInSeconds();
   env_->EnsureHeuristicsUpdated();
-  ROS_INFO("[SEARCH BASED GLOBAL PLANNER] EnsureHeuristicsUpdated cost %lf seconds", GetTimeInSeconds() - before_heuristic);
+  //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] EnsureHeuristicsUpdated cost %lf seconds", GetTimeInSeconds() - before_heuristic);
 
   while (epsilon_satisfied_ > 1.0 && GetTimeInSeconds() - start_time_ < allocated_time_) {
     if (fabs(epsilon_satisfied_ - eps_) < 0.000001) {
@@ -457,19 +637,20 @@ bool SearchBasedGlobalPlanner::search(std::vector<XYThetaPoint>* point_path, std
     if (ComputeOrImprovePath()) {
       epsilon_satisfied_ = eps_;
     }
-    ROS_INFO("[SEARCH BASED GLOBAL PLANNER] ComputeOrImprovePath cost %lf seconds", GetTimeInSeconds() - start_time);
+    //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] ComputeOrImprovePath cost %lf seconds", GetTimeInSeconds() - start_time);
 
-    if (start_entry_->rhs == INFINITECOST) break;
+    if (first_met_entry_->rhs == INFINITECOST) break;
   }
 
-  if (start_entry_->rhs == INFINITECOST || epsilon_satisfied_ == INFINITECOST) {
-    ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] cannot find a solution");
+  if (first_met_entry_->rhs == INFINITECOST || epsilon_satisfied_ == INFINITECOST) {
+    //ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] cannot find a solution");
     return false;
   } else {
     std::vector<EnvironmentEntry3D*> entry_path;
     GetEntryPath(&entry_path);
+    //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] GetEntryPath.size = %d", (int)entry_path.size());
     GetPointPathFromEntryPath(entry_path, point_path, path_info);
-    ROS_INFO("[SEARCH BASED GLOBAL PLANNER] solution found");
+    //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] solution found");
     return true;
   }
 }
@@ -478,7 +659,13 @@ bool SearchBasedGlobalPlanner::CostsChanged(const std::vector<XYCell>& changed_c
   if (need_to_reinitialize_environment_ || iteration_ == 0)
     return true;
 
-  std::set<EnvironmentEntry3D*> affected_entries;
+  EnvironmentEntry3D* entry = NULL;
+  std::vector<EnvironmentEntry3D*> affected_entries;
+  char* exist = (char*)calloc(map_size_ * map_size_ * size_dir_, sizeof(char));  // NOLINT
+  if (!exist) {
+    //ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] allocate memory for exist in CostsChanged failed");
+    exit(0);
+  }
 
   double start_time = GetTimeInSeconds();
   for (const auto& cell : changed_cells) {
@@ -489,17 +676,21 @@ bool SearchBasedGlobalPlanner::CostsChanged(const std::vector<XYCell>& changed_c
       affected_cell.x = affected_cell.x + cell.x;
       affected_cell.y = affected_cell.y + cell.y;
 
-      if (affected_cell.x < 0 || affected_cell.x >= map_size_ ||
-          affected_cell.y < 0 || affected_cell.y >= map_size_ ||
-          affected_cell.theta < 0 || affected_cell.theta >= size_dir_)
-        continue;
+      entry = env_->GetEnvEntry(affected_cell.x, affected_cell.y, affected_cell.theta);
+      if (!entry) continue;
 
-      // insert only if it was actually generated
-      affected_entries.insert(env_->GetEnvEntry(affected_cell.x, affected_cell.y, affected_cell.theta));
+      int index = affected_cell.theta + affected_cell.x * size_dir_ + affected_cell.y * map_size_ * size_dir_;
+      if (exist[index] == 1) continue;
+      exist[index] = 1;
+
+      // insert to affected_entries
+      affected_entries.push_back(entry);
     }
   }
-  ROS_INFO("[SEARCH BASED GLOBAL PLANNER] CostsChanged cost %lf seconds, changed_cells.size() %d, affected_entries.size() %d",
-           GetTimeInSeconds() - start_time, (int)changed_cells.size(), (int)affected_entries.size());
+  // don't forget to free exist
+  free(exist);
+  //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] CostsChanged cost %lf seconds, changed_cells.size() %d, affected_entries.size() %d",
+  //         GetTimeInSeconds() - start_time, (int)changed_cells.size(), (int)affected_entries.size());
 
   if (affected_entries.size() <= 0) return true;
 
@@ -523,11 +714,11 @@ bool SearchBasedGlobalPlanner::CostsChanged(const std::vector<XYCell>& changed_c
 }
 
 unsigned char SearchBasedGlobalPlanner::TransformCostmapCost(unsigned char cost) {
-  if (cost == costmap_2d::LETHAL_OBSTACLE) {
+  if (cost == costmap_2d::LETHAL_OBSTACLE || cost == costmap_2d::NO_INFORMATION) {
     return lethal_cost_;
   } else if (cost == costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
     return inscribed_inflated_cost_;
-  } else if (cost == 0 || cost == costmap_2d::NO_INFORMATION) {
+  } else if (cost == 0) {
     return 0;
   } else {
     return static_cast<unsigned char>(cost / cost_multiplier_ + 0.5);
@@ -537,29 +728,33 @@ unsigned char SearchBasedGlobalPlanner::TransformCostmapCost(unsigned char cost)
 bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
                                         geometry_msgs::PoseStamped goal,
                                         std::vector<geometry_msgs::PoseStamped>& plan,
-                                        fixpattern_path::Path& path) {
+                                        fixpattern_path::Path& path, bool broader_start_and_goal, bool extend_path) {
 #ifdef DEBUG
   ProfilerStart("sbpl.prof");
 #endif
   if (!initialized_) {
-    ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] SearchBasedGlobalPlanner is not initialized");
+    //ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] SearchBasedGlobalPlanner is not initialized");
     return false;
   }
 
   plan.clear();
 
+  broader_start_and_goal_ = broader_start_and_goal;
+  //ROS_INFO_COND(broader_start_and_goal_, "[SEARCH BASED GLOBAL PLANNER] broader_start_and_goal: true");
+  //ROS_INFO_COND(!broader_start_and_goal_, "[SEARCH BASED GLOBAL PLANNER] broader_start_and_goal: false");
+
   double theta_start = 2 * atan2(start.pose.orientation.z, start.pose.orientation.w);
   double theta_goal = 2 * atan2(goal.pose.orientation.z, goal.pose.orientation.w);
 
-  // get robot pos in cells
-  tf::Stamped<tf::Pose> global_pose;
-  costmap_ros_->getRobotPose(global_pose);
-  geometry_msgs::PoseStamped tmp_pos;
-  tf::poseStampedTFToMsg(global_pose, tmp_pos);
+  // // get robot pos in cells
+  // tf::Stamped<tf::Pose> global_pose;
+  // costmap_ros_->getRobotPose(global_pose);
+  // geometry_msgs::PoseStamped tmp_pos;
+  // tf::poseStampedTFToMsg(global_pose, tmp_pos);
   unsigned int cell_x, cell_y;
-  if (!costmap_ros_->getCostmap()->worldToMap(tmp_pos.pose.position.x,
-                            tmp_pos.pose.position.y, cell_x, cell_y)) {
-    ROS_ERROR("[SBPL LATTICE PLANNER] world to map failed");
+  if (!costmap_ros_->getCostmap()->worldToMap(start.pose.position.x,
+                            start.pose.position.y, cell_x, cell_y)) {
+    //ROS_ERROR("[SBPL LATTICE PLANNER]start_point: world to map failed");
     return false;
   }
 
@@ -604,10 +799,10 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
   }
 
   // we want to enforce reintialization temporarily
-  need_to_reinitialize_environment_ = true;
+  // need_to_reinitialize_environment_ = true;
 
-  ROS_INFO("[SEARCH BASED GLOBAL PLANNER] receive goal (%d %d %d), start (%d %d %d)",
-           goal_entry_->x, goal_entry_->y, goal_entry_->theta, start_entry_->x, start_entry_->y, start_entry_->theta);
+  //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] receive goal (%d %d %d), start (%d %d %d)",
+  //         goal_entry_->x, goal_entry_->y, goal_entry_->theta, start_entry_->x, start_entry_->y, start_entry_->theta);
 
   // update costs that are changed
   std::vector<XYCell> changed_cells;
@@ -629,13 +824,14 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
   double before_costs_changed = GetTimeInSeconds();
   if (!changed_cells.empty())
     CostsChanged(changed_cells);
-  ROS_INFO("[SEARCH BASED GLOBAL PLANNER] CostsChanged cost %lf seconds", GetTimeInSeconds() - before_costs_changed);
+  //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] CostsChanged cost %lf seconds", GetTimeInSeconds() - before_costs_changed);
 
   // compute plan
   std::vector<XYThetaPoint> point_path;
   std::vector<IntermPointStruct> path_info;
   search(&point_path, &path_info);
 
+  //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] point_path size = %d; path_info size = %d", (int)point_path.size(), (int)path_info.size());
   if (point_path.size() == 0)
     return false;
 
@@ -667,25 +863,44 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
   // assign to fixpattern_path::Path
   std::vector<fixpattern_path::PathPoint> tmp_path;
   for (unsigned int i = 0; i < plan.size() - 1; ++i) {
+    ////ROS_INFO("[SBPL] path_info[%d]", i);
     if (path_info[i].is_corner) {
       unsigned int corner_size = 1;
       for (unsigned int j = i + 1; j < plan.size() - 1; ++j) {
-        if (path_info[j].is_corner) corner_size++;
-        else break;
+        if (path_info[j].is_corner)
+          corner_size++;
+        else
+          break;
       }
       unsigned int corner_end_index = i + (corner_size - 1);
-      for (unsigned int j = i; j <= corner_end_index; ++j) {
+      if(i == 0 || corner_size >= 18) {  // >67.5
+        fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[i].pose);
+        point.highlight = path_info[i].highlight;
+        point.max_vel = path_info[i].max_vel;
+        point.radius = path_info[i].radius;
+        point.corner_struct.corner_point = true;
+        point.corner_struct.theta_out = path_info[corner_end_index].theta_out;
+        point.corner_struct.rotate_direction = path_info[corner_end_index].rotate_direction;
+        tmp_path.push_back(point);
+        //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] corner_point index: %d, real theta_out: %lf, dir: %d", i, path_info[corner_end_index].theta_out, path_info[corner_end_index].rotate_direction);
+/*    for (unsigned int j = i; j <= corner_end_index; ++j) {
         fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[j].pose);
+        point.highlight = path_info[i].highlight;
+        point.max_vel = path_info[i].max_vel;
         point.radius = path_info[j].radius;
         point.corner_struct.corner_point = true;
         point.corner_struct.theta_out = path_info[corner_end_index].theta_out;
         point.corner_struct.rotate_direction = path_info[corner_end_index].rotate_direction;
         tmp_path.push_back(point);
-        ROS_INFO("[SEARCH BASED GLOBAL PLANNER] corner_point index: %d, size: %d, real theta_out: %lf, dir: %d", j, (int)path_info.size(), path_info[j].theta_out, path_info[j].rotate_direction);
+        //ROS_INFO("[SEARCH BASED GLOBAL PLANNER] corner_point index: %d, size: %d, real theta_out: %lf, dir: %d", j, (int)path_info.size(), path_info[j].theta_out, path_info[j].rotate_direction);
+      }
+*/
       }
       i = corner_end_index;
     } else {
       fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan[i].pose);
+      point.highlight = path_info[i].highlight;
+      point.max_vel = path_info[i].max_vel;
       point.radius = path_info[i].radius;
       point.corner_struct.corner_point = false;
       point.corner_struct.theta_out = 0.0;
@@ -693,12 +908,23 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
       tmp_path.push_back(point);
     }
   }
+
+  // if (!broader_start_and_goal_) {
+    fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan.back().pose);
+    point.highlight = MIN_HIGHLIGHT_DIS;
+    point.max_vel = 0.0;
+    point.radius = 0.5;
+    point.corner_struct.corner_point = false;
+    point.corner_struct.theta_out = 0.0;
+    tmp_path.push_back(point);
+  // }
+	
   int corner_size = 0;
   for (int i = 0; i < tmp_path.size(); ++i) {
     if (tmp_path[i].corner_struct.corner_point) corner_size++;
   }
-  ROS_INFO("[SBPL] total_size: %d, corner_size: %d", (int)tmp_path.size(), corner_size);
-
+  //ROS_INFO("[SBPL] total_size: %d, corner_size: %d", (int)tmp_path.size(), corner_size);
+/*
   // mark points before and after corner as corner_point
   for (unsigned int i = 0; i < tmp_path.size(); ++i) {
     if (tmp_path[i].corner_struct.corner_point) {
@@ -713,7 +939,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
       }
       dis_accu = 0.0;
       // we don't want to use MIN_AFTER_CORNER_LENGTH directly, as sbpl plan are always curve after corner, so we want it to be short
-      while (end < tmp_path.size() - 1 && dis_accu < fixpattern_path::Path::MIN_AFTER_CORNER_LENGTH * 0.25) {
+      while (false && end < tmp_path.size() - 1 && dis_accu < fixpattern_path::Path::MIN_AFTER_CORNER_LENGTH * 0.25) {
         dis_accu += tmp_path[end].DistanceToPoint(tmp_path[end + 1]);
         end++;
       }
@@ -725,20 +951,18 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
       i = end;
     }
   }
+*/
   // TODO(chenkan): what if two corner are too close?
 
-  fixpattern_path::PathPoint point = fixpattern_path::GeometryPoseToPathPoint(plan.back().pose);
-  point.radius = 0.5;
-  point.corner_struct.corner_point = false;
-  point.corner_struct.theta_out = 0.0;
-  tmp_path.push_back(point);
-  path.set_sbpl_path(tmp_path);
-
-  corner_size = 0;
-  for (int i = 0; i < tmp_path.size(); ++i) {
-    if (tmp_path[i].corner_struct.corner_point) corner_size++;
+  path.set_sbpl_path(start ,tmp_path, false);
+/*  if (extend_path) {
+    fixpattern_path::Path temp_sbpl_path;
+    temp_sbpl_path.set_sbpl_path(tmp_path);
+    path.ExtendPath(temp_sbpl_path.path());
+  } else {
+    path.set_sbpl_path(tmp_path);
   }
-  ROS_INFO("[SBPL] total_size: %d, corner_size: %d", (int)tmp_path.size(), corner_size);
+*/
 
 #ifdef DEBUG
   ProfilerStop();

@@ -227,12 +227,12 @@ EnvironmentEntry3D* Environment::SetGoal(double x_m, double y_m, double theta_ra
   int theta = ContTheta2Disc(theta_rad, num_of_angles_);
 
   if (!IsWithinMapCell(x, y)) {
-    ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] trying to set a goal cell %d %d that is outside of map", x, y);
+    //ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] trying to set a goal cell %d %d that is outside of map", x, y);
     return NULL;
   }
 
   if (!IsValidConfiguration(x, y, theta)) {
-    ROS_WARN("[SEARCH BASED GLOBAL PLANNER] goal configuration %d %d %d is invalid", x, y, theta);
+    //ROS_WARN("[SEARCH BASED GLOBAL PLANNER] goal configuration %d %d %d is invalid", x, y, theta);
   }
 
   // we're using backward search, once start changes, heuristics must be updated
@@ -253,12 +253,12 @@ EnvironmentEntry3D* Environment::SetStart(double x_m, double y_m, double theta_r
   int theta = ContTheta2Disc(theta_rad, num_of_angles_);
 
   if (!IsWithinMapCell(x, y)) {
-    ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] trying to set a start cell %d %d that is outside of map", x, y);
+    //ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] trying to set a start cell %d %d that is outside of map", x, y);
     return NULL;
   }
 
   if (!IsValidConfiguration(x, y, theta)) {
-    ROS_WARN("[SEARCH BASED GLOBAL PLANNER] start configuration %d %d %d is invalid", x, y, theta);
+    //ROS_WARN("[SEARCH BASED GLOBAL PLANNER] start configuration %d %d %d is invalid", x, y, theta);
   }
 
   // we're using backward search, once start changes, heuristics must be updated
@@ -478,7 +478,10 @@ void Environment::GetSuccs(EnvironmentEntry3D* entry, std::vector<EnvironmentEnt
   costs->reserve(num_of_prims_per_angle_);
 
   // goal state should be absorbing
-  if (entry->x == goal_cell_.x && entry->y == goal_cell_.y && entry->theta == goal_cell_.theta) return;
+  if (entry->x == goal_cell_.x && entry->y == goal_cell_.y && entry->theta == goal_cell_.theta) { 
+    //ROS_INFO("[SBPL_environment] current entry in goal cell");
+    return;
+  }
 
   // iterate through actions
   Action* action = NULL;

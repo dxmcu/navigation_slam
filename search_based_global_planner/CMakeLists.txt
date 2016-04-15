@@ -8,9 +8,9 @@ find_package(catkin REQUIRED
   COMPONENTS
     cmake_modules
     roscpp
-    pluginlib
     nav_core
     tf
+    #gperftools_21
     angles
     gslib
     fixpattern_path
@@ -22,6 +22,7 @@ catkin_package(
   INCLUDE_DIRS include
   CATKIN_DEPENDS
     roscpp
+    #gperftools_21
     angles
     gslib
     fixpattern_path
@@ -41,6 +42,7 @@ add_library(${PROJECT_NAME} STATIC
     src/motion_primitive_manager.cc
 )
 target_link_libraries( ${PROJECT_NAME}
+#  tcmalloc_minimal
   ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
   ${Eigen_LIBRARIES}

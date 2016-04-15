@@ -58,6 +58,9 @@ typedef struct _EnvironmentEntry3D {
     bool operator<(const _Key& k) const {
       return k1 < k.k1 || (k1 == k.k1 && k2 < k.k2);
     }
+    bool operator>=(const _Key& k) const {
+      return k1 >= k.k1 && (k1 != k.k1 || k2 >= k.k2);
+    }
   } key;
 
   _Key ComputeKey(double eps_satisfied, int heuristic) {

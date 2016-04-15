@@ -21,7 +21,6 @@
 #include <move_base_msgs/MoveBaseActionGoal.h>
 #include <costmap_2d/costmap_2d_ros.h>
 #include <costmap_2d/costmap_2d.h>
-#include <pluginlib/class_loader.h>
 #include <autoscrubber_services/Start.h>
 #include <autoscrubber_services/Pause.h>
 #include <autoscrubber_services/Resume.h>
@@ -29,11 +28,11 @@
 #include <autoscrubber_services/IsGoalReached.h>
 #include <autoscrubber_services/LaunchScrubber.h>
 #include <autoscrubber_services/StopScrubber.h>
+#include <autoscrubber_services/GetCurrentPose.h>
 #include <fixpattern_path/path.h>
 #include <global_planner/planner_core.h>
 // #include <sbpl_lattice_planner/sbpl_lattice_planner.h>
 #include <search_based_global_planner/search_based_global_planner.h>
-#include <base_local_planner/trajectory_planner_ros.h>
 #include <fixpattern_local_planner/trajectory_planner_ros.h>
 #include <vector>
 #include <string>
@@ -126,15 +125,20 @@ class AutoScrubber {
   void ControlThread();
   void NotifyChassisThread();
   void SwitchNavigationMode();
+  bool ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>* points);
+  bool ReadBackwardCenterFromParams(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>* points);
+  bool ReadFootprintCenterFromParams(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>* points);
 
  private:
   tf::TransformListener& tf_;
 
   boost::shared_ptr<fixpattern_local_planner::FixPatternTrajectoryPlannerROS> fixpattern_local_planner_;
-  costmap_2d::Costmap2DROS* planner_costmap_ros_, *controller_costmap_ros_;
+  costmap_2d::Costmap2DROS *controller_costmap_ros_;
 
-  std::vector<BaseController*> controllers_;
-  std::vector<BaseControlOption*> options_;
+//  std::vector<BaseController*> controllers_;
+//  std::vector<BaseControlOption*> options_;
+  BaseController* controllers_;
+  BaseControlOption* options_;
   ControlEnvironment environment_;
 
   boost::shared_ptr<nav_core::BaseGlobalPlanner> astar_global_planner_;
@@ -143,6 +147,7 @@ class AutoScrubber {
 
   tf::Stamped<tf::Pose> global_pose_;
   double sbpl_max_distance_;
+  double max_path_length_diff_;
   double planner_frequency_, controller_frequency_, inscribed_radius_, circumscribed_radius_;
   double planner_patience_, controller_patience_;
   double conservative_reset_dist_, clearing_radius_;
@@ -156,16 +161,31 @@ class AutoScrubber {
   double oscillation_timeout_, oscillation_distance_;
 
   bool enable_scrubber_;
-	int fixpattern_reached_goal_;
 
   // fixpattern option
   double stop_duration_;
+  double localization_duration_;
   double max_offroad_dis_;
+  double max_offroad_yaw_;
   double front_safe_check_dis_;
+  double backward_check_dis_;
   double goal_safe_dis_a_;
   double goal_safe_dis_b_;
-  double goal_safe_check_dis_;	
+  double goal_safe_check_dis_;
   double goal_safe_check_duration_;
+  double switch_corner_dis_diff_;
+  double switch_corner_yaw_diff_;
+  double switch_normal_dis_diff_;
+  double switch_normal_yaw_diff_;
+  double stop_to_zero_acc_;
+
+  double fixpattern_footprint_padding_;
+  double sbpl_footprint_padding_;
+
+  // sbpl param
+  std::vector<geometry_msgs::Point> circle_center_points_;
+  std::vector<geometry_msgs::Point> backward_center_points_;
+  std::vector<geometry_msgs::Point> footprint_center_points_;
 
   // fixpattern path, share between two controllers
   fixpattern_path::Path* fixpattern_path_;
@@ -179,10 +199,6 @@ class AutoScrubber {
   ros::Time last_valid_plan_, last_valid_control_, last_oscillation_reset_;
   geometry_msgs::PoseStamped oscillation_pose_;
   geometry_msgs::PoseStamped global_planner_goal_;
- 
- pluginlib::ClassLoader<nav_core::BaseGlobalPlanner> bgp_loader_;
-  pluginlib::ClassLoader<nav_core::BaseLocalPlanner> blp_loader_;
-  pluginlib::ClassLoader<nav_core::RecoveryBehavior> recovery_loader_;
 
   // set up plan triple buffer
   std::vector<geometry_msgs::PoseStamped>* planner_plan_;

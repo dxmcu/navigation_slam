@@ -44,8 +44,12 @@ AStarExpansion::AStarExpansion(PotentialCalculator* p_calc, int xs, int ys) :
         Expander(p_calc, xs, ys) {
 }
 
-bool AStarExpansion::calculatePotentials(unsigned char* costs, double start_x, double start_y, double end_x, double end_y,
-                                        int cycles, float* potential) {
+AStarExpansion::AStarExpansion(PotentialCalculator* p_calc, int xs, int ys, unsigned char path_cost, unsigned char occ_dis_cost) :
+        Expander(p_calc, xs, ys), path_cost_(path_cost), occ_dis_cost_(occ_dis_cost) {
+}
+
+bool AStarExpansion::calculatePotentials(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* costs, unsigned char* path_costs,
+                                         double start_x, double start_y, double end_x, double end_y, int cycles, float* potential) {
     queue_.clear();
     int start_i = toIndex(start_x, start_y);
     queue_.push_back(Index(start_i, 0));
@@ -65,17 +69,21 @@ bool AStarExpansion::calculatePotentials(unsigned char* costs, double start_x, d
         if (i == goal_i)
             return true;
 
-        add(costs, potential, potential[i], i + 1, end_x, end_y);
-        add(costs, potential, potential[i], i - 1, end_x, end_y);
-        add(costs, potential, potential[i], i + nx_, end_x, end_y);
-        add(costs, potential, potential[i], i - nx_, end_x, end_y);
+        add(costmap_ros, costs, path_costs, potential, potential[i], i + 1, end_x, end_y);
+        add(costmap_ros, costs, path_costs, potential, potential[i], i - 1, end_x, end_y);
+        add(costmap_ros, costs, path_costs, potential, potential[i], i + nx_, end_x, end_y);
+        add(costmap_ros, costs, path_costs, potential, potential[i], i - nx_, end_x, end_y);
     }
 
     return false;
 }
 
-void AStarExpansion::add(unsigned char* costs, float* potential, float prev_potential, int next_i, int end_x,
+void AStarExpansion::add(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* costs, unsigned char* path_costs, float* potential, float prev_potential, int next_i, int end_x,
                          int end_y) {
+    if (next_i < 0 || next_i >= nx_ * ny_) {
+        return;
+    }
+
     if (potential[next_i] < POT_HIGH)
         return;
 
@@ -85,8 +93,15 @@ void AStarExpansion::add(unsigned char* costs, float* potential, float prev_pote
     potential[next_i] = p_calc_->calculatePotential(potential, costs[next_i] + neutral_cost_, next_i, prev_potential);
     int x = next_i % nx_, y = next_i / nx_;
     float distance = abs(end_x - x) + abs(end_y - y);
-
-    queue_.push_back(Index(next_i, potential[next_i] + distance * neutral_cost_));
+    float obstacle_distance = costmap_ros->getObstacleDistance(x, y);
+    int occ_cost = (int)(10.0 / obstacle_distance) * occ_dis_cost_;
+    int next_cost;
+    if (path_costs != NULL) {
+      next_cost = potential[next_i] + distance * neutral_cost_ + occ_cost + path_costs[next_i] * path_cost_;
+    } else {
+      next_cost = potential[next_i] + distance * neutral_cost_ + occ_cost;
+    }
+    queue_.push_back(Index(next_i, next_cost));
     std::push_heap(queue_.begin(), queue_.end(), greater1());
 }
 

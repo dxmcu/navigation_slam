@@ -69,6 +69,12 @@ namespace nav_core {
        */
       virtual ~BaseGlobalPlanner(){}
 
+      /**
+       * @brief set Costmap_ as static or not, just used in astar planner
+       * @auther added by lizhen 
+       */
+      virtual void setStaticCosmap(bool is_static){}
+
     protected:
       BaseGlobalPlanner(){}
   };

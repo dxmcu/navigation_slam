@@ -58,7 +58,7 @@ class SearchBasedGlobalPlanner {
   bool makePlan(geometry_msgs::PoseStamped start,
                 geometry_msgs::PoseStamped goal,
                 std::vector<geometry_msgs::PoseStamped>& plan,
-                fixpattern_path::Path& path);  // NOLINT
+                fixpattern_path::Path& path, bool broader_start_and_goal, bool extend_path);  // NOLINT
 
  private:
   void RecomputeRHSVal(EnvironmentEntry3D* entry);
@@ -71,6 +71,8 @@ class SearchBasedGlobalPlanner {
   void PublishPlan(const std::vector<geometry_msgs::PoseStamped>& plan);
   void GetPointPathFromEntryPath(const std::vector<EnvironmentEntry3D*>& entry_path,
                                  std::vector<XYThetaPoint>* point_path, std::vector<IntermPointStruct>* path_info);
+  void ComputeHighlightAndVelocity(const std::vector<Action>& actions_path, 
+                                 std::vector<XYThetaPoint>* point_path, std::vector<IntermPointStruct>* path_info);
   void ReInitializeSearchEnvironment();
   unsigned char TransformCostmapCost(unsigned char cost);
   bool CostsChanged(const std::vector<XYCell>& changed_cells);
@@ -82,6 +84,7 @@ class SearchBasedGlobalPlanner {
   Environment* env_;
   EnvironmentEntry3D* start_entry_;
   EnvironmentEntry3D* goal_entry_;
+  EnvironmentEntry3D* first_met_entry_;
   double resolution_;
   bool need_to_reinitialize_environment_;
   int force_scratch_limit_;
@@ -97,9 +100,11 @@ class SearchBasedGlobalPlanner {
   unsigned int environment_iteration_, iteration_;
   double allocated_time_, start_time_;
   double initial_epsilon_, eps_, epsilon_satisfied_;
-
+  double sbpl_max_vel_, sbpl_low_vel_, sbpl_min_vel_;
   ros::Publisher plan_pub_;
   bool initialized_;
+  bool broader_start_and_goal_;
+  std::vector<EnvironmentEntry3D*> goal_entry_list_;
 };
 
 };  // namespace search_based_global_planner

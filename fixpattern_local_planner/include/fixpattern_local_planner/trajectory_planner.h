@@ -18,12 +18,9 @@
 //for obstacle data access
 #include <costmap_2d/costmap_2d.h>
 #include <costmap_2d/cost_values.h>
-#include <fixpattern_local_planner/footprint_helper.h>
 
 #include <fixpattern_local_planner/world_model.h>
 #include <fixpattern_local_planner/trajectory.h>
-#include <fixpattern_local_planner/Position2DInt.h>
-#include <fixpattern_local_planner/BaseLocalPlannerConfig.h>
 
 //we'll take in a path as a vector of poses
 #include <geometry_msgs/PoseStamped.h>
@@ -31,10 +28,6 @@
 
 //for some datatypes
 #include <tf/transform_datatypes.h>
-
-//for creating a local cost grid
-#include <fixpattern_local_planner/map_cell.h>
-#include <fixpattern_local_planner/map_grid.h>
 
 #include <fixpattern_path/path.h>
 #include <fstream>
@@ -58,66 +51,40 @@ class TrajectoryPlanner{
    * @param acc_lim_y The acceleration limit of the robot in the y direction
    * @param acc_lim_theta The acceleration limit of the robot in the theta direction
    * @param num_calc_footprint_cost The number of points that should check footprintCost
-   * @param trajectory_range_check_obstacle_avoidance The range of points that should check whether to avoid obstacle
    * @param sim_time The number of seconds to "roll-out" each trajectory
    * @param sim_granularity The distance between simulation points should be small enough that the robot doesn't hit things
    * @param front_safe_sim_time The number of seconds front_safe_trajectory uses for simulation
    * @param front_safe_sim_granularity The distance between front safe simulation points
-   * @param vx_samples The number of trajectories to sample in the x dimension
    * @param vtheta_samples The number of trajectories to sample in the theta dimension
    * @param pdist_scale A scaling factor for how close the robot should stay to the path
    * @param gdist_scale A scaling factor for how aggresively the robot should pursue a local goal
    * @param occdist_scale A scaling factor for how much the robot should prefer to stay away from obstacles
-   * @param heading_lookahead How far the robot should look ahead of itself when differentiating between different rotational velocities
-   * @param oscillation_reset_dist The distance the robot must travel before it can explore rotational velocities that were unsuccessful in the past
-   * @param escape_reset_dist The distance the robot must travel before it can exit escape mode
-   * @param escape_reset_theta The distance the robot must rotate before it can exit escape mode
-   * @param holonomic_robot Set this to true if the robot being controlled can take y velocities and false otherwise
    * @param max_vel_x The maximum x velocity the controller will explore
    * @param min_vel_x The minimum x velocity the controller will explore
-   * @param max_vel_th The maximum rotational velocity the controller will explore
-   * @param min_vel_th The minimum rotational velocity the controller will explore
+   * @param max_vel_theta The maximum rotational velocity the controller will explore
+   * @param min_vel_theta The minimum rotational velocity the controller will explore
    * @param min_in_place_vel_th The absolute value of the minimum in-place rotational velocity the controller will explore
    * @param backup_vel The velocity to use while backing up
-   * @param dwa Set this to true to use the Dynamic Window Approach, false to use acceleration limits
-   * @param heading_scoring Set this to true to score trajectories based on the robot's heading after 1 timestep
-   * @param heading_scoring_timestep How far to look ahead in time when we score heading based trajectories
-   * @param meter_scoring adapt parameters to costmap resolution
-   * @param simple_attractor Set this to true to allow simple attraction to a goal point instead of intelligent cost propagation
-   * @param y_vels A vector of the y velocities the controller will explore
-   * @param angular_sim_granularity The distance between simulation points for angular velocity should be small enough that the robot doesn't hit things
-   */
+  */
   TrajectoryPlanner(WorldModel& world_model,
                     const costmap_2d::Costmap2D& costmap,
                     std::vector<geometry_msgs::Point> footprint_spec,
                     double acc_lim_x = 1.0, double acc_lim_y = 1.0, double acc_lim_theta = 1.0,
-                    int num_calc_footprint_cost = 5, int trajectory_range_check_obstacle_avoidance = 3,
+                    int num_calc_footprint_cost = 5,
                     double sim_time = 1.0, double sim_granularity = 0.025,
                     double front_safe_sim_time = 1.0, double front_safe_sim_granularity = 0.1,
-                    int vx_samples = 20, int vtheta_samples = 20,
+                    int vtheta_samples = 20,
                     double pdist_scale = 0.6, double gdist_scale = 0.8, double occdist_scale = 0.2,
-                    double heading_lookahead = 0.325, double oscillation_reset_dist = 0.05,
-                    double escape_reset_dist = 0.10, double escape_reset_theta = M_PI_2,
-                    bool holonomic_robot = true,
                     double max_vel_x = 0.5, double min_vel_x = 0.1,
                     double max_vel_th = 1.0, double min_vel_th = -1.0, double min_in_place_vel_th = 0.4,
-                    double backup_vel = -0.1,
-                    bool dwa = false, bool heading_scoring = false, double heading_scoring_timestep = 0.1,
-                    bool meter_scoring = true,
-                    bool simple_attractor = false,
-                    std::vector<double> y_vels = std::vector<double>(0),
-                    double stop_time_buffer = 0.2,
-                    double sim_period = 0.1, double angular_sim_granularity = 0.025);
+                    double backup_vel = -0.1);
 
   /**
    * @brief  Destructs a trajectory controller
    */
   ~TrajectoryPlanner();
 
-  /**
-   * @brief Reconfigures the trajectory planner
-   */
-  void reconfigure(BaseLocalPlannerConfig &cfg);
+  void SetParameters(double max_vel_x, double max_vel_theta, double sim_time);
 
   /**
    * @brief  Given the current position, orientation, and velocity of the robot, return a trajectory to follow
@@ -129,16 +96,16 @@ class TrajectoryPlanner{
    * @param drive_velocities Will be set to velocities to send to the robot base
    * @return The selected path or trajectory
    * @param all_explored all trajectories that sampled
-   * @param log_id id for log
    */
   Trajectory findBestPath(tf::Stamped<tf::Pose> global_pose, double traj_vel, double highlight, double current_point_dis,
-                          tf::Stamped<tf::Pose> global_vel, tf::Stamped<tf::Pose>& drive_velocities, std::vector<Trajectory>* all_explored, int log_id);
+                          tf::Stamped<tf::Pose> global_vel, tf::Stamped<tf::Pose>& drive_velocities, std::vector<Trajectory>* all_explored);
 
   /**
    * @brief  Update the plan that the controller is following
+   * @param goal Goal of plan
    * @param new_plan A new plan for the controller to follow
    */
-  void updatePlan(const std::vector<geometry_msgs::PoseStamped>& new_plan);
+  void UpdateGoalAndPlan(const geometry_msgs::PoseStamped& goal, const std::vector<geometry_msgs::PoseStamped>& new_plan);
 
   /**
    * @brief  Generate and score a single trajectory
@@ -179,9 +146,14 @@ class TrajectoryPlanner{
   geometry_msgs::Polygon getFootprintPolygon() const { return costmap_2d::toPolygon(footprint_spec_); }
   std::vector<geometry_msgs::Point> getFootprint() const { return footprint_spec_; }
 
-  bool need_avoid_obstacle() {
-    return need_avoid_obstacle_;
+  bool need_backward() {
+    return need_backward_;
   }
+
+  // for convenience of trajectory_planner_ros
+//  void set_num_calc_footprint_cost(int num_calc_footprint_cost) { num_calc_footprint_cost_ = num_calc_footprint_cost; }
+//  void set_max_vel_theta(double max_vel_theta) { max_vel_theta_ = max_vel_theta; }
+//  void set_max_vel_x(double max_vel_x) { max_vel_x_ = max_vel_x; }
 
  private:
   /**
@@ -199,12 +171,11 @@ class TrajectoryPlanner{
    * @param acc_y The y acceleration limit of the robot
    * @param acc_theta The theta acceleration limit of the robot
    * @param all_explored all trajectories that sampled
-   * @param log_id id for log
    * @return
    */
   Trajectory createTrajectories(double x, double y, double theta, double traj_vel, double highlight, double current_point_dis,
                                 double vx, double vy, double vtheta,
-                                double acc_x, double acc_y, double acc_theta, std::vector<Trajectory>* all_explored, int log_id);
+                                double acc_x, double acc_y, double acc_theta, std::vector<Trajectory>* all_explored);
 
   /**
    * @brief  Generate and score a single trajectory
@@ -228,6 +199,11 @@ class TrajectoryPlanner{
                           double vtheta, double vx_samp, double vy_samp, double vtheta_samp, double acc_x, double acc_y,
                           double acc_theta, double impossible_cost, Trajectory& traj, double sim_time);
 
+  void generateTrajectoryWithoutCheckingFootprint(
+    double x, double y, double theta, double vx, double vy, double vtheta,
+    double vx_samp, double vy_samp, double vtheta_samp, double acc_x, double acc_y, double acc_theta,
+    double impossible_cost, Trajectory& traj, double sim_time);
+
   void CalculatePathCost(double x, double y, double theta, double vx, double vy,
                          double vtheta, double vx_samp, double vy_samp, double vtheta_samp, double acc_x, double acc_y,
                          double acc_theta, double impossible_cost, Trajectory& traj, double sim_time);
@@ -238,13 +214,6 @@ class TrajectoryPlanner{
   void generateTrajectoryForRecovery(double x, double y, double theta, double vx, double vy,
                                      double vtheta, double vx_samp, double vy_samp, double vtheta_samp, double acc_x, double acc_y,
                                      double acc_theta, double impossible_cost, Trajectory& traj, double sim_time, int within_obs_thresh);
-
-  /**
-   * @brief  Generate and score a single trajectory without considering footprint cost
-   */
-  void generateTrajectoryWithoutCheckingFootprint(double x, double y, double theta, double vx, double vy,
-                                                  double vtheta, double vx_samp, double vy_samp, double vtheta_samp, double acc_x, double acc_y,
-                                                  double acc_theta, double impossible_cost, Trajectory& traj, double sim_time);
 
   /**
    * @brief  Checks the legality of the robot footprint at a position and orientation using the world model
@@ -267,16 +236,11 @@ class TrajectoryPlanner{
   bool checkFrontSafe(double x, double y, double theta,
                       double vx, double vy, double vtheta);
 
-  /**
-   * @brief check if need to avoid obstacle
-   *
-   * @param costs trajectories' costs
-   * @param costs_without_footprint trajectories' costs without calculating footprint
-   * @param check_range range of tarjectories that should be checked
-   */
-  void CheckNeedObstacleAvoidance(std::vector<double>* costs, std::vector<double>* costs_without_footprint, int check_range);
+  void SetNeedBackward(double x, double y, double theta, double vx, double vy,
+                       double vtheta, double vx_samp, double vy_samp, double vtheta_samp, double acc_x, double acc_y,
+                       double acc_theta, double impossible_cost, double sim_time);
 
-  fixpattern_local_planner::FootprintHelper footprint_helper_;
+//  fixpattern_local_planner::FootprintHelper footprint_helper_;
 
   const costmap_2d::Costmap2D& costmap_; ///< @brief Provides access to cost map information
   WorldModel& world_model_; ///< @brief The world model that the controller uses for collision detection
@@ -296,7 +260,6 @@ class TrajectoryPlanner{
 
   double sim_time_; ///< @brief The number of seconds each trajectory is "rolled-out"
   double sim_granularity_; ///< @brief The distance between simulation points
-  double angular_sim_granularity_; ///< @brief The distance between angular simulation points
 
   double front_safe_sim_time_; ///< @brief The number of seconds front safe trajectory simulates
   double front_safe_sim_granularity_; ///< @brief The distance between front safe simulation points
@@ -321,9 +284,6 @@ class TrajectoryPlanner{
 
   double backup_vel_; ///< @brief The velocity to use while backing up
 
-  bool dwa_;  ///< @brief Should we use the dynamic window approach?
-  bool heading_scoring_; ///< @brief Should we score based on the rollout approach or the heading approach
-  double heading_scoring_timestep_; ///< @brief How far to look ahead in time when we score a heading
   bool simple_attractor_;  ///< @brief Enables simple attraction to a goal point
 
   std::vector<double> y_vels_; ///< @brief Y velocities to explore
@@ -334,8 +294,9 @@ class TrajectoryPlanner{
   double inscribed_radius_, circumscribed_radius_;
 
   double trajectory_range_check_obstacle_avoidance_;
+  int avoid_obstacle_traj_num_;
 
-  bool need_avoid_obstacle_;
+  bool need_backward_;
 
   boost::mutex configuration_mutex_;
 

@@ -12,9 +12,12 @@
 #ifndef AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_FOOTPRINT_CHECKER_H_
 #define AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_FOOTPRINT_CHECKER_H_
 
+#include <ros/ros.h>
 #include <costmap_2d/costmap_2d.h>
 #include <costmap_2d/footprint.h>
+#include <costmap_2d/cost_values.h>
 #include <vector>
+#include <geometry_msgs/PoseStamped.h>
 
 namespace autoscrubber {
 
@@ -37,6 +40,61 @@ class FootprintChecker {
    */
   virtual ~FootprintChecker() { }
 
+//  double RecoveryCircleCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& footprint_spec, geometry_msgs::PoseStamped* goal_pose);
+  double RecoveryCircleCost(const geometry_msgs::PoseStamped& current_pos, const std::vector<geometry_msgs::Point>& footprint_spec, geometry_msgs::PoseStamped* goal_pose);
+
+  double CircleCenterCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& circle_center_points) {
+    double cos_th = cos(theta);
+    double sin_th = sin(theta);
+
+    double ret = 0.0;
+    double check_cnt = 0.0;
+    for (unsigned int i = 0; i < circle_center_points.size(); ++i) {
+      double new_x = x + (circle_center_points[i].x * cos_th - circle_center_points[i].y * sin_th);
+      double new_y = y + (circle_center_points[i].x * sin_th + circle_center_points[i].y * cos_th);
+
+      unsigned int cell_x, cell_y;
+      if (!costmap_.worldToMap(new_x, new_y, cell_x, cell_y)) {
+//        return 0.0;
+        return -1.0;
+      }
+      unsigned char cost = costmap_.getCost(cell_x, cell_y);
+      if (cost >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
+          check_cnt -= 1.0;
+//        return -1.0;
+      }
+      if (ret < cost) ret = cost;
+    }
+    return check_cnt;
+  }
+
+  double FootprintCenterCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& footprint_center_points) {
+    double cos_th = cos(theta);
+    double sin_th = sin(theta);
+
+    double ret = 0.0;
+    unsigned int check_cost_cnt = 0;
+    for (unsigned int i = 0; i < footprint_center_points.size(); ++i) {
+      double new_x = x + (footprint_center_points[i].x * cos_th - footprint_center_points[i].y * sin_th);
+      double new_y = y + (footprint_center_points[i].x * sin_th + footprint_center_points[i].y * cos_th);
+
+      unsigned int cell_x, cell_y;
+      if (!costmap_.worldToMap(new_x, new_y, cell_x, cell_y)) {
+        ++check_cost_cnt;
+      } else {
+        unsigned char cost = costmap_.getCost(cell_x, cell_y);
+        ROS_INFO("[Footprint_Checker] footprint_center[%d].cost = %d, check_cnt = %d",i, cost, check_cost_cnt + 1);
+        if (cost >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
+          ++check_cost_cnt;
+        } 
+        if (ret < cost) ret = cost;
+      }
+    }
+    if (check_cost_cnt >= 3)
+       ret = -1.0; 
+    return ret;
+  }
+
   double FootprintCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& footprint_spec, double inscribed_radius = 0.0, double circumscribed_radius = 0.0) {
     double cos_th = cos(theta);
     double sin_th = sin(theta);
@@ -58,6 +116,9 @@ class FootprintChecker {
 
     return FootprintCost(robot_position, oriented_footprint, inscribed_radius, circumscribed_radius);
   }
+
+  double BroaderFootprintCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& footprint_spec,
+                        double broader_theta_x, double broader_theta_y);
 
   /**
    * @brief  Checks if any obstacles in the costmap lie inside a convex footprint that is rasterized into the grid
