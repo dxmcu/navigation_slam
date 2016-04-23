@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(autoscrubber)
+project(service_robot)
 
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC")
@@ -39,9 +39,9 @@ include_directories(
     ${catkin_INCLUDE_DIRS}
 )
 
-# autoscrubber
+# service_robot
 add_library(${PROJECT_NAME} STATIC
-    src/autoscrubber.cc
+    src/service_robot.cc
     src/astar_controller.cc
     src/footprint_checker.cc
     src/bezier.cc
@@ -57,6 +57,6 @@ target_link_libraries( ${PROJECT_NAME}
 )
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
 
-add_executable(autoscrubber_node src/autoscrubber_node.cc)
-target_link_libraries(autoscrubber_node ${PROJECT_NAME}  ${catkin_LIBRARIES})
-set_target_properties(autoscrubber_node PROPERTIES OUTPUT_NAME autoscrubber)
+add_executable(service_robot_node src/service_robot_node.cc)
+target_link_libraries(service_robot_node ${PROJECT_NAME}  ${catkin_LIBRARIES})
+set_target_properties(service_robot_node PROPERTIES OUTPUT_NAME service_robot)

@@ -2,15 +2,15 @@
 */
 
 /**
- * @file autoscrubber.h
+ * @file service_robot.h
  * @brief controller node of autonomous scrubber
  * @author cameron<chenkan@gs-robot.com>
  * @version 1.0.0.0
  * @date 2015-08-21
  */
 
-#ifndef AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_AUTOSCRUBBER_H_
-#define AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_AUTOSCRUBBER_H_
+#ifndef SERVICEROBOT_INCLUDE_SERVICEROBOT_SERVICEROBOT_H_
+#define SERVICEROBOT_INCLUDE_SERVICEROBOT_SERVICEROBOT_H_
 
 #include <ros/ros.h>
 #include <nav_core/base_local_planner.h>
@@ -37,16 +37,16 @@
 #include <vector>
 #include <string>
 
-#include "autoscrubber/base_controller.h"
+#include "service_robot/base_controller.h"
 
-namespace autoscrubber {
+namespace service_robot {
 
 typedef enum {
   FIX_PATTERN = 0,
   AUTO_NAV    = 1
 } NavigationMode;
 
-enum AutoScrubberState {
+enum ServiceRobotState {
   PLANNING,
   CONTROLLING,
   CLEARING
@@ -59,21 +59,21 @@ enum RecoveryTrigger {
 };
 
 /**
- * @class AutoScrubber
+ * @class ServiceRobot
  * @brief A class that uses the actionlib::ActionServer interface that moves the robot base to a goal location.
  */
-class AutoScrubber {
+class ServiceRobot {
  public:
   /**
    * @brief  Constructor for the actions
    * @param name The name of the action
    * @param tf A pointer to a TransformListener
    */
-  explicit AutoScrubber(tf::TransformListener* tf);
+  explicit ServiceRobot(tf::TransformListener* tf);
   /**
    * @brief  Destructor - Cleans up
    */
-  virtual ~AutoScrubber();
+  virtual ~ServiceRobot();
   bool Start(autoscrubber_services::Start::Request& req, autoscrubber_services::Start::Response& res);  // NOLINT
   bool Pause(autoscrubber_services::Pause::Request& req, autoscrubber_services::Pause::Response& res);  // NOLINT
   bool Resume(autoscrubber_services::Resume::Request& req, autoscrubber_services::Resume::Response& res);  // NOLINT
@@ -193,7 +193,7 @@ class AutoScrubber {
   fixpattern_path::Path* astar_path_;
 
   NavigationMode nav_mode_;
-  AutoScrubberState state_;
+  ServiceRobotState state_;
   RecoveryTrigger recovery_trigger_;
 
   ros::Time last_valid_plan_, last_valid_control_, last_oscillation_reset_;
@@ -212,6 +212,6 @@ class AutoScrubber {
   bool new_global_plan_;
 };
 
-};  // namespace autoscrubber
+};  // namespace service_robot
 
-#endif  // AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_AUTOSCRUBBER_H_
+#endif  // SERVICEROBOT_INCLUDE_SERVICEROBOT_SERVICEROBOT_H_

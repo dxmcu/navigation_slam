@@ -9,13 +9,13 @@
  * @date 2015-10-20
  */
 
-#include "autoscrubber/footprint_checker.h"
+#include "service_robot/footprint_checker.h"
 #include <fixpattern_local_planner/line_iterator.h>
 #include <tf/message_filter.h>
 #include <algorithm>
 #include <vector>
 
-namespace autoscrubber {
+namespace service_robot {
 
 FootprintChecker::FootprintChecker(const costmap_2d::Costmap2D& costmap) : costmap_(costmap) { }
 
@@ -233,4 +233,4 @@ double FootprintChecker::PointCost(int x, int y) {
 }
 
 
-};  // namespace autoscrubber
+};  // namespace service_robot

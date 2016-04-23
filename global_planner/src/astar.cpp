@@ -42,10 +42,51 @@ namespace global_planner {
 
 AStarExpansion::AStarExpansion(PotentialCalculator* p_calc, int xs, int ys) :
         Expander(p_calc, xs, ys) {
+  use_circle_center_ = false;
 }
 
 AStarExpansion::AStarExpansion(PotentialCalculator* p_calc, int xs, int ys, unsigned char path_cost, unsigned char occ_dis_cost) :
         Expander(p_calc, xs, ys), path_cost_(path_cost), occ_dis_cost_(occ_dis_cost) {
+  use_circle_center_ = false;
+}
+
+AStarExpansion::AStarExpansion(PotentialCalculator* p_calc, int xs, int ys, unsigned char path_cost, unsigned char occ_dis_cost, const std::vector<XYPoint>& circle_center_point, double resolution) :
+        Expander(p_calc, xs, ys), path_cost_(path_cost), occ_dis_cost_(occ_dis_cost), resolution_(resolution) {
+  if(circle_center_point.size() > 1) {
+    use_circle_center_ = true;
+    circle_center_point_ = circle_center_point;
+  } else {
+    use_circle_center_ = false;
+  }
+}
+
+unsigned int AStarExpansion::GetCircleCenterLargestCost(unsigned char* costs, std::vector<XYPoint> circle_center, int current_i, int next_i) {
+  unsigned int max_cost = 0;
+  double pose_theta;
+  int diff_index = next_i - current_i;
+  if (diff_index == 1) {
+    pose_theta = -M_PI_2; 
+  } else if (diff_index == -1) {
+    pose_theta = M_PI_2; 
+  } else if (diff_index == -ny_) {
+    pose_theta = 0; 
+  } else if (diff_index == ny_) {
+    pose_theta = M_PI; 
+  }
+  double cth = cos(pose_theta);
+  double sth = sin(pose_theta);
+  for (int i = 0; i < circle_center.size(); ++i) {
+    // find the bounding box of the polygon
+    double cx = (cth * circle_center[i].x - sth * circle_center[i].y + (next_i % ny_) * resolution_);
+    double cy = (sth * circle_center[i].x + cth * circle_center[i].y + (next_i / ny_) * resolution_);
+    int cell_x = static_cast<int>(cx > 0 ? cx / resolution_ + 0.5 : cx / resolution_ - 0.5);  // (int)(cx / res + 0.5 * sign(c);
+    int cell_y = static_cast<int>(cy > 0 ? cy / resolution_ + 0.5 : cy / resolution_ - 0.5);  // (int)(cy / res + 0.5);
+    int cell_index =  cell_x + cell_y * nx_;
+    if (cell_index < 0 || cell_index >= nx_ * ny_) return costmap_2d::NO_INFORMATION;
+    int cell_cost = costs[cell_index];
+    max_cost = max_cost > cell_cost ? max_cost : cell_cost; 
+  }
+  return max_cost;
 }
 
 bool AStarExpansion::calculatePotentials(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* costs, unsigned char* path_costs,
@@ -69,32 +110,38 @@ bool AStarExpansion::calculatePotentials(costmap_2d::Costmap2DROS* costmap_ros, 
         if (i == goal_i)
             return true;
 
-        add(costmap_ros, costs, path_costs, potential, potential[i], i + 1, end_x, end_y);
-        add(costmap_ros, costs, path_costs, potential, potential[i], i - 1, end_x, end_y);
-        add(costmap_ros, costs, path_costs, potential, potential[i], i + nx_, end_x, end_y);
-        add(costmap_ros, costs, path_costs, potential, potential[i], i - nx_, end_x, end_y);
+        add(costmap_ros, costs, path_costs, potential, potential[i], i, i + 1, end_x, end_y);
+        add(costmap_ros, costs, path_costs, potential, potential[i], i, i - 1, end_x, end_y);
+        add(costmap_ros, costs, path_costs, potential, potential[i], i, i + nx_, end_x, end_y);
+        add(costmap_ros, costs, path_costs, potential, potential[i], i, i - nx_, end_x, end_y);
     }
 
     return false;
 }
 
-void AStarExpansion::add(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* costs, unsigned char* path_costs, float* potential, float prev_potential, int next_i, int end_x,
-                         int end_y) {
+void AStarExpansion::add(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* costs, unsigned char* path_costs, float* potential,
+                         float prev_potential, int current_i, int next_i, int end_x, int end_y) {
     if (next_i < 0 || next_i >= nx_ * ny_) {
-        return;
+      return;
     }
 
-    if (potential[next_i] < POT_HIGH)
-        return;
+    if (potential[next_i] < POT_HIGH) {
+      return;
+    }
 
-    if(costs[next_i]>=lethal_cost_ && !(unknown_ && costs[next_i]==costmap_2d::NO_INFORMATION))
-        return;
+    if (costs[next_i] >= lethal_cost_ && (!unknown_ || (unknown_ && costs[next_i] == costmap_2d::NO_INFORMATION))) {
+      return;
+    }
+
+    if (GetCircleCenterLargestCost(costs, circle_center_point_, current_i, next_i) >= lethal_cost_) {
+      return;
+    }
 
     potential[next_i] = p_calc_->calculatePotential(potential, costs[next_i] + neutral_cost_, next_i, prev_potential);
     int x = next_i % nx_, y = next_i / nx_;
     float distance = abs(end_x - x) + abs(end_y - y);
     float obstacle_distance = costmap_ros->getObstacleDistance(x, y);
-    int occ_cost = (int)(10.0 / obstacle_distance) * occ_dis_cost_;
+    int occ_cost = (int)(10.0 / obstacle_distance * occ_dis_cost_);
     int next_cost;
     if (path_costs != NULL) {
       next_cost = potential[next_i] + distance * neutral_cost_ + occ_cost + path_costs[next_i] * path_cost_;

@@ -9,15 +9,15 @@
  * @date 2016-02-12
  */
 
-#include "autoscrubber/bezier_planner.h"
+#include "service_robot/bezier_planner.h"
 
 #include <ros/ros.h>
 #include <tf/tf.h>
 #include <angles/angles.h>
 #include <fixpattern_path/path.h>
-#include "autoscrubber/bezier.h"
+#include "service_robot/bezier.h"
 
-namespace autoscrubber {
+namespace service_robot {
 
 void GenerateInPlaceRotationPath(std::vector<fixpattern_path::PathPoint>* bezier_path,
                                  geometry_msgs::Pose pose, double start_yaw, double goal_yaw) {
@@ -387,4 +387,4 @@ bool MakeBezierPlan(std::vector<fixpattern_path::PathPoint>* bezier_path,
   }
 }
 
-};  // namespace autoscrubber
+};  // namespace service_robot

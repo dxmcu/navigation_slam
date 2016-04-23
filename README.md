@@ -1,4 +1,4 @@
-# autoscrubber move_base
+# service_robot move_base
 forked from ros-planning/navigation.git -> indigo-devel
 
 ---
@@ -6,7 +6,7 @@ forked from ros-planning/navigation.git -> indigo-devel
 ### amcl
 1. add param: init_sigma_k, to control scale of samples when initialize
 
-### autoscrubber_control
+### service_robot_control
 This is a new node, we use this to feed params to move_base when it dies
 
 ### move_base

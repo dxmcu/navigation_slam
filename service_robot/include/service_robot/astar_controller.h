@@ -9,8 +9,8 @@
  * @date 2015-08-21
  */
 
-#ifndef AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_ASTAR_CONTROLLER_H_
-#define AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_ASTAR_CONTROLLER_H_
+#ifndef SERVICEROBOT_INCLUDE_SERVICEROBOT_ASTAR_CONTROLLER_H_
+#define SERVICEROBOT_INCLUDE_SERVICEROBOT_ASTAR_CONTROLLER_H_
 
 #include <ros/ros.h>
 #include <std_msgs/Int8.h>
@@ -29,10 +29,10 @@
 #include <string>
 #include <vector>
 
-#include "autoscrubber/base_controller.h"
-#include "autoscrubber/footprint_checker.h"
+#include "service_robot/base_controller.h"
+#include "service_robot/footprint_checker.h"
 
-namespace autoscrubber {
+namespace service_robot {
 
 typedef enum {
   A_PLANNING    = 0,
@@ -61,14 +61,14 @@ typedef enum {
 
 typedef enum {
   E_NULL = 0,
-  E_INIT_FAILED,
-  E_GOAL_UNREACHED,
-  E_PATH_NOT_SAFE,
   E_LOCATION_INVALID,
-  E_PLANNING_INVALID,
-  E_FRONT_NOT_SAFE,
-  E_FOOTPRINT_NOT_SAFE
-} ErrorIndex;
+  E_GOAL_UNREACHABLE,
+  E_PATH_NOT_SAFE,
+  I_GOAL_HEADING,
+  I_GOAL_REACHED,
+  I_GOAL_UNREACHED,
+  MAX_RET,
+} StatusIndex;
 
 struct AStarControlOption : BaseControlOption {
   double stop_duration;
@@ -190,8 +190,8 @@ class AStarController : public BaseController {
   double PoseStampedDistance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2);
 
   void PublishPlan(const ros::Publisher& pub, const std::vector<geometry_msgs::PoseStamped>& plan);
-  void PublishAlarm(unsigned char alarm_index);
-  void PublishHandingGoal(void);
+  void PublishMovebaseStatus(unsigned int status_index);
+  void PublishHeadingGoal(void);
   void PublishGoalReached(geometry_msgs::PoseStamped goal_pose);
   // rotate recovery
   bool CanRotate(double x, double y, double yaw, int dir);
@@ -232,7 +232,7 @@ class AStarController : public BaseController {
   // used for path switching and replacing
   fixpattern_path::Path front_path_;
   // footprint checker
-  autoscrubber::FootprintChecker* footprint_checker_;
+  service_robot::FootprintChecker* footprint_checker_;
 
   // index of planner_goal_ in fixpattern_path, record it so we can search new
   // goal from it
@@ -292,12 +292,12 @@ class AStarController : public BaseController {
   // set for fixpattern
   ros::Publisher fixpattern_pub_;
   ros::Publisher goal_reached_pub_;
-  ros::Publisher handing_goal_pub_;
+  ros::Publisher heading_goal_pub_;
   ros::Publisher init_finished_pub_;
   ros::Publisher astar_start_pub_;
   ros::Publisher astar_goal_pub_;
   ros::Publisher sbpl_goal_pub_;
-  ros::Publisher alarm_pub_;
+  ros::Publisher move_base_status_pub_;
   ros::Subscriber set_init_sub_;
   ros::Subscriber localization_sub_;
   ros::ServiceServer get_current_pose_srv_;
@@ -306,6 +306,6 @@ class AStarController : public BaseController {
   ros::ServiceClient check_rotate_client_;
 };
 
-};  // namespace autoscrubber
+};  // namespace service_robot
 
-#endif  // AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_ASTAR_CONTROLLER_H_
+#endif  // SERVICEROBOT_INCLUDE_SERVICEROBOT_ASTAR_CONTROLLER_H_

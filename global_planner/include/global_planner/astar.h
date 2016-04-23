@@ -65,13 +65,19 @@ class AStarExpansion : public Expander {
     public:
         AStarExpansion(PotentialCalculator* p_calc, int nx, int ny);
         AStarExpansion(PotentialCalculator* p_calc, int xs, int ys, unsigned char path_cost, unsigned char occ_dis_cost);
+        AStarExpansion(PotentialCalculator* p_calc, int xs, int ys, unsigned char path_cost, unsigned char occ_dis_cost, const std::vector<XYPoint>& circle_center_point, double resolution);
         bool calculatePotentials(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* costs, unsigned char* path_costs,
                                  double start_x, double start_y, double end_x, double end_y, int cycles, float* potential);
     private:
-        void add(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* costs, unsigned char* path_costs, float* potential, float prev_potential, int next_i, int end_x, int end_y);
+        void add(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* costs, unsigned char* path_costs, float* potential,
+                float prev_potential, int current_i, int next_i, int end_x, int end_y);
+        unsigned int GetCircleCenterLargestCost(unsigned char* costs, std::vector<XYPoint> circle_center, int current_i, int next_i);
         std::vector<Index> queue_;
         unsigned char path_cost_;
         unsigned char occ_dis_cost_;
+        std::vector<XYPoint> circle_center_point_;
+        bool use_circle_center_;
+        double resolution_;
 };
 
 } //end namespace global_planner

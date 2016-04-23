@@ -9,10 +9,10 @@
  * @date 2016-02-11
  */
 
-#ifndef AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_BEZIER_H_
-#define AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_BEZIER_H_
+#ifndef SERVICEROBOT_INCLUDE_SERVICEROBOT_BEZIER_H_
+#define SERVICEROBOT_INCLUDE_SERVICEROBOT_BEZIER_H_
 
-namespace autoscrubber {
+namespace service_robot {
 
 typedef struct _BezierPoint {
   double x;
@@ -23,6 +23,6 @@ void cubic_bezier(unsigned int n, BezierPoint* pts,
                   double x1, double y1, double x2, double y2,
                   double x3, double y3, double x4, double y4);
 
-};  // namespace autoscrubber
+};  // namespace service_robot
 
-#endif  // AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_BEZIER_H_
+#endif  // SERVICEROBOT_INCLUDE_SERVICEROBOT_BEZIER_H_

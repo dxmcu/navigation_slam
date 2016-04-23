@@ -123,7 +123,7 @@ void ReadCircleCenterFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const
 bool GlobalPlanner::ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<XYPoint>* points) {
   std::string full_param_name;
 
-  if (nh.searchParam("circle_center", full_param_name)) {
+  if (nh.searchParam("p7", full_param_name)) {
     XmlRpc::XmlRpcValue circle_center_xmlrpc;
     nh.getParam(full_param_name, circle_center_xmlrpc);
     if (circle_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
@@ -179,12 +179,13 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
           // get circle_center
           std::vector<XYPoint> circle_center_point;
           if (!ReadCircleCenterFromParams(private_nh, &circle_center_point)) {
-            exit(1);
+            //ROS_WARN("Cannot read circle centers from parametars, just plan unsing base_link origin point");
           }
-          planner_ = new AStarExpansion(p_calc_, cx, cy, path_cost, occ_dis_cost);
+          //planner_ = new AStarExpansion(p_calc_, cx, cy, path_cost, occ_dis_cost);
+          planner_ = new AStarExpansion(p_calc_, cx, cy, path_cost, occ_dis_cost, circle_center_point, costmap_->getResolution());
         }
         bool use_grid_path;
-        private_nh.param("p1", use_grid_path, false);
+        private_nh.param("e1", use_grid_path, false);
         if (use_grid_path)
             path_maker_ = new GridPath(p_calc_);
         else
@@ -391,7 +392,7 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
             //ROS_ERROR("Failed to get a plan from potential when a legal potential was found. This shouldn't happen.");
         }
     }else{
-        //ROS_ERROR("Failed to get a plan.");
+        //ROS_ERROR("Failed to get a global plan.");
     }
 
     // add orientations if needed

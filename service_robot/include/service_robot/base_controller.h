@@ -9,15 +9,15 @@
  * @date 2015-08-21
  */
 
-#ifndef AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_BASE_CONTROLLER_H_
-#define AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_BASE_CONTROLLER_H_
+#ifndef SERVICEROBOT_INCLUDE_SERVICEROBOT_BASE_CONTROLLER_H_
+#define SERVICEROBOT_INCLUDE_SERVICEROBOT_BASE_CONTROLLER_H_
 
 #include <costmap_2d/costmap_2d_ros.h>
 #include <costmap_2d/costmap_2d.h>
 
 #include <string>
 
-namespace autoscrubber {
+namespace service_robot {
 
 typedef struct _ctrl_environment_t {
   bool launch_scrubber;
@@ -63,6 +63,6 @@ class BaseController {
   virtual bool Control(BaseControlOption* option, ControlEnvironment* environment) = 0;
 };
 
-};  // namespace autoscrubber
+};  // namespace service_robot
 
-#endif  // AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_BASE_CONTROLLER_H_
+#endif  // SERVICEROBOT_INCLUDE_SERVICEROBOT_BASE_CONTROLLER_H_

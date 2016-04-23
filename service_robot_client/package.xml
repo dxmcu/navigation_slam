@@ -1,8 +1,8 @@
 <package>
-    <name>autoscrubber_client</name>
+    <name>service_robot_client</name>
     <version>1.0.0</version>
     <description>
-        This node controls autoscrubber node.
+        This node controls service_robot node.
     </description>
     <author>chenkan</author>
     <maintainer email="chenkan@gs-robot.com">Chen Kan</maintainer>

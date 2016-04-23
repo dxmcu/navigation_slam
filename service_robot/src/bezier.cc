@@ -9,12 +9,12 @@
  * @date 2016-02-11
  */
 
-#include "autoscrubber/bezier.h"
+#include "service_robot/bezier.h"
 
 #include <math.h>
 #include <assert.h>
 
-namespace autoscrubber {
+namespace service_robot {
 
 void cubic_bezier(unsigned int n, BezierPoint* pts,
                   double x1, double y1, double x2, double y2,
@@ -37,4 +37,4 @@ void cubic_bezier(unsigned int n, BezierPoint* pts,
   }
 }
 
-};  // namespace autoscrubber
+};  // namespace service_robot

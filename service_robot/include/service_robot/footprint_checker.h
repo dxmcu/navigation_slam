@@ -9,8 +9,8 @@
  * @date 2015-10-20
  */
 
-#ifndef AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_FOOTPRINT_CHECKER_H_
-#define AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_FOOTPRINT_CHECKER_H_
+#ifndef SERVICEROBOT_INCLUDE_SERVICEROBOT_FOOTPRINT_CHECKER_H_
+#define SERVICEROBOT_INCLUDE_SERVICEROBOT_FOOTPRINT_CHECKER_H_
 
 #include <ros/ros.h>
 #include <costmap_2d/costmap_2d.h>
@@ -19,7 +19,7 @@
 #include <vector>
 #include <geometry_msgs/PoseStamped.h>
 
-namespace autoscrubber {
+namespace service_robot {
 
 /**
  * @class FootprintChecker
@@ -153,6 +153,6 @@ class FootprintChecker {
   const costmap_2d::Costmap2D& costmap_;  ///< @brief Allows access of costmap obstacle information
 };
 
-};  // namespace autoscrubber
+};  // namespace service_robot
 
-#endif  // AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_FOOTPRINT_CHECKER_H_
+#endif  // SERVICEROBOT_INCLUDE_SERVICEROBOT_FOOTPRINT_CHECKER_H_

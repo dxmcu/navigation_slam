@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-    <name>autoscrubber_control</name>
+    <name>service_robot_control</name>
     <version>1.0.0</version>
-    <description>op node for autoscrubber</description>
+    <description>op node for service_robot</description>
 
     <maintainer email="chenkan@gs-robot.com">Cameron</maintainer>
     <license>BSD</license>

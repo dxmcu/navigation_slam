@@ -9,14 +9,14 @@
  * @date 2016-02-11
  */
 
-#ifndef AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_BEZIER_PLANNER_H_
-#define AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_BEZIER_PLANNER_H_
+#ifndef SERVICEROBOT_INCLUDE_SERVICEROBOT_BEZIER_PLANNER_H_
+#define SERVICEROBOT_INCLUDE_SERVICEROBOT_BEZIER_PLANNER_H_
 
 #include <geometry_msgs/PoseStamped.h>
 #include <fixpattern_path/path_point.h>
 #include <vector>
 
-namespace autoscrubber {
+namespace service_robot {
 
 geometry_msgs::PoseStamped MakeBezierPlan(std::vector<fixpattern_path::PathPoint>* bezier_path,
                                           const geometry_msgs::PoseStamped& start,
@@ -26,6 +26,6 @@ bool MakeBezierPlan(std::vector<fixpattern_path::PathPoint>* bezier_path,
                                           const geometry_msgs::PoseStamped& start,
                                           const geometry_msgs::PoseStamped& goal,
                                           bool stop_needed);
-};  // namespace autoscrubber
+};  // namespace service_robot
 
-#endif  // AUTOSCRUBBER_INCLUDE_AUTOSCRUBBER_BEZIER_PLANNER_H_
+#endif  // SERVICEROBOT_INCLUDE_SERVICEROBOT_BEZIER_PLANNER_H_

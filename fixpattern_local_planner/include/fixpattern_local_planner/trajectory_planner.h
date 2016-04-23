@@ -139,6 +139,24 @@ class TrajectoryPlanner{
   double scoreTrajectory(double x, double y, double theta, double vx, double vy,
                          double vtheta, double vx_samp, double vy_samp, double vtheta_samp);
 
+  /**
+   * @brief  Generate and score a single trajectory
+   * @param x The x position of the robot
+   * @param y The y position of the robot
+   * @param theta The orientation of the robot
+   * @param vx The x velocity of the robot
+   * @param vy The y velocity of the robot
+   * @param vtheta The theta velocity of the robot
+   * @param vx_samp The x velocity used to seed the trajectory
+   * @param vy_samp The y velocity used to seed the trajectory
+   * @param vtheta_samp The theta velocity used to seed the trajectory
+   * @param sim_time The simulation time
+   * @return True if the trajectory is legal, false otherwise
+   */
+  bool CheckTrajectoryWithSimTime(double x, double y, double theta, double vx, double vy,
+                                  double vtheta, double vx_samp, double vy_samp,
+                                  double vtheta_samp, double sim_time);
+
   /** @brief Set the footprint specification of the robot. */
   void setFootprint( std::vector<geometry_msgs::Point> footprint ) { footprint_spec_ = footprint; }
 

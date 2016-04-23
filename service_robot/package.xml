@@ -1,5 +1,5 @@
 <package>
-    <name>autoscrubber</name>
+    <name>service_robot</name>
     <version>1.0.0</version>
     <description>
         This node controls the scrub machine to move, it supports two navigation mode, one is fixpattern, one is auto navigation.

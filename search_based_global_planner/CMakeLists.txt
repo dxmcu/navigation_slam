@@ -35,7 +35,7 @@ include_directories(
 )
 add_definitions(${EIGEN_DEFINITIONS})
 
-# autoscrubber
+# service_robot 
 add_library(${PROJECT_NAME} STATIC
     src/search_based_global_planner.cc
     src/environment.cc

@@ -1,4 +1,4 @@
-# Bazel (http://bazel.io/) BUILD file for autoscrubber_navigation
+# Bazel (http://bazel.io/) BUILD file for service_robot_navigation
 
 COPTS = [
     "-std=c++11",
@@ -67,7 +67,7 @@ cc_library(
     name = "fixpattern_local_planner_ros",
     srcs = glob([
 	"fixpattern_local_planner/src/trajectory_planner.cpp",
-        "fixpattern_local_planner/src/look_ahead_planner.cpp",
+    "fixpattern_local_planner/src/look_ahead_planner.cpp",
 	"fixpattern_local_planner/src/trajectory_planner_ros.cpp",
     ]),
     hdrs = glob([
@@ -173,20 +173,20 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
-# libautoscrubber
+# libservice_robot
 cc_library(
-    name = "libautoscrubber",
+    name = "libservice_robot",
     srcs = [
-        "autoscrubber/src/autoscrubber.cc",
-        "autoscrubber/src/astar_controller.cc",
-        "autoscrubber/src/footprint_checker.cc",
-        "autoscrubber/src/bezier.cc",
-        "autoscrubber/src/bezier_planner.cc",
+        "service_robot/src/service_robot.cc",
+        "service_robot/src/astar_controller.cc",
+        "service_robot/src/footprint_checker.cc",
+        "service_robot/src/bezier.cc",
+        "service_robot/src/bezier_planner.cc",
     ],
     hdrs = glob([
-        "autoscrubber/include/**/*.h",
+        "service_robot/include/**/*.h",
     ]),
-    includes = ["autoscrubber/include"],
+    includes = ["service_robot/include"],
     deps = [
         "//external:roscpp",
         ":nav_core",
@@ -202,13 +202,13 @@ cc_library(
     ],
 )
 
-# autoscrubber
+# service_robot
 cc_binary(
-    name = "autoscrubber",
+    name = "service_robot",
     srcs = glob([
-        "autoscrubber/src/autoscrubber_node.cc",
+        "service_robot/src/service_robot_node.cc",
     ]),
     deps = [
-        "libautoscrubber",
+        "libservice_robot",
     ],
 )

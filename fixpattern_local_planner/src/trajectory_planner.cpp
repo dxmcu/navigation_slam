@@ -603,6 +603,26 @@ bool TrajectoryPlanner::checkTrajectory(double x, double y, double theta, double
   return false;
 }
 
+bool TrajectoryPlanner::CheckTrajectoryWithSimTime(double x, double y, double theta, double vx, double vy,
+                                                   double vtheta, double vx_samp, double vy_samp,
+                                                   double vtheta_samp, double sim_time) {
+  Trajectory t;
+
+  double impossible_cost = costmap_.getSizeInCellsX() * costmap_.getSizeInCellsY();
+  generateTrajectory(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp,
+                     acc_lim_x_, acc_lim_y_, acc_lim_theta_, impossible_cost, t, sim_time);
+
+  // if the trajectory is a legal one... the check passes
+  double cost = static_cast<double>(t.cost_);
+  if (cost >= 0) {
+    return true;
+  }
+  ROS_WARN("Invalid Trajectory %f, %f, %f, cost: %f", vx_samp, vy_samp, vtheta_samp, cost);
+
+  // otherwise the check fails
+  return false;
+}
+
 double TrajectoryPlanner::scoreTrajectory(double x, double y, double theta, double vx, double vy,
                                           double vtheta, double vx_samp, double vy_samp, double vtheta_samp) {
   Trajectory t;

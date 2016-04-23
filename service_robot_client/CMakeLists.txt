@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(autoscrubber_client)
+project(service_robot_client)
 
 set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC -O3")
@@ -21,7 +21,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-# autoscrubber_client
-add_executable(${PROJECT_NAME} src/autoscrubber_client.cc)
+# service_robot_client
+add_executable(${PROJECT_NAME} src/service_robot_client.cc)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})

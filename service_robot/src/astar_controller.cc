@@ -9,8 +9,8 @@
  * @date 2015-08-21
  */
 
-#include "autoscrubber/astar_controller.h"
-#include "autoscrubber/bezier_planner.h"
+#include "service_robot/astar_controller.h"
+#include "service_robot/bezier_planner.h"
 #include <nav_msgs/Path.h>
 #include <angles/angles.h>
 #include <std_msgs/UInt32.h>
@@ -18,7 +18,7 @@
 #include <autoscrubber_services/StopRotate.h>
 #include <autoscrubber_services/CheckRotate.h>
 
-namespace autoscrubber {
+namespace service_robot {
 
 AStarController::AStarController(tf::TransformListener* tf,
                                  costmap_2d::Costmap2DROS* controller_costmap_ros)
@@ -32,7 +32,7 @@ AStarController::AStarController(tf::TransformListener* tf,
   planner_plan_ = new std::vector<geometry_msgs::PoseStamped>();
 
   // create footprint_checker_
-  footprint_checker_ = new autoscrubber::FootprintChecker(*controller_costmap_ros_->getCostmap());
+  footprint_checker_ = new service_robot::FootprintChecker(*controller_costmap_ros_->getCostmap());
 
   footprint_spec_ = controller_costmap_ros_->getRobotFootprint();
   // set up the planner's thread
@@ -60,13 +60,13 @@ AStarController::AStarController(tf::TransformListener* tf,
   fixpattern_pub_ = fixpattern_nh.advertise<nav_msgs::Path>("plan", 1);
   ros::NodeHandle n;
   ros::NodeHandle device_nh("device");
-  alarm_pub_ = n.advertise<std_msgs::UInt8>("alarm", 10);
+  move_base_status_pub_ = n.advertise<std_msgs::UInt32>("move_base_status", 10);
   goal_reached_pub_ = n.advertise<geometry_msgs::PoseStamped>("goal_reached", 10);
-  handing_goal_pub_ = n.advertise<geometry_msgs::PoseStamped>("handing_goal", 10);
+  heading_goal_pub_ = n.advertise<geometry_msgs::PoseStamped>("heading_goal", 10);
   init_finished_pub_ = n.advertise<geometry_msgs::PoseStamped>("init_finished", 10);
-  astar_goal_pub_ = n.advertise<geometry_msgs::PoseStamped>("astar_goal", 10);
-  astar_start_pub_ = n.advertise<geometry_msgs::PoseStamped>("astar_start", 10);
-  sbpl_goal_pub_ = n.advertise<geometry_msgs::PoseStamped>("sbpl_temp_goal", 10);
+//  astar_goal_pub_ = n.advertise<geometry_msgs::PoseStamped>("astar_goal", 10);
+//  astar_start_pub_ = n.advertise<geometry_msgs::PoseStamped>("astar_start", 10);
+//  sbpl_goal_pub_ = n.advertise<geometry_msgs::PoseStamped>("sbpl_temp_goal", 10);
 
   localization_sub_ = n.subscribe<std_msgs::Int8>("/localization_bit", 100, boost::bind(&AStarController::LocalizationCallBack, this, _1));
   set_init_sub_ = n.subscribe<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 10, boost::bind(&AStarController::SetInitialPoseCallback, this, _1));
@@ -154,7 +154,7 @@ bool AStarController::GetCurrentPoseCallBack(autoscrubber_services::GetCurrentPo
       double x = cur_pos.pose.position.x;
       double y = cur_pos.pose.position.y;
       double yaw = tf::getYaw(cur_pos.pose.orientation);
-      //ROS_WARN("[AUTOSCRUBBER] get current pose and clearFootprintInCostmap!");
+      //ROS_WARN("[SERVICEROBOT] get current pose and clearFootprintInCostmap!");
       controller_costmap_ros_->clearFootprintInCostmap(controller_costmap_ros_->getStaticCostmap(), x, y, yaw, 0.50);
     }
   } else {
@@ -492,8 +492,7 @@ void AStarController::PlanThread() {
         planning_state_ = P_INSERTING_BEGIN;
         ++astar_planner_timeout_cnt_;
         //ROS_ERROR("[ASTAR PLANNER] Alarm Here!!! Not got plan until planner_patience, enter recovery; timeout_cnt = %d", astar_planner_timeout_cnt_);
-//        PublishAlarm(E_PLANNING_INVALID);
-        PublishAlarm(E_PATH_NOT_SAFE);
+        PublishMovebaseStatus(E_GOAL_UNREACHABLE);
       } else if (runPlanner_) {
         // to update global costmap
         usleep(500000);
@@ -577,8 +576,20 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
       cur_goal_distance = PoseStampedDistance(current_position, global_goal_); 
     }
     //ROS_INFO("[ASTAR CONTROLLER] distance from current pose to goal = %lf", cur_goal_distance);
+		
+    // 3. check if current_position and goal too close
+    if (IsGlobalGoalReached(current_position, global_goal_, 
+                             co_->fixpattern_local_planner->xy_goal_tolerance_, co_->fixpattern_local_planner->yaw_goal_tolerance_)) {
+      //ROS_WARN("[FIXPATTERN CONTROLLER] current position too close to global goal, teminate controller");
+      // publish goal reached 
+      PublishGoalReached(global_goal_);
+      PublishMovebaseStatus(I_GOAL_REACHED);
+      env_->run_flag = false;
+      env_->pause_flag = false;
+      continue; 
+    }
 
-    // 3. check if current_position footpirnt is invalid
+    // 4. check if current_position footpirnt is invalid
     // if yes - recovery; no - get new goal and replan
     if (footprint_checker_->FootprintCenterCost(current_position.pose.position.x, current_position.pose.position.y,
                                                 tf::getYaw(current_position.pose.orientation), co_->footprint_center_points) < 0) {
@@ -669,7 +680,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
         // we need to notify fixpattern_path
         co_->fixpattern_path->FinishPath();
         //ROS_WARN("[ASTAR CONTROLLER] Control Teminated, stop and break this loop");
-        // set pause_flag = false, to let autoscrubber know this loop terminated
+        // set pause_flag = false, to let service_robot know this loop terminated
         env_->pause_flag = false;
         break;
       }
@@ -689,7 +700,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
       // check if execution of the goal has completed in some way
    
       ros::WallDuration t_diff = ros::WallTime::now() - start;
-      ROS_DEBUG_NAMED("autoscrubber", "Full control cycle time: %.9f\n", t_diff.toSec());
+      ROS_DEBUG_NAMED("service_robot", "Full control cycle time: %.9f\n", t_diff.toSec());
    
       r.sleep();
       // make sure to sleep for the remainder of our cycle time
@@ -937,7 +948,7 @@ bool AStarController::GetAStarStart(double front_safe_check_dis) {
 */
   }
   planner_start_.header.frame_id = co_->global_frame;
-  astar_start_pub_.publish(planner_start_);
+//  astar_start_pub_.publish(planner_start_);
   return start_got;
 }
 
@@ -1038,12 +1049,12 @@ bool AStarController::ExecuteCycle() {
     // make sure to set the new plan flag to false
     new_global_plan_ = false;
     //ROS_INFO("[ASTAR CONTROLLER] get new plan");
-    ROS_DEBUG_NAMED("autoscrubber", "Got a new plan...swap pointers");
+    ROS_DEBUG_NAMED("service_robot", "Got a new plan...swap pointers");
   
     // in case new plan has different rotate dir
     co_->fixpattern_local_planner->reset_planner();
 
-    ROS_DEBUG_NAMED("autoscrubber", "pointers swapped!");
+    ROS_DEBUG_NAMED("service_robot", "pointers swapped!");
   }
   if (!localization_valid_) {
     state_ = FIX_CLEARING;
@@ -1064,17 +1075,17 @@ bool AStarController::ExecuteCycle() {
         runPlanner_ = true;
         planner_cond_.notify_one();
       }
-      ROS_DEBUG_NAMED("autoscrubber", "Waiting for plan, in the planning state.");
+      ROS_DEBUG_NAMED("service_robot", "Waiting for plan, in the planning state.");
       break;
 
     case FIX_CONTROLLING:
       //ROS_INFO("[FIXPATTERN CONTROLLER] in FIX_CONTROLLING state");
-      ROS_DEBUG_NAMED("autoscrubber", "In controlling state.");
+      ROS_DEBUG_NAMED("service_robot", "In controlling state.");
 
       // check to see if we've reached our goal
       if (co_->fixpattern_local_planner->isGoalReached()) {
         //ROS_WARN("[FIXPATTERN CONTROLLER] fixpattern goal reached");
-        ROS_DEBUG_NAMED("autoscrubber", "Goal reached!");
+        ROS_DEBUG_NAMED("service_robot", "Goal reached!");
         PublishZeroVelocity();
         ResetState();
         // reset fixpattern_local_planner
@@ -1095,6 +1106,7 @@ bool AStarController::ExecuteCycle() {
         } else  {
           // publish goal reached 
           PublishGoalReached(global_goal_);
+          PublishMovebaseStatus(I_GOAL_REACHED);
           //ROS_WARN("[FIXPATTERN CONTROLLER] global goal reached, teminate controller");
           return true;  //(lee)
         }
@@ -1175,7 +1187,7 @@ bool AStarController::ExecuteCycle() {
             && !IsGoalSafe(global_goal_, 0.10, 0.15)) { 
           if (front_safe_dis < 0.5) {
             PublishZeroVelocity();
-            PublishAlarm(E_PATH_NOT_SAFE);
+            PublishMovebaseStatus(E_PATH_NOT_SAFE);
             bool is_goal_safe = false;
             ros::Rate check_rate(10);
             ros::Time check_end_time = ros::Time::now() + ros::Duration(co_->goal_safe_check_duration);
@@ -1189,7 +1201,7 @@ bool AStarController::ExecuteCycle() {
                 }
               } else {
                 check_goal_safe_cnt = 0;
-                PublishAlarm(E_PATH_NOT_SAFE);
+                PublishMovebaseStatus(E_PATH_NOT_SAFE);
               }
               //ROS_WARN("[FIXPATTERN CONTROLLER] Check global goal not safe, stop here!");
               check_rate.sleep();
@@ -1205,8 +1217,9 @@ bool AStarController::ExecuteCycle() {
               // we need to notify fixpattern_path
               co_->fixpattern_path->FinishPath();
 
-              // publish goal reached 
-              PublishGoalReached(getNullPose());
+              // publish goal unreached
+              PublishGoalReached(current_position);
+              PublishMovebaseStatus(I_GOAL_UNREACHED);
 
               // TODO(chenkan): check if this is needed
               co_->fixpattern_local_planner->reset_planner();
@@ -1229,7 +1242,7 @@ bool AStarController::ExecuteCycle() {
             unsigned int front_safe_cnt = 0;
             while (ros::Time::now() < end_time) {
               front_safe_dis = CheckFixPathFrontSafe(fix_path, co_->front_safe_check_dis);
-              PublishAlarm(E_PATH_NOT_SAFE);
+              PublishMovebaseStatus(E_PATH_NOT_SAFE);
               if (front_safe_dis > 1.0) {
                 if (++front_safe_cnt > 2) {
                   front_safe = true;
@@ -1334,7 +1347,7 @@ bool AStarController::ExecuteCycle() {
         }
 
         if (fix_local_planner_error_cnt_ < 3) {
-          ROS_DEBUG_NAMED("autoscrubber", "Got a valid command from the local planner: %.3lf, %.3lf, %.3lf",
+          ROS_DEBUG_NAMED("service_robot", "Got a valid command from the local planner: %.3lf, %.3lf, %.3lf",
                           cmd_vel.linear.x, cmd_vel.linear.y, cmd_vel.angular.z);
           last_valid_control_ = ros::Time::now();
           cmd_vel.linear.x *= cmd_vel_ratio_;	
@@ -1350,9 +1363,11 @@ bool AStarController::ExecuteCycle() {
           co_->vel_pub->publish(cmd_vel);
           last_valid_cmd_vel_ = cmd_vel;
           // notify room_server to play_sound 
-          PublishHandingGoal();
+          PublishHeadingGoal();
+          // notify gs_consle
+          PublishMovebaseStatus(I_GOAL_HEADING);
         } else {
-          ROS_DEBUG_NAMED("autoscrubber", "The local planner could not find a valid plan.");
+          ROS_DEBUG_NAMED("service_robot", "The local planner could not find a valid plan.");
           ros::Time attempt_end = last_valid_control_ + ros::Duration(co_->controller_patience);
 
           // check if we've tried to find a valid control for longer than our time limit
@@ -1408,7 +1423,7 @@ bool AStarController::ExecuteCycle() {
 
       if (recovery_trigger_ == BACKWARD_RECOVERY_R) {
         //ROS_WARN("[FIX CONTROLLER] in BACKWARD_RECOVERY_R state");
-        PublishAlarm(E_FOOTPRINT_NOT_SAFE);
+        PublishMovebaseStatus(E_PATH_NOT_SAFE);
         HandleGoingBack(current_position);
 //        GoingBackward(0.15);
         PublishZeroVelocity();
@@ -1427,7 +1442,7 @@ bool AStarController::ExecuteCycle() {
             || footprint_checker_->BroaderFootprintCost(x, y, yaw, co_->footprint_center_points, 0.10, 0.05) < 0
             || footprint_checker_->FootprintCenterCost(x, y, yaw, co_->footprint_center_points) < 0) {
           //ROS_WARN("[FIXPATTERN CONTROLLER] footprint cost check < 0!, switch to Recovery");
-          PublishAlarm(E_FOOTPRINT_NOT_SAFE);
+          PublishMovebaseStatus(E_PATH_NOT_SAFE);
           HandleRecovery(current_position);
           state_ = FIX_CLEARING;
           recovery_trigger_ = FIX_GETNEWGOAL_R;
@@ -1552,7 +1567,7 @@ bool AStarController::ExecuteCycle() {
       boost::unique_lock<boost::mutex> lock(planner_mutex_);
       runPlanner_ = false;
       lock.unlock();
-      // Reached a case that should not be hit in autoscrubber. This is a bug, please report it.
+      // Reached a case that should not be hit in service_robot. This is a bug, please report it.
       return true;
   }
 
@@ -1715,7 +1730,7 @@ bool AStarController::GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, i
     planner_goal_.header.frame_id = co_->global_frame;
     planner_goal_index_ = goal_index;
   }
-  astar_goal_pub_.publish(planner_goal_);
+//  astar_goal_pub_.publish(planner_goal_);
   //ROS_INFO("[ASTAR CONTROLLER] GetAStarGoal cost: %lf secs", GetTimeInSeconds() - start);
   //ROS_INFO("[ASTAR CONTROLLER] planner_goal_index_: %d", planner_goal_index_);
   return true;
@@ -1755,7 +1770,7 @@ bool AStarController::GetAStarTempGoal(geometry_msgs::PoseStamped& goal_pose, do
   }
   goal_pose = path[goal_index];
   goal_pose.header.frame_id = co_->global_frame;
-  sbpl_goal_pub_.publish(goal_pose);
+//  sbpl_goal_pub_.publish(goal_pose);
   //ROS_INFO("[ASTAR CONTROLLER] temp planner_goal_index_: %d", goal_index);
   return true;
 }
@@ -1778,17 +1793,17 @@ void AStarController::PublishPlan(const ros::Publisher& pub, const std::vector<g
   pub.publish(gui_path);
 }
 
-void AStarController::PublishAlarm(unsigned char alarm_index) {
+void AStarController::PublishMovebaseStatus(unsigned int status_index) {
   // create a message for the plan
-  std_msgs::UInt8 alarm_msg;
-  alarm_msg.data = alarm_index;
+  std_msgs::UInt32 status_msg;
+  status_msg.data = status_index;
   // publish
-  alarm_pub_.publish(alarm_msg);
+  move_base_status_pub_.publish(status_msg);
 }
 
-void AStarController::PublishHandingGoal() {
+void AStarController::PublishHeadingGoal() {
   // publish
-  handing_goal_pub_.publish(global_goal_);
+  heading_goal_pub_.publish(global_goal_);
 }
 
 void AStarController::PublishGoalReached(geometry_msgs::PoseStamped goal_pose) {
@@ -1900,8 +1915,6 @@ bool AStarController::HandleSwitchingPath(geometry_msgs::PoseStamped current_pos
 
 bool AStarController::HandleLocalizationRecovery() {
   if (!localization_valid_) {
-    // TODO (lizhen) Alarm Hera!
-    PublishAlarm(E_LOCATION_INVALID);
     //ROS_WARN("[ASTAR CONTROLLER] localization failed! Recovery now by inplace_rotating");
     autoscrubber_services::StartRotate start_rotate;
     autoscrubber_services::StopRotate stop_rotate;
@@ -1909,8 +1922,10 @@ bool AStarController::HandleLocalizationRecovery() {
     start_rotate.request.rotateAngle.data = 360;
     start_rotate_client_.call(start_rotate);
     do {
+      // TODO (lizhen) Alarm Here!
+      PublishMovebaseStatus(E_LOCATION_INVALID);
       check_rotate_client_.call(check_rotate);
-      usleep(1000);
+      usleep(100000);   //100ms 10hz
     } while (!check_rotate.response.isFinished.data && !localization_valid_);
 
     stop_rotate_client_.call(stop_rotate);
@@ -2207,4 +2222,4 @@ bool AStarController::RotateRecovery() {
   return true;
 }
 
-};  // namespace autoscrubber
+};  // namespace service_robot

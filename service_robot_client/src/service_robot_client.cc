@@ -15,17 +15,17 @@ int main(int argc, char* argv[]) {
     exit(-1);
   }
 
-  ros::init(argc, argv, "autoscrubber_client");
-  ros::NodeHandle autoscrubber_handle("autoscrubber_move_base");
+  ros::init(argc, argv, "service_robot_client");
+  ros::NodeHandle service_robot_handle("service_robot_move_base");
 
   autoscrubber_services::Start start;
   autoscrubber_services::Pause pause;
   autoscrubber_services::Resume resume;
   autoscrubber_services::Terminate terminate;
-  ros::ServiceClient start_client = autoscrubber_handle.serviceClient<autoscrubber_services::Start>("start");
-  ros::ServiceClient pause_client = autoscrubber_handle.serviceClient<autoscrubber_services::Pause>("pause");
-  ros::ServiceClient resume_client = autoscrubber_handle.serviceClient<autoscrubber_services::Resume>("resume");
-  ros::ServiceClient terminate_client = autoscrubber_handle.serviceClient<autoscrubber_services::Terminate>("terminate");
+  ros::ServiceClient start_client = service_robot_handle.serviceClient<autoscrubber_services::Start>("start");
+  ros::ServiceClient pause_client = service_robot_handle.serviceClient<autoscrubber_services::Pause>("pause");
+  ros::ServiceClient resume_client = service_robot_handle.serviceClient<autoscrubber_services::Resume>("resume");
+  ros::ServiceClient terminate_client = service_robot_handle.serviceClient<autoscrubber_services::Terminate>("terminate");
 
   if (0 == strcmp(argv[1], "start")) {
     start_client.call(start);
