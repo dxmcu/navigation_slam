@@ -81,6 +81,7 @@ cc_library(
     linkstatic = True,
     deps = [
         ":fixpattern_local_planner",
+        "//gslib:gslib",
     ],
     visibility = ["//visibility:public"],
 )
@@ -134,6 +135,7 @@ cc_library(
     linkstatic = True,
     deps = [
         "//costmap_2d:costmap_2d",
+        "//gslib:gslib",
         "//external:geometry_msgs",
         ":nav_core",
         "//external:nav_msgs",
