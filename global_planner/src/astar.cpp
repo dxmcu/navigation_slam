@@ -81,7 +81,7 @@ unsigned int AStarExpansion::GetCircleCenterLargestCost(unsigned char* costs, st
     double cy = (sth * circle_center[i].x + cth * circle_center[i].y + (next_i / ny_) * resolution_);
     int cell_x = static_cast<int>(cx > 0 ? cx / resolution_ + 0.5 : cx / resolution_ - 0.5);  // (int)(cx / res + 0.5 * sign(c);
     int cell_y = static_cast<int>(cy > 0 ? cy / resolution_ + 0.5 : cy / resolution_ - 0.5);  // (int)(cy / res + 0.5);
-    int cell_index =  cell_x + cell_y * nx_;
+    int cell_index =  cell_x + cell_y * ny_;
     if (cell_index < 0 || cell_index >= nx_ * ny_) return costmap_2d::NO_INFORMATION;
     int cell_cost = costs[cell_index];
     max_cost = max_cost > cell_cost ? max_cost : cell_cost; 
@@ -133,7 +133,7 @@ void AStarExpansion::add(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* c
       return;
     }
 
-    if (GetCircleCenterLargestCost(costs, circle_center_point_, current_i, next_i) >= lethal_cost_) {
+    if (use_circle_center_ && GetCircleCenterLargestCost(costs, circle_center_point_, current_i, next_i) >= lethal_cost_) {
       return;
     }
 

@@ -37,9 +37,9 @@ float QuadraticCalculator::calculatePotential(float* potential, unsigned char co
     r = potential[n + 1];
     u = potential[n - nx_];
     d = potential[n + nx_];
-    //  ROS_INFO("[Update] c: %f  l: %f  r: %f  u: %f  d: %f\n",
+    //  GAUSSIAN_INFO("[Update] c: %f  l: %f  r: %f  u: %f  d: %f\n",
     //     potential[n], l, r, u, d);
-    //  ROS_INFO("[Update] cost: %d\n", costs[n]);
+    //  GAUSSIAN_INFO("[Update] cost: %d\n", costs[n]);
 
     // find lowest, and its lowest neighbor
     float ta, tc;

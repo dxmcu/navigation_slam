@@ -39,6 +39,7 @@
 #define _QUADRATIC_CALCULATOR_H
 #include<vector>
 #include<global_planner/potential_calculator.h>
+#include <gslib/gaussian_debug.h>
 
 namespace global_planner {
 

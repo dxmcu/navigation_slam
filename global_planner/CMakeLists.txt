@@ -12,6 +12,7 @@ find_package(catkin REQUIRED
     nav_msgs
     roscpp
     tf
+    gslib 
 )
 
 catkin_package(
@@ -24,6 +25,7 @@ catkin_package(
     nav_msgs
     roscpp
     tf
+    gslib 
 )
 
 include_directories(

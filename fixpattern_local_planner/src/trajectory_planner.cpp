@@ -73,12 +73,12 @@ void TrajectoryPlanner::reconfigure(BaseLocalPlannerConfig &cfg) {
   if (vx_samples_ <= 0) {
     config.vx_samples = 1;
     vx_samples_ = config.vx_samples;
-    //ROS_WARN("You've specified that you don't want any samples in the x dimension. We'll at least assume that you want to sample one value... so we're going to set vx_samples to 1 instead");
+    GAUSSIAN_WARN("You've specified that you don't want any samples in the x dimension. We'll at least assume that you want to sample one value... so we're going to set vx_samples to 1 instead");
   }
   if (vtheta_samples_ <= 0) {
     config.vtheta_samples = 1;
     vtheta_samples_ = config.vtheta_samples;
-    //ROS_WARN("You've specified that you don't want any samples in the theta dimension. We'll at least assume that you want to sample one value... so we're going to set vtheta_samples to 1 instead");
+    GAUSSIAN_WARN("You've specified that you don't want any samples in the theta dimension. We'll at least assume that you want to sample one value... so we're going to set vtheta_samples to 1 instead");
   }
 
   heading_lookahead_ = config.heading_lookahead;
@@ -105,7 +105,7 @@ void TrajectoryPlanner::reconfigure(BaseLocalPlannerConfig &cfg) {
     double temp;
     iss >> temp;
     y_vels.push_back(temp);
-    // //ROS_INFO("Adding y_vel: %e", temp);
+    // GAUSSIAN_INFO("Adding y_vel: %e", temp);
   }
 
   y_vels_ = y_vels;
@@ -256,7 +256,7 @@ void TrajectoryPlanner::generateTrajectory(
   // discard trajectory that is circle
   if (fabs(vtheta_samp) - 0.0 > 0.00001 && sim_time > M_PI / fabs(vtheta_samp)) {
     traj.cost_ = -1.0;
-    // //ROS_WARN("[TRAJECTORY PLANNER] trajectory is circle, cost = -1.0, vtheta_samp: %lf, sim_time: %lf", vtheta_samp, sim_time);
+    // GAUSSIAN_WARN("[TRAJECTORY PLANNER] trajectory is circle, cost = -1.0, vtheta_samp: %lf, sim_time: %lf", vtheta_samp, sim_time);
     return;
   }
 
@@ -290,7 +290,7 @@ void TrajectoryPlanner::generateTrajectory(
 
     // we don't want a path that goes off the know map
     if (!costmap_.worldToMap(x_i, y_i, cell_x, cell_y)) {
-      //ROS_WARN("[LOCAL PLANNER] world to map failed");
+      GAUSSIAN_WARN("[LOCAL PLANNER] world to map failed");
       traj.cost_ = -1.0;
       traj.is_footprint_safe_ = false;
       return;
@@ -324,7 +324,7 @@ void TrajectoryPlanner::generateTrajectory(
     // if a point on this trajectory has no clear path it is invalid
     if (impossible_cost <= path_dist) {
       traj.cost_ = -2.0;
-      //ROS_WARN("[TRAJECTORY PLANNER] impossible_cost <= path_dist, cost = -2.0");
+      GAUSSIAN_WARN("[TRAJECTORY PLANNER] impossible_cost <= path_dist, cost = -2.0");
       return;
     }
 
@@ -409,7 +409,7 @@ void TrajectoryPlanner::generateTrajectoryWithoutCheckingFootprint(
 
     // we don't want a path that goes off the know map
     if (!costmap_.worldToMap(x_i, y_i, cell_x, cell_y)) {
-      //ROS_WARN("[LOCAL PLANNER] world to map failed");
+      GAUSSIAN_WARN("[LOCAL PLANNER] world to map failed");
       traj.cost_ = -1.0;
       traj.is_footprint_safe_ = false;
       return;
@@ -514,7 +514,7 @@ void TrajectoryPlanner::generateTrajectoryForRecovery(
 
     // we don't want a path that goes off the know map
     if (!costmap_.worldToMap(x_i, y_i, cell_x, cell_y)) {
-      //ROS_WARN("[LOCAL PLANNER] world to map failed");
+      GAUSSIAN_WARN("[LOCAL PLANNER] world to map failed");
       traj.cost_ = -1.0;
       traj.is_footprint_safe_ = false;
       return;
@@ -597,7 +597,7 @@ bool TrajectoryPlanner::checkTrajectory(double x, double y, double theta, double
   if (cost >= 0) {
     return true;
   }
-  //ROS_WARN("Invalid Trajectory %f, %f, %f, cost: %f", vx_samp, vy_samp, vtheta_samp, cost);
+  GAUSSIAN_WARN("Invalid Trajectory %f, %f, %f, cost: %f", vx_samp, vy_samp, vtheta_samp, cost);
 
   // otherwise the check fails
   return false;
@@ -617,7 +617,7 @@ bool TrajectoryPlanner::CheckTrajectoryWithSimTime(double x, double y, double th
   if (cost >= 0) {
     return true;
   }
-  ROS_WARN("Invalid Trajectory %f, %f, %f, cost: %f", vx_samp, vy_samp, vtheta_samp, cost);
+  GAUSSIAN_WARN("Invalid Trajectory %f, %f, %f, cost: %f", vx_samp, vy_samp, vtheta_samp, cost);
 
   // otherwise the check fails
   return false;
@@ -806,7 +806,7 @@ Trajectory TrajectoryPlanner::createTrajectories(double x, double y, double thet
 
   // check front safe first, if not safe, return best->cost_ = -1
   if (!checkFrontSafe(x, y, theta, vx, vy, vtheta)) {
-    //ROS_ERROR("[LOCAL PLANNER] checkFrontSafe failed! vx: %lf, vtheta: %lf", vx, vtheta);
+    GAUSSIAN_ERROR("[LOCAL PLANNER] checkFrontSafe failed! vx: %lf, vtheta: %lf", vx, vtheta);
     best_traj->is_footprint_safe_ = false;
     return *best_traj;
   }
@@ -891,7 +891,7 @@ Trajectory TrajectoryPlanner::createTrajectories(double x, double y, double thet
   generateTrajectoryForRecovery(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp,
                                 acc_x, acc_y, acc_theta, impossible_cost, *comp_traj, sim_time_, 5);
   if (comp_traj->cost_ >= 0.0) {
-    //ROS_INFO("[FIXPATTERN LOCAL PLANNER] rotate to right");
+    GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] rotate to right");
     swap = best_traj;
     best_traj = comp_traj;
     comp_traj = swap;
@@ -903,7 +903,7 @@ Trajectory TrajectoryPlanner::createTrajectories(double x, double y, double thet
   generateTrajectoryForRecovery(x, y, theta, vx, vy, vtheta, vx_samp, vy_samp, vtheta_samp,
                                 acc_x, acc_y, acc_theta, impossible_cost, *comp_traj, sim_time_, 5);
   if (comp_traj->cost_ >= 0.0) {
-    //ROS_INFO("[FIXPATTERN LOCAL PLANNER] rotate to left");
+    GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] rotate to left");
     swap = best_traj;
     best_traj = comp_traj;
     comp_traj = swap;
@@ -911,7 +911,7 @@ Trajectory TrajectoryPlanner::createTrajectories(double x, double y, double thet
   }
 
   // and finally, if we can't do anything else, we want to generate trajectories that move backwards slowly
-  //ROS_INFO("[FIXPATTERN LOCAL PLANNER] going back with vel: %lf", backup_vel_);
+  GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] going back with vel: %lf", backup_vel_);
   vtheta_samp = 0.0;
   vx_samp = backup_vel_;
   vy_samp = 0.0;

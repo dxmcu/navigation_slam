@@ -87,7 +87,7 @@ bool LookAheadPlanner::CheckTrajectory(double x, double y, double theta, double 
   if (static_cast<double>(t.cost_) >= 0) {
     return true;
   }
-  ROS_WARN("Invalid Trajectory %f, %f, %f, cost: %f", vx_samp, vy_samp, vtheta_samp, static_cast<double>(t.cost_));
+  GAUSSIAN_WARN("Invalid Trajectory %f, %f, %f, cost: %f", vx_samp, vy_samp, vtheta_samp, static_cast<double>(t.cost_));
 
   // otherwise the check fails
   return false;
@@ -168,7 +168,7 @@ void LookAheadPlanner::GenerateTrajectory(double x, double y, double theta,
 
     // we don't want a path that goes off the know map
     if (!costmap_.worldToMap(x_i, y_i, cell_x, cell_y)) {
-      ROS_WARN("[LOCAL PLANNER] world to map failed");
+      GAUSSIAN_WARN("[LOCAL PLANNER] world to map failed");
       traj->cost_ = -1.0;
       return;
     }
@@ -177,7 +177,7 @@ void LookAheadPlanner::GenerateTrajectory(double x, double y, double theta,
 
     // if the footprint hits an obstacle this trajectory is invalid
     if (footprint_cost < 0) {
-      ROS_WARN("[LOCAL PLANNER] footprint_cost < 0, num_steps: %d", i);
+      GAUSSIAN_WARN("[LOCAL PLANNER] footprint_cost < 0, num_steps: %d", i);
       traj->cost_ = -1.0;
       return;
     }

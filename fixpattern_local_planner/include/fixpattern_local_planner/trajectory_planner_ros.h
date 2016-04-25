@@ -36,6 +36,7 @@
 #include <fixpattern_local_planner/odometry_helper_ros.h>
 //#include <pcl_ros/publisher.h>
 #include <fixpattern_path/path.h>
+#include <gslib/gaussian_debug.h>
 
 #include <vector>
 #include <string>

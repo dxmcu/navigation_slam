@@ -36,8 +36,8 @@
  *********************************************************************/
 
 #include <fixpattern_local_planner/simple_scored_sampling_planner.h>
-
 #include <ros/console.h>
+#include <gslib/gaussian_debug.h>
 
 namespace fixpattern_local_planner {
 
@@ -87,7 +87,7 @@ namespace fixpattern_local_planner {
     for (std::vector<TrajectoryCostFunction*>::iterator loop_critic = critics_.begin(); loop_critic != critics_.end(); ++loop_critic) {
       TrajectoryCostFunction* loop_critic_p = *loop_critic;
       if (loop_critic_p->prepare() == false) {
-        ROS_WARN("A scoring function failed to prepare");
+        GAUSSIAN_WARN("A scoring function failed to prepare");
         return false;
       }
     }

@@ -40,6 +40,7 @@
 #include <global_planner/potential_calculator.h>
 #include <global_planner/planner_core.h>
 #include <costmap_2d/costmap_2d.h>
+#include <gslib/gaussian_debug.h>
 
 namespace global_planner {
 

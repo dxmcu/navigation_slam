@@ -172,7 +172,7 @@ bool DijkstraExpansion::calculatePotentials(costmap_2d::Costmap2DROS* costmap_ro
         if (potential[startCell] < POT_HIGH)
             break;
     }
-    //ROS_INFO("CYCLES %d/%d ", cycle, cycles);
+    GAUSSIAN_INFO("CYCLES %d/%d ", cycle, cycles);
     if (cycle < cycles)
         return true; // finished up here
     else
@@ -206,7 +206,7 @@ inline void DijkstraExpansion::updateCell(unsigned char* costs, float* potential
         float ue = INVSQRT2 * (float)getCost(costs, n - nx_);
         float de = INVSQRT2 * (float)getCost(costs, n + nx_);
         potential[n] = pot;
-        //ROS_INFO("UPDATE %d %d %d %f", n, n%nx, n/nx, potential[n]);
+        //GAUSSIAN_INFO("UPDATE %d %d %d %f", n, n%nx, n/nx, potential[n]);
         if (pot < threshold_)    // low-cost buffer block
                 {
             if (potential[n - 1] > pot + le)

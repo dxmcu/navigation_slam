@@ -47,6 +47,7 @@
 #include <geometry_msgs/Point.h>
 #include <tf/transform_listener.h>
 #include <fixpattern_path/path.h>
+#include <gslib/gaussian_debug.h>
 
 #include <string>
 #include <cmath>

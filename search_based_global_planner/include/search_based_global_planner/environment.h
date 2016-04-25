@@ -13,6 +13,7 @@
 #define SEARCH_BASED_GLOBAL_PLANNER_INCLUDE_SEARCH_BASED_GLOBAL_PLANNER_ENVIRONMENT_H_
 
 #include <vector>
+#include <gslib/gaussian_debug.h>
 #include "search_based_global_planner/utils.h"
 #include "search_based_global_planner/pointer_heap.h"
 #include "search_based_global_planner/motion_primitive_manager.h"

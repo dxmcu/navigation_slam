@@ -41,6 +41,7 @@
 #include <costmap_2d/costmap_2d.h>
 #include <global_planner/planner_core.h>
 #include <global_planner/expander.h>
+#include <gslib/gaussian_debug.h>
 #include <vector>
 #include <algorithm>
 

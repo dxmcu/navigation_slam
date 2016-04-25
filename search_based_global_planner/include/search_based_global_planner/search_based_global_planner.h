@@ -14,6 +14,7 @@
 
 #include <costmap_2d/costmap_2d_ros.h>
 #include <fixpattern_path/path.h>
+#include <gslib/gaussian_debug.h>
 #include <vector>
 #include <queue>
 #include <string>

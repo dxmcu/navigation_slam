@@ -47,6 +47,7 @@
 #include <vector>
 #include <nav_core/base_global_planner.h>
 #include <nav_msgs/GetPlan.h>
+#include <gslib/gaussian_debug.h>
 #include <global_planner/potential_calculator.h>
 #include <global_planner/expander.h>
 #include <global_planner/traceback.h>

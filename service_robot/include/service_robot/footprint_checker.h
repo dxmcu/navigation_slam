@@ -18,6 +18,7 @@
 #include <costmap_2d/cost_values.h>
 #include <vector>
 #include <geometry_msgs/PoseStamped.h>
+#include <gslib/gaussian_debug.h>
 
 namespace service_robot {
 
@@ -83,7 +84,7 @@ class FootprintChecker {
         ++check_cost_cnt;
       } else {
         unsigned char cost = costmap_.getCost(cell_x, cell_y);
-        ROS_INFO("[Footprint_Checker] footprint_center[%d].cost = %d, check_cnt = %d",i, cost, check_cost_cnt + 1);
+        GAUSSIAN_INFO("[Footprint_Checker] footprint_center[%d].cost = %d, check_cnt = %d",i, cost, check_cost_cnt + 1);
         if (cost >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
           ++check_cost_cnt;
         } 

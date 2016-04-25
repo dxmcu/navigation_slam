@@ -124,7 +124,7 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
         angle = current_angle - 22.5 * M_PI / 180;
         rotate_direction = mprim_cell[2];
       } else {
-        //ROS_ERROR("ERROR: invalid angular resolution. angle = %d", current_angle_36000);
+        GAUSSIAN_ERROR("ERROR: invalid angular resolution. angle = %d", current_angle_36000);
         return;
       }
 
@@ -200,7 +200,7 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
         // total length
         double tv = tv_over_rv * rv;
         if (l < 0) {
-          //ROS_WARN("[SEARCH BASED GLOBAL PLANNER] l = %lf < 0 -> bad action start/end points", l);
+          GAUSSIAN_WARN("[SEARCH BASED GLOBAL PLANNER] l = %lf < 0 -> bad action start/end points", l);
           l = 0;
         }
         // generate samples
@@ -231,7 +231,7 @@ void MPrimitiveManager::GenerateMotionPrimitives() {
         Eigen::Vector2d error;
         error(0) = end_point.x - interm_pts[num_of_interm_pts - 1].x;
         error(1) = end_point.y - interm_pts[num_of_interm_pts - 1].y;
-        // //ROS_INFO("l=%f errx=%f erry=%f", l, error(0), error(1));
+        // GAUSSIAN_INFO("l=%f errx=%f erry=%f", l, error(0), error(1));
         for (int i = 0; i < num_of_interm_pts; ++i) {
           interm_pts[i].x += error(0) * i * 1.0 / (num_of_interm_pts - 1);
           interm_pts[i].y += error(1) * i * 1.0 / (num_of_interm_pts - 1);

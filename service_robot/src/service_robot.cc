@@ -67,17 +67,17 @@ ServiceRobot::ServiceRobot(tf::TransformListener* tf)
   private_nh.param("p14", sbpl_footprint_padding_, 0.1);
 
   if (!ReadCircleCenterFromParams(private_nh, &circle_center_points_)) {
-    //ROS_ERROR("[SERVICEROBOT] read circle_center_point failed");
+    GAUSSIAN_ERROR("[SERVICEROBOT] read circle_center_point failed");
     exit(1);
   }
 
   if (!ReadBackwardCenterFromParams(private_nh, &backward_center_points_)) {
-    //ROS_ERROR("[SERVICEROBOT] read backward_center_points_ failed");
+    GAUSSIAN_ERROR("[SERVICEROBOT] read backward_center_points_ failed");
     exit(1);
   }
 
   if (!ReadFootprintCenterFromParams(private_nh, &footprint_center_points_)) {
-    //ROS_ERROR("[SERVICEROBOT] read footprint_center_point failed");
+    GAUSSIAN_ERROR("[SERVICEROBOT] read footprint_center_point failed");
     exit(1);
   }
   // for comanding the base
@@ -181,7 +181,7 @@ ServiceRobot::ServiceRobot(tf::TransformListener* tf)
 
 void ServiceRobot::SimpleGoalCB(const geometry_msgs::PoseStamped::ConstPtr& goal) {
   ROS_DEBUG_NAMED("move_base", "In ROS goal callback, wrapping the PoseStamped in the action message and start ExecuteCycle.");
-  //ROS_INFO("[SERVICEROBOT] Get Goal!x = %.2f, y = %.2f, yaw = %.2f",goal->pose.position.x, goal->pose.position.y, tf::getYaw(goal->pose.orientation));
+  GAUSSIAN_INFO("[SERVICEROBOT] Get Goal!x = %.2f, y = %.2f, yaw = %.2f",goal->pose.position.x, goal->pose.position.y, tf::getYaw(goal->pose.orientation));
   global_planner_goal_.pose = goal->pose;
   global_planner_goal_.header.frame_id = global_frame_;
 //  reinterpret_cast<AStarControlOption*>(options_)->settle_planner_goal_ = &astar_planner_goal_;
@@ -198,7 +198,7 @@ void ServiceRobot::GoalCB(const move_base_msgs::MoveBaseActionGoal::ConstPtr& go
 }
 
 void ServiceRobot::PauseCB(const std_msgs::UInt32::ConstPtr& param) {
-//  //ROS_WARN("[SERVICEROBOT] Get Gaussian_Pause topic= %d", (int)param->data);
+  GAUSSIAN_WARN("[SERVICEROBOT] Get Gaussian_Pause topic= %d", (int)param->data);
   if (param->data == 1) {
     autoscrubber_services::Pause::Request req;
     autoscrubber_services::Pause::Response res;
@@ -211,7 +211,7 @@ void ServiceRobot::PauseCB(const std_msgs::UInt32::ConstPtr& param) {
 }
 
 void ServiceRobot::TerminateCB(const std_msgs::UInt32::ConstPtr& param) {
-//  //ROS_WARN("[SERVICEROBOT] Get Gaussian_Cancel");
+  GAUSSIAN_WARN("[SERVICEROBOT] Get Gaussian_Cancel");
   autoscrubber_services::Terminate::Request req;
   autoscrubber_services::Terminate::Response res;
   Terminate(req, res);
@@ -235,9 +235,9 @@ ServiceRobot::~ServiceRobot() {
 }
 
 bool ServiceRobot::Start(autoscrubber_services::Start::Request& req, autoscrubber_services::Start::Response& res) {
-  //ROS_INFO("[SERVICEROBOT] Start called");
+  GAUSSIAN_INFO("[SERVICEROBOT] Start called");
   if (environment_.run_flag) {
-    //ROS_INFO("[SERVICEROBOT] Control Thread is Running, Stop it first!");
+    GAUSSIAN_INFO("[SERVICEROBOT] Control Thread is Running, Stop it first!");
     environment_.run_flag = false;
     environment_.pause_flag = true;
     while (environment_.pause_flag) {
@@ -251,21 +251,21 @@ bool ServiceRobot::Start(autoscrubber_services::Start::Request& req, autoscrubbe
 }
 
 bool ServiceRobot::Pause(autoscrubber_services::Pause::Request& req, autoscrubber_services::Pause::Response& res) {
-  //ROS_INFO("[SERVICEROBOT] Pause called");
+  GAUSSIAN_INFO("[SERVICEROBOT] Pause called");
 //  environment_.run_flag = true;
   environment_.pause_flag = true;
   return true;
 }
 
 bool ServiceRobot::Resume(autoscrubber_services::Resume::Request& req, autoscrubber_services::Resume::Response& res) {
-  //ROS_INFO("[SERVICEROBOT] Resume called");
+  GAUSSIAN_INFO("[SERVICEROBOT] Resume called");
 //  environment_.run_flag = true;
   environment_.pause_flag = false;
   return true;
 }
 
 bool ServiceRobot::Terminate(autoscrubber_services::Terminate::Request& req, autoscrubber_services::Terminate::Response& res) {
-  //ROS_INFO("[SERVICEROBOT] Terminate called");
+  GAUSSIAN_INFO("[SERVICEROBOT] Terminate called");
   environment_.run_flag = false;
   environment_.pause_flag = true;
   return true;
@@ -331,7 +331,7 @@ void ReadCircleCenterFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const
 
     pt.x = GetNumberFromXMLRPC(point[0], full_param_name);
     pt.y = GetNumberFromXMLRPC(point[1], full_param_name);
-//    //ROS_INFO("[SERVICEROBOT] get circle center[%d] px = %lf, py = %lf", i, pt.x, pt.y);
+//    GAUSSIAN_INFO("[SERVICEROBOT] get circle center[%d] px = %lf, py = %lf", i, pt.x, pt.y);
     points->push_back(pt);
   }
 }
@@ -345,11 +345,11 @@ bool ServiceRobot::ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<g
     if (circle_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
       ReadCircleCenterFromXMLRPC(circle_center_xmlrpc, full_param_name, points);
       for (int i = 0; i < points->size(); ++i) {
-        //ROS_INFO("[SERVICEROBOT] circle_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
+        GAUSSIAN_INFO("[SERVICEROBOT] circle_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
       }
       return true;
     } else {
-      //ROS_ERROR("[SERVICEROBOT] circle_center param's type is not Array!");
+      GAUSSIAN_ERROR("[SERVICEROBOT] circle_center param's type is not Array!");
       return false;
     }
   }
@@ -364,11 +364,11 @@ bool ServiceRobot::ReadBackwardCenterFromParams(ros::NodeHandle& nh, std::vector
     if (backward_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
       ReadCircleCenterFromXMLRPC(backward_center_xmlrpc, full_param_name, points);
       for (int i = 0; i < points->size(); ++i) {
-        //ROS_INFO("[SERVICEROBOT] circle_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
+        GAUSSIAN_INFO("[SERVICEROBOT] circle_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
       }
       return true;
     } else {
-      //ROS_ERROR("[SERVICEROBOT] circle_center param's type is not Array!");
+      GAUSSIAN_ERROR("[SERVICEROBOT] circle_center param's type is not Array!");
       return false;
     }
   }
@@ -383,11 +383,11 @@ bool ServiceRobot::ReadFootprintCenterFromParams(ros::NodeHandle& nh, std::vecto
     if (footprint_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
       ReadCircleCenterFromXMLRPC(footprint_center_xmlrpc, full_param_name, points);
       for (int i = 0; i < points->size(); ++i) {
-        //ROS_INFO("[SERVICEROBOT] footprint_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
+        GAUSSIAN_INFO("[SERVICEROBOT] footprint_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
       }
       return true;
     } else {
-      //ROS_ERROR("[SERVICEROBOT] footprint_center param's type is not Array!");
+      GAUSSIAN_ERROR("[SERVICEROBOT] footprint_center param's type is not Array!");
       return false;
     }
   }

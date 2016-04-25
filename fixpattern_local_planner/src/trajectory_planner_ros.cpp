@@ -33,7 +33,7 @@ FixPatternTrajectoryPlannerROS::FixPatternTrajectoryPlannerROS()
   last_rotate_to_goal_dir_ = 0;
   last_target_yaw_ = 0.0;
   try_rotate_ = 0;
-  //ROS_INFO("[FIXPATTERN LOCAL PLANNER] FixPatternTrajectoryPlannerROS object created");
+  GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] FixPatternTrajectoryPlannerROS object created");
 }
 
 FixPatternTrajectoryPlannerROS::FixPatternTrajectoryPlannerROS(std::string name, tf::TransformListener* tf, costmap_2d::Costmap2DROS* costmap_ros)
@@ -44,7 +44,7 @@ FixPatternTrajectoryPlannerROS::FixPatternTrajectoryPlannerROS(std::string name,
 
 void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformListener* tf, costmap_2d::Costmap2DROS* costmap_ros) {
   if (!initialized_) {
-    //ROS_INFO("[Local Planner] FixPatternTrajectoryPlannerROS initialize");
+    GAUSSIAN_INFO("[Local Planner] FixPatternTrajectoryPlannerROS initialize");
 
     ros::NodeHandle private_nh("~/" + name);
     g_plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
@@ -74,9 +74,9 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
 
     private_nh.param("p14", latch_xy_goal_tolerance_, false);
     private_nh.param("p13", yaw_goal_tolerance_, 0.05);
-    //ROS_INFO("[LOCAL PLANNER] yaw_goal_tolerance: %lf", yaw_goal_tolerance_);
+    GAUSSIAN_INFO("[LOCAL PLANNER] yaw_goal_tolerance: %lf", yaw_goal_tolerance_);
     private_nh.param("p12", xy_goal_tolerance_, 0.50);
-    //ROS_INFO("[LOCAL PLANNER] xy_goal_tolerance: %lf", xy_goal_tolerance_);
+    GAUSSIAN_INFO("[LOCAL PLANNER] xy_goal_tolerance: %lf", xy_goal_tolerance_);
     private_nh.param("p10", acc_lim_x_, 2.5);
     private_nh.param("p11", acc_lim_y_, 2.5);
     private_nh.param("p9", acc_lim_theta_, acc_lim_theta_);
@@ -84,18 +84,18 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
     // Since I screwed up nicely in my documentation, I'm going to add errors
     // informing the user if they've set one of the wrong parameters
     if (private_nh.hasParam("acc_limit_x")) {
-      //ROS_ERROR("You are using acc_limit_x where you should be using acc_lim_x."
-      //          " Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
+      GAUSSIAN_ERROR("You are using acc_limit_x where you should be using acc_lim_x."
+                " Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
      }
 
     if (private_nh.hasParam("acc_limit_y")) {
-      //ROS_ERROR("You are using acc_limit_y where you should be using acc_lim_y."
-      //          " Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
+      GAUSSIAN_ERROR("You are using acc_limit_y where you should be using acc_lim_y."
+                " Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
      }
 
     if (private_nh.hasParam("acc_limit_th")) {
-      //ROS_ERROR("You are using acc_limit_th where you should be using acc_lim_th."
-      //          " Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
+      GAUSSIAN_ERROR("You are using acc_limit_th where you should be using acc_lim_th."
+                " Please change your configuration files appropriately. The documentation used to be wrong on this, sorry for any confusion.");
      }
 
     // Assuming this planner is being run within the navigation stack, we can
@@ -110,11 +110,11 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
       if (controller_frequency > 0) {
         sim_period_ = 1.0 / controller_frequency;
       } else {
-        //ROS_WARN("A controller_frequency less than 0 has been set. Ignoring the parameter, assuming a rate of 20Hz");
+        GAUSSIAN_WARN("A controller_frequency less than 0 has been set. Ignoring the parameter, assuming a rate of 20Hz");
         sim_period_ = 0.05;
       }
     }
-    //ROS_INFO("Sim period is set to %.2f", sim_period_);
+    GAUSSIAN_INFO("Sim period is set to %.2f", sim_period_);
 
     private_nh.param("p15", num_calc_footprint_cost, 5);
     private_nh.param("p16", rotate_to_goal_k_, 1.2);
@@ -140,15 +140,15 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
     reached_goal_ = false;
     backup_vel = -0.1;
     if (private_nh.getParam("backup_vel", backup_vel)) {
-      //ROS_WARN("The backup_vel parameter has been deprecated in favor of the escape_vel parameter. To switch, just change the parameter name in your configuration files.");
+      GAUSSIAN_WARN("The backup_vel parameter has been deprecated in favor of the escape_vel parameter. To switch, just change the parameter name in your configuration files.");
     }
     // if both backup_vel and escape_vel are set... we'll use escape_vel
     private_nh.getParam("escape_vel", backup_vel);
 
     if (backup_vel >= 0.0) {
-      //ROS_WARN("You've specified a positive escape velocity."
-      //         " This is probably not what you want and will cause the robot to move forward instead of backward."
-      //         " You should probably change your escape_vel parameter to be negative");
+      GAUSSIAN_WARN("You've specified a positive escape velocity."
+               " This is probably not what you want and will cause the robot to move forward instead of backward."
+               " You should probably change your escape_vel parameter to be negative");
     }
 
     private_nh.param("world_model", world_model_type, std::string("costmap"));
@@ -172,7 +172,7 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
     initialized_ = true;
 
   } else {
-    //ROS_WARN("This planner has already been initialized, doing nothing");
+    GAUSSIAN_WARN("This planner has already been initialized, doing nothing");
   }
 }
 
@@ -213,7 +213,7 @@ bool FixPatternTrajectoryPlannerROS::stopWithAccLimits(PlannerType planner_type,
   // if we have a valid command, we'll pass it on, otherwise we'll command all zeros
   if (valid_cmd) {
     ROS_DEBUG("Slowing down... using vx, vy, vth: %.2f, %.2f, %.2f", vx, vy, vth);
-    //ROS_INFO("[FIXPATTERN LOCAL PLANNER] stopWithAccLimits: vx = %lf, vth = %lf", vx, vth);
+    GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] stopWithAccLimits: vx = %lf, vth = %lf", vx, vth);
     cmd_vel->linear.x = vx;
     cmd_vel->linear.y = vy;
 //    cmd_vel->angular.z = vth;
@@ -266,7 +266,7 @@ bool FixPatternTrajectoryPlannerROS::rotateToGoal(PlannerType planner_type, cons
       : std::max(min_vel_theta_, std::min(-1.0 * min_in_place_rotational_vel_, v_theta_samp));
 
   double angle_diff = angles::shortest_angular_distance(yaw, goal_th);
-  //ROS_INFO("[FIXPATTERN LOCAL PLANNER] rotate to goal: angle_diff = %lf", angle_diff);
+  GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] rotate to goal: angle_diff = %lf", angle_diff);
   if(fabs(angle_diff) < 0.15) {
     v_theta_samp *= 0.30;
   } else if(fabs(angle_diff) < 0.35) {
@@ -353,7 +353,7 @@ bool FixPatternTrajectoryPlannerROS::needBackward(PlannerType planner_type, cons
     cmd_vel->linear.x = -0.1;
     cmd_vel->linear.y = 0.0;
     cmd_vel->angular.z = 0.0;
-    //ROS_INFO("[FIXPATTERN LOCAL PLANNER] need backward!");
+    GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] need backward!");
     return true;
   }
 }
@@ -373,7 +373,7 @@ double getPlanLength(const std::vector<fixpattern_path::PathPoint>& plan) {
 
 bool FixPatternTrajectoryPlannerROS::setPlan(const std::vector<fixpattern_path::PathPoint>& orig_global_plan, const std::string& orig_frame_id) {
   if (!isInitialized()) {
-    //ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
+    GAUSSIAN_ERROR("This planner has not been initialized, please call initialize() before using this planner");
     return false;
   }
 
@@ -395,7 +395,7 @@ bool FixPatternTrajectoryPlannerROS::setPlan(const std::vector<fixpattern_path::
     final_goal_extended_ = false;
   }
 
-//  //ROS_INFO("[FIXPATTERN LOCAL PLANNER] orig plan size = %zu; new plan size = %zu", orig_global_plan.size(), new_global_plan.size());
+//  GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] orig plan size = %zu; new plan size = %zu", orig_global_plan.size(), new_global_plan.size());
 
   // reset the global plan
   global_plan_.clear();
@@ -415,19 +415,19 @@ bool FixPatternTrajectoryPlannerROS::setPlan(const std::vector<fixpattern_path::
 
 bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner_type, geometry_msgs::Twist* cmd_vel) {
   if (!initialized_) {
-    //ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
+    GAUSSIAN_ERROR("This planner has not been initialized, please call initialize() before using this planner");
     return false;
   }
 
   if (fixpattern_path_.size() == 0) {
-    //ROS_ERROR("[FIXPATTERN LOCAL PLANNER] fixpattern_path_.size() == 0");
+    GAUSSIAN_ERROR("[FIXPATTERN LOCAL PLANNER] fixpattern_path_.size() == 0");
     return false;
   }
 
   std::vector<geometry_msgs::PoseStamped> local_plan;
   tf::Stamped<tf::Pose> global_pose;
   if (!costmap_ros_->getRobotPose(global_pose)) {
-    //ROS_ERROR("[FIXPATTERN LOCAL PLANNER] costmap_ros_->getRobotPose failed");
+    GAUSSIAN_ERROR("[FIXPATTERN LOCAL PLANNER] costmap_ros_->getRobotPose failed");
     return false;
   }
 
@@ -435,7 +435,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
   // get the global plan in our frame
   if (!transformGlobalPlan(*tf_, global_plan_, global_pose, *costmap_,
                            global_frame_, transformed_plan, fixpattern_path_.front().highlight)) {
-    //ROS_ERROR("Could not transform the global plan to the frame of the controller");
+    GAUSSIAN_ERROR("Could not transform the global plan to the frame of the controller");
     return false;
   }
 
@@ -457,7 +457,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
 
   // if the global plan passed in is empty... we won't do anything
   if (transformed_plan.empty()) {
-    //ROS_ERROR("[FIXPATTERN LOCAL PLANNER] transformed_plan is empty");
+    GAUSSIAN_ERROR("[FIXPATTERN LOCAL PLANNER] transformed_plan is empty");
     return false;
   }
 
@@ -505,7 +505,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
     }
 
     double angle = getGoalOrientationAngleDifference(global_pose, goal_th);
-    //ROS_INFO("[FIXPATTERN LOCAL PLANNER] global_goal: yaw_goal_tolerance = %lf, yaw_goal_diff = %lf", yaw_goal_tolerance_, angle);
+    GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] global_goal: yaw_goal_tolerance = %lf, yaw_goal_diff = %lf", yaw_goal_tolerance_, angle);
     // check to see if the goal orientation has been reached
     if (fabs(angle) <= yaw_goal_tolerance_) {
       // set the velocity command to zero
@@ -516,7 +516,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
       xy_tolerance_latch_ = false;
       reached_goal_ = true;
       rotating_to_goal_done_ = true;
-      //ROS_INFO("[FIXPATTERN LOCAL PLANNER] global_goal reached!");
+      GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] global_goal reached!");
     } else {
       // we need to call the next two lines to make sure that the trajectory
       // planner updates its path distance and goal distance grids
@@ -545,7 +545,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
       // if we're not stopped yet... we want to stop... taking into account the acceleration limits of the robot
       if (!rotating_to_goal_ && !fixpattern_local_planner::stopped(base_odom, 0.1, 0.1)) { //trans_stopped_velocity_  rot_stopped_velocity_
         if (!stopWithAccLimits(planner_type, global_pose, robot_vel, cmd_vel)) {
-          //ROS_ERROR("[FIXPATTERN LOCAL PLANNER] stopWithAccLimits failed");
+          GAUSSIAN_ERROR("[FIXPATTERN LOCAL PLANNER] stopWithAccLimits failed");
           return false;
         }
       } else {
@@ -554,7 +554,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
         rotating_to_goal_done_ = false;
         rotating_to_goal_ = true;
         if (!rotateToGoal(planner_type, global_pose, robot_vel, goal_th, cmd_vel)) {
-          //ROS_ERROR("[FIXPATTERN LOCAL PLANNER] rotateToGoal failed");
+          GAUSSIAN_ERROR("[FIXPATTERN LOCAL PLANNER] rotateToGoal failed");
           return false;
         }
       }
@@ -592,13 +592,13 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
      start_t = start.tv_sec + double(start.tv_usec) / 1e6;
      end_t = end.tv_sec + double(end.tv_usec) / 1e6;
      t_diff = end_t - start_t;
-     //ROS_INFO("Cycle time: %.9f", t_diff);
+     GAUSSIAN_INFO("Cycle time: %.9f", t_diff);
  */
 
-  // //ROS_INFO("[FIXPATTERN LOCAL PLANNER] fixpattern_path_.size(): %d", fixpattern_path_.size());
+  // GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] fixpattern_path_.size(): %d", fixpattern_path_.size());
   for(unsigned int i = 0; i < fixpattern_path_.size(); ++i) {
     if(fixpattern_path_.at(i).IsCornerPoint()) {
-      //ROS_INFO("[FIXPATTERN LOCAL PLANNER] fixpattern_path_size = %d, corner_index = %d", (int)fixpattern_path_.size(), i);
+      GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] fixpattern_path_size = %d, corner_index = %d", (int)fixpattern_path_.size(), i);
     }
   }
   if (fixpattern_path_.front().IsCornerPoint()) {
@@ -613,7 +613,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
     double yaw = tf::getYaw(global_pose.getRotation());
     double target_yaw = fixpattern_path_.front().corner_struct.theta_out;
     double angle_diff = angles::shortest_angular_distance(yaw, target_yaw);
-    //ROS_INFO("[FIXPATTERN LOCAL PLANNER] Corner: before rotating to goal, yaw: %lf, target_yaw: %lf, angle_diff: %lf", yaw, target_yaw, angle_diff);
+    GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] Corner: before rotating to goal, yaw: %lf, target_yaw: %lf, angle_diff: %lf", yaw, target_yaw, angle_diff);
     // if target_yaw changed during rotation, don't follow last dir
     if (fabs(target_yaw - last_target_yaw_) > 0.000001) {
       last_rotate_to_goal_dir_ = 0;
@@ -624,10 +624,10 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
       rotating_to_goal_ = true;
       rotating_to_goal_done_ = false;
       if (!rotateToGoal(planner_type, global_pose, robot_vel, target_yaw, cmd_vel)) {
-        //ROS_INFO("[FIXPATTERN LOCAL PLANNER] try_rotate_: %d", try_rotate_);
+        GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] try_rotate_: %d", try_rotate_);
         return false;
       }
-      //ROS_INFO("[FIXPATTERN LOCAL PLANNER] rotating to goal");
+      GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] rotating to goal");
 
       publishPlan(transformed_plan, g_plan_pub_);
       publishPlan(local_plan, l_plan_pub_);
@@ -651,12 +651,12 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
 		double angle_diff = angles::shortest_angular_distance(yaw, target_yaw);
 		if (robot_vel.getOrigin().getX() < GS_DOUBLE_PRECISION && tf::getYaw(robot_vel.getRotation()) < GS_DOUBLE_PRECISION && fabs(angle_diff) > 0.5) {  // > 30 digree{
         need_rotate_to_path_ = true;
-        //ROS_INFO("[FIXPATTERN LOCAL PLANNER] start point rotating to path, yaw: %lf, target_yaw: %lf, angle_diff: %lf", yaw, target_yaw, angle_diff);
+        GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] start point rotating to path, yaw: %lf, target_yaw: %lf, angle_diff: %lf", yaw, target_yaw, angle_diff);
     }
     if (fabs(angle_diff) > 0.1 && need_rotate_to_path_) {
-				//ROS_INFO("[FIXPATTERN LOCAL PLANNER] rotating to path goal");
+				GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] rotating to path goal");
 				if (!rotateToGoal(planner_type, global_pose, robot_vel, target_yaw, cmd_vel)) {
-					//ROS_INFO("[FIXPATTERN LOCAL PLANNER] try_rotate_: %d", try_rotate_);
+					GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] try_rotate_: %d", try_rotate_);
 					return false;
 				}
 				publishPlan(transformed_plan, g_plan_pub_);
@@ -673,7 +673,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
   try_rotate_ = 0;
 
   if (fixpattern_path_.front().IsCornerPoint()) {
-    //ROS_INFO("[FIXPATTERN LOCAL PLANNER] path front is corner, highlight: %lf", fixpattern_path_.front().highlight);
+    GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] path front is corner, highlight: %lf", fixpattern_path_.front().highlight);
   }
 
   // publish point cloud for debug
@@ -721,7 +721,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
     local_plan.clear();
     publishPlan(transformed_plan, g_plan_pub_);
     publishPlan(local_plan, l_plan_pub_);
-    //ROS_ERROR("[FIXPATTERN LOCAL PLANNER] path.cost < 0");
+    GAUSSIAN_ERROR("[FIXPATTERN LOCAL PLANNER] path.cost < 0");
     return false;
   }
 
@@ -751,7 +751,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
 
 bool FixPatternTrajectoryPlannerROS::isGoalReached() {
   if (!isInitialized()) {
-    //ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
+    GAUSSIAN_ERROR("This planner has not been initialized, please call initialize() before using this planner");
     return false;
   }
   // return flag set in controller
@@ -760,7 +760,7 @@ bool FixPatternTrajectoryPlannerROS::isGoalReached() {
 
 bool FixPatternTrajectoryPlannerROS::isRotatingToGoalDone() {
   if (!isInitialized()) {
-    //ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
+    GAUSSIAN_ERROR("This planner has not been initialized, please call initialize() before using this planner");
     return false;
   }
   // return flag set in controller
@@ -775,7 +775,7 @@ void FixPatternTrajectoryPlannerROS::resetRotatingToGoalDone() {
 
 bool FixPatternTrajectoryPlannerROS::isRotatingToGoal() {
   if (!isInitialized()) {
-    //ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
+    GAUSSIAN_ERROR("This planner has not been initialized, please call initialize() before using this planner");
     return false;
   }
   // return flag set in controller
@@ -784,7 +784,7 @@ bool FixPatternTrajectoryPlannerROS::isRotatingToGoal() {
 
 bool FixPatternTrajectoryPlannerROS::isGoalXYLatched() {
   if (!isInitialized()) {
-    //ROS_ERROR("This planner has not been initialized, please call initialize() before using this planner");
+    GAUSSIAN_ERROR("This planner has not been initialized, please call initialize() before using this planner");
     return false;
   }
   // return flag set in controller

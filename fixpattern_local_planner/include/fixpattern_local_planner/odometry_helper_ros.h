@@ -42,6 +42,7 @@
 #include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
 #include <boost/thread.hpp>
+#include <gslib/gaussian_debug.h>
 
 namespace fixpattern_local_planner {
 

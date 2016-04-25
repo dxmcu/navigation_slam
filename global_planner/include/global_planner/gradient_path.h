@@ -38,7 +38,8 @@
 #ifndef _GRADIENT_PATH_H
 #define _GRADIENT_PATH_H
 
-#include<global_planner/traceback.h>
+#include <global_planner/traceback.h>
+#include <gslib/gaussian_debug.h>
 #include <math.h>
 
 namespace global_planner {

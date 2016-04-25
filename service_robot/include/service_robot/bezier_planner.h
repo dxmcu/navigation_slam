@@ -14,6 +14,7 @@
 
 #include <geometry_msgs/PoseStamped.h>
 #include <fixpattern_path/path_point.h>
+#include <gslib/gaussian_debug.h>
 #include <vector>
 
 namespace service_robot {

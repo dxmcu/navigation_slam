@@ -102,7 +102,7 @@ namespace fixpattern_local_planner
 
     try {
       if (!global_plan.size() > 0) {
-        //ROS_ERROR("Received plan with zero length");
+        GAUSSIAN_ERROR("Received plan with zero length");
         return false;
       }
 
@@ -151,17 +151,17 @@ namespace fixpattern_local_planner
       }
     }
     catch(tf::LookupException& ex) {
-      //ROS_ERROR("No Transform available Error: %s\n", ex.what());
+      GAUSSIAN_ERROR("No Transform available Error: %s\n", ex.what());
       return false;
     }
     catch(tf::ConnectivityException& ex) {
-      //ROS_ERROR("Connectivity Error: %s\n", ex.what());
+      GAUSSIAN_ERROR("Connectivity Error: %s\n", ex.what());
       return false;
     }
     catch(tf::ExtrapolationException& ex) {
-      //ROS_ERROR("Extrapolation Error: %s\n", ex.what());
+      GAUSSIAN_ERROR("Extrapolation Error: %s\n", ex.what());
       if (global_plan.size() > 0) {
-        //ROS_ERROR("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
+        GAUSSIAN_ERROR("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
       }
       return false;
     }
@@ -173,7 +173,7 @@ namespace fixpattern_local_planner
     transformed_plan->clear();
 
     if (0 == fixpattern_path->size()) {
-      ROS_ERROR("[FIXPATTERN LOCAL PLANNER] Received plan with zero length");
+      GAUSSIAN_ERROR("[FIXPATTERN LOCAL PLANNER] Received plan with zero length");
       return false;
     }
 
@@ -209,7 +209,7 @@ namespace fixpattern_local_planner
     try{
       if (!global_plan.size() > 0)
       {
-        //ROS_ERROR("Recieved plan with zero length");
+        GAUSSIAN_ERROR("Recieved plan with zero length");
         return false;
       }
 
@@ -228,17 +228,17 @@ namespace fixpattern_local_planner
 
     }
     catch(tf::LookupException& ex) {
-      ROS_ERROR("No Transform available Error: %s\n", ex.what());
+      GAUSSIAN_ERROR("No Transform available Error: %s\n", ex.what());
       return false;
     }
     catch(tf::ConnectivityException& ex) {
-      ROS_ERROR("Connectivity Error: %s\n", ex.what());
+      GAUSSIAN_ERROR("Connectivity Error: %s\n", ex.what());
       return false;
     }
     catch(tf::ExtrapolationException& ex) {
-      //ROS_ERROR("Extrapolation Error: %s\n", ex.what());
+      GAUSSIAN_ERROR("Extrapolation Error: %s\n", ex.what());
       if (global_plan.size() > 0) {
-        ROS_ERROR("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
+        GAUSSIAN_ERROR("Global Frame: %s Plan Frame size %d: %s\n", global_frame.c_str(), (unsigned int)global_plan.size(), global_plan[0].header.frame_id.c_str());
       }
 
       return false;

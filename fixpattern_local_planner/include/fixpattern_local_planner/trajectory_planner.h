@@ -26,6 +26,8 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Point.h>
 
+#include <gslib/gaussian_debug.h>
+
 //for some datatypes
 #include <tf/transform_datatypes.h>
 

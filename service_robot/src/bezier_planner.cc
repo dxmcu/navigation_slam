@@ -119,7 +119,7 @@ geometry_msgs::PoseStamped MakeBezierPlan(std::vector<fixpattern_path::PathPoint
 
   double pose_diff = hypot(start_pos_x, start_pos_y);
   int pts_count = ceil(pose_diff / 0.05) + 1;
-  ROS_INFO("[BEZIER PLANNER] pts count: %d, x: %lf y: %lf", pts_count, start_pos_x, start_pos_y);
+  GAUSSIAN_INFO("[BEZIER PLANNER] pts count: %d, x: %lf y: %lf", pts_count, start_pos_x, start_pos_y);
 
   double start_yaw = tf::getYaw(start.pose.orientation);
   double goal_yaw = tf::getYaw(goal.pose.orientation);
@@ -128,7 +128,7 @@ geometry_msgs::PoseStamped MakeBezierPlan(std::vector<fixpattern_path::PathPoint
   if (start_pos_x >= 0 && start_pos_y >= 0) {
     if (start_pos_x >= start_pos_y) {
       // 1st quadrant
-      ROS_INFO("[BEZIER PLANNER] in 1st quadrant");
+      GAUSSIAN_INFO("[BEZIER PLANNER] in 1st quadrant");
       // cut some points first
       double cut_len = 2 * fabs(start_pos_x) * 1.2;
       geometry_msgs::PoseStamped new_goal = goal;
@@ -157,7 +157,7 @@ geometry_msgs::PoseStamped MakeBezierPlan(std::vector<fixpattern_path::PathPoint
       return new_goal;
     } else {
       // 2nd quadrant
-      ROS_INFO("[BEZIER PLANNER] in 2nd quadrant");
+      GAUSSIAN_INFO("[BEZIER PLANNER] in 2nd quadrant");
       // cut some points first
       double cut_len = 2 * fabs(start_pos_x) * 1.2;
       geometry_msgs::PoseStamped new_goal = goal;
@@ -190,7 +190,7 @@ geometry_msgs::PoseStamped MakeBezierPlan(std::vector<fixpattern_path::PathPoint
   } else if (start_pos_x < 0 && start_pos_y >= 0) {
     if (-start_pos_x < start_pos_y) {
       // 3rd quadrant
-      ROS_INFO("[BEZIER PLANNER] in 3rd quadrant");
+      GAUSSIAN_INFO("[BEZIER PLANNER] in 3rd quadrant");
       if (angle_diff > -M_PI_4) {
         // rotate first
         double temp_yaw = goal_yaw - M_PI_2;
@@ -210,7 +210,7 @@ geometry_msgs::PoseStamped MakeBezierPlan(std::vector<fixpattern_path::PathPoint
       return goal;
     } else {
       // 4th quadrant
-      ROS_INFO("[BEZIER PLANNER] in 4th quadrant");
+      GAUSSIAN_INFO("[BEZIER PLANNER] in 4th quadrant");
       if (angle_diff > M_PI_4 || angle_diff < -M_PI_2) {
         // rotate first
         GenerateInPlaceRotationPath(bezier_path, start.pose, start_yaw, goal_yaw);
@@ -230,7 +230,7 @@ geometry_msgs::PoseStamped MakeBezierPlan(std::vector<fixpattern_path::PathPoint
   } else if (start_pos_x < 0 && start_pos_y < 0) {
     if (-start_pos_x >= -start_pos_y) {
       // 5th quadrant
-      ROS_INFO("[BEZIER PLANNER] in 5th quadrant");
+      GAUSSIAN_INFO("[BEZIER PLANNER] in 5th quadrant");
       if (angle_diff > M_PI_2 || angle_diff < -M_PI_4) {
         // rotate first
         GenerateInPlaceRotationPath(bezier_path, start.pose, start_yaw, goal_yaw);
@@ -248,7 +248,7 @@ geometry_msgs::PoseStamped MakeBezierPlan(std::vector<fixpattern_path::PathPoint
       return goal;
     } else {
       // 6th quadrant
-      ROS_INFO("[BEZIER PLANNER] in 6th quadrant");
+      GAUSSIAN_INFO("[BEZIER PLANNER] in 6th quadrant");
       if (angle_diff < M_PI_4) {
         // rotate first
         double temp_yaw = goal_yaw + M_PI_2;
@@ -270,7 +270,7 @@ geometry_msgs::PoseStamped MakeBezierPlan(std::vector<fixpattern_path::PathPoint
   } else if (start_pos_x >= 0 && start_pos_y < 0) {
     if (start_pos_x < -start_pos_y) {
       // 7th quadrant
-      ROS_INFO("[BEZIER PLANNER] in 7th quadrant");
+      GAUSSIAN_INFO("[BEZIER PLANNER] in 7th quadrant");
       // cut some points first
       double cut_len = 2 * fabs(start_pos_x) * 1.2;
       geometry_msgs::PoseStamped new_goal = goal;
@@ -301,7 +301,7 @@ geometry_msgs::PoseStamped MakeBezierPlan(std::vector<fixpattern_path::PathPoint
       return new_goal;
     } else {
       // 8th quadrant
-      ROS_INFO("[BEZIER PLANNER] in 8th quadrant");
+      GAUSSIAN_INFO("[BEZIER PLANNER] in 8th quadrant");
       // cut some points first
       double cut_len = 2 * fabs(start_pos_x) * 1.2;
       geometry_msgs::PoseStamped new_goal = goal;
@@ -331,7 +331,7 @@ geometry_msgs::PoseStamped MakeBezierPlan(std::vector<fixpattern_path::PathPoint
     }
   } else {
     // not possible
-    ROS_ERROR("[BEZIER PLANNER] something's going wrong");
+    GAUSSIAN_ERROR("[BEZIER PLANNER] something's going wrong");
   }
 }
 
@@ -357,7 +357,7 @@ bool MakeBezierPlan(std::vector<fixpattern_path::PathPoint>* bezier_path,
 
   double pose_diff = hypot(delta_x, delta_y);
   int pts_count = ceil(pose_diff / 0.05) + 1;
-  ROS_INFO("[BEZIER PLANNER] pts count: %d, x: %lf y: %lf", pts_count, delta_x, delta_y);
+  GAUSSIAN_INFO("[BEZIER PLANNER] pts count: %d, x: %lf y: %lf", pts_count, delta_x, delta_y);
 
   double start_yaw = tf::getYaw(start.pose.orientation);
   double goal_yaw = tf::getYaw(goal.pose.orientation);

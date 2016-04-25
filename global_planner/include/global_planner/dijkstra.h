@@ -46,6 +46,7 @@
 
 #include <global_planner/planner_core.h>
 #include <global_planner/expander.h>
+#include <gslib/gaussian_debug.h>
 
 // inserting onto the priority blocks
 #define push_cur(n)  { if (n>=0 && n<ns_ && !pending_[n] && getCost(costs, n)<lethal_cost_ && currentEnd_<PRIORITYBUFSIZE){ currentBuffer_[currentEnd_++]=n; pending_[n]=true; }}

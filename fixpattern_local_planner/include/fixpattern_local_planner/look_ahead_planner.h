@@ -17,6 +17,7 @@
 #include <fixpattern_local_planner/trajectory.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <tf/transform_datatypes.h>
+#include <gslib/gaussian_debug.h>
 
 #include <vector>
 #include <algorithm>

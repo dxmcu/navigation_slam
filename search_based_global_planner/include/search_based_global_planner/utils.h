@@ -153,7 +153,7 @@ inline double NormalizeAngle(double angle) {
   if (retangle < 0) retangle += 2 * PI_CONST;
 
   if (retangle < 0 || retangle > 2 * PI_CONST) {
-    ROS_ERROR("[SEARCH BASED GLOBAL PLANNER] after normalization of angle=%f we get angle=%f\n", angle, retangle);
+    GAUSSIAN_ERROR("[SEARCH BASED GLOBAL PLANNER] after normalization of angle=%f we get angle=%f\n", angle, retangle);
   }
 
   return retangle;

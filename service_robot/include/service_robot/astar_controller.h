@@ -26,6 +26,7 @@
 #include <fixpattern_path/path.h>
 #include <search_based_global_planner/search_based_global_planner.h>
 #include <fixpattern_local_planner/trajectory_planner_ros.h>
+#include <gslib/gaussian_debug.h>
 #include <string>
 #include <vector>
 

@@ -52,7 +52,7 @@ namespace fixpattern_local_planner {
 
     //get the cell coord of the center point of the robot
     if(!costmap_.worldToMap(position.x, position.y, cell_x, cell_y)) {
-      // ROS_WARN("[LOCAL PLANNER] worldToMap failed, 1st place");
+      // GAUSSIAN_WARN("[LOCAL PLANNER] worldToMap failed, 1st place");
       return -1.0;
     }
 
@@ -74,13 +74,13 @@ namespace fixpattern_local_planner {
     for(unsigned int i = 0; i < footprint.size() - 1; ++i){
       //get the cell coord of the first point
       if(!costmap_.worldToMap(footprint[i].x, footprint[i].y, x0, y0)) {
-        // ROS_WARN("[LOCAL PLANNER] worldToMap failed, 2nd place");
+        // GAUSSIAN_WARN("[LOCAL PLANNER] worldToMap failed, 2nd place");
         return -1.0;
       }
 
       //get the cell coord of the second point
       if(!costmap_.worldToMap(footprint[i + 1].x, footprint[i + 1].y, x1, y1)) {
-        // ROS_WARN("[LOCAL PLANNER] worldToMap failed, 3rd place");
+        // GAUSSIAN_WARN("[LOCAL PLANNER] worldToMap failed, 3rd place");
         return -1.0;
       }
 
@@ -89,7 +89,7 @@ namespace fixpattern_local_planner {
 
       //if there is an obstacle that hits the line... we know that we can return false right away
       if(line_cost < 0) {
-        // ROS_WARN("[LOCAL PLANNER] lineCost < 0, 1st place");
+        // GAUSSIAN_WARN("[LOCAL PLANNER] lineCost < 0, 1st place");
         return -1.0;
       }
     }
@@ -97,13 +97,13 @@ namespace fixpattern_local_planner {
     //we also need to connect the first point in the footprint to the last point
     //get the cell coord of the last point
     if(!costmap_.worldToMap(footprint.back().x, footprint.back().y, x0, y0)) {
-      // ROS_WARN("[LOCAL PLANNER] worldToMap failed, 4th place");
+      // GAUSSIAN_WARN("[LOCAL PLANNER] worldToMap failed, 4th place");
       return -1.0;
     }
 
     //get the cell coord of the first point
     if(!costmap_.worldToMap(footprint.front().x, footprint.front().y, x1, y1)) {
-      // ROS_WARN("[LOCAL PLANNER] worldToMap failed, 4th place");
+      // GAUSSIAN_WARN("[LOCAL PLANNER] worldToMap failed, 4th place");
       return -1.0;
     }
 
@@ -111,7 +111,7 @@ namespace fixpattern_local_planner {
     footprint_cost = std::max(line_cost, footprint_cost);
 
     if(line_cost < 0) {
-      // ROS_WARN("[LOCAL PLANNER] lineCost < 0, 2nd place");
+      // GAUSSIAN_WARN("[LOCAL PLANNER] lineCost < 0, 2nd place");
       return -1.0;
     }
 

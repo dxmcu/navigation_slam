@@ -97,7 +97,7 @@ bool GradientPath::getPath(float* potential, double start_x, double start_y, dou
         current.first = nx;
         current.second = ny;
 
-        //ROS_INFO("%d %d | %f %f ", stc%xs_, stc/xs_, dx, dy);
+        GAUSSIAN_INFO("%d %d | %f %f ", stc%xs_, stc/xs_, dx, dy);
 
         path.push_back(current);
 

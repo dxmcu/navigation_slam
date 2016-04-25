@@ -40,6 +40,7 @@
 #include <fixpattern_local_planner/world_model.h>
 // For obstacle data access
 #include <costmap_2d/costmap_2d.h>
+#include <gslib/gaussian_debug.h>
 
 namespace fixpattern_local_planner {
   /**
