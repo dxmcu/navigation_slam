@@ -220,10 +220,10 @@ void SearchBasedGlobalPlanner::UpdateSetMembership(EnvironmentEntry3D* entry) {
     if (entry->closed_iteration != iteration_) {
       COMPUTEKEY(entry);
       if (PTRHEAP_OK != open_.contain(entry)) {
-        GAUSSIAN_INFO("[SEARCH BASED GLOBAL PLANNER] push to open_ (%d %d %d)", entry->x, entry->y, entry->theta);
+//        GAUSSIAN_INFO("[SEARCH BASED GLOBAL PLANNER] push to open_ (%d %d %d)", entry->x, entry->y, entry->theta);
         open_.push(entry);
       } else {
-        GAUSSIAN_INFO("[SEARCH BASED GLOBAL PLANNER] update (%d %d %d)", entry->x, entry->y, entry->theta);
+//        GAUSSIAN_INFO("[SEARCH BASED GLOBAL PLANNER] update (%d %d %d)", entry->x, entry->y, entry->theta);
         open_.adjust(entry);
       }
     } else {
@@ -231,7 +231,7 @@ void SearchBasedGlobalPlanner::UpdateSetMembership(EnvironmentEntry3D* entry) {
     }
   } else {
     if (PTRHEAP_OK == open_.contain(entry)) {
-      GAUSSIAN_INFO("[SEARCH BASED GLOBAL PLANNER] erase from open_ (%d %d %d)", entry->x, entry->y, entry->theta);
+//      GAUSSIAN_INFO("[SEARCH BASED GLOBAL PLANNER] erase from open_ (%d %d %d)", entry->x, entry->y, entry->theta);
       open_.erase(entry);
     }
   }

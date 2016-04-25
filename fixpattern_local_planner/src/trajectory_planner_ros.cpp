@@ -136,6 +136,7 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
     private_nh.param("p8", min_in_place_rotational_vel_, 0.1);
 //    private_nh.param("min_in_place_rotational_vel", min_in_place_vel_th_, 0.4);
     private_nh.param("p6", min_vel_abs_th_, 0.1);
+    private_nh.param("p7", min_hightlight_dis_, 0.5);
     
     reached_goal_ = false;
     backup_vel = -0.1;
@@ -163,7 +164,7 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
                                 sim_time, sim_granularity, front_safe_sim_time, front_safe_sim_granularity,
                                 vtheta_samples,
                                 pdist_scale, gdist_scale, occdist_scale, 
-                                max_vel_x, min_vel_x, max_vel_theta_, min_vel_theta_, min_in_place_rotational_vel_, backup_vel);
+                                max_vel_x, min_vel_x, max_vel_theta_, min_vel_theta_, min_in_place_rotational_vel_, backup_vel, min_hightlight_dis_);
 
     la_ = new LookAheadPlanner(*world_model_, *costmap_, footprint_spec_,
                                sim_granularity, acc_lim_x_, acc_lim_y_, acc_lim_theta_,

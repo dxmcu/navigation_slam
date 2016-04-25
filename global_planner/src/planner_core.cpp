@@ -130,7 +130,7 @@ bool GlobalPlanner::ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<
       ReadCircleCenterFromXMLRPC(circle_center_xmlrpc, full_param_name, points);
       return true;
     } else {
-      GAUSSIAN_ERROR("[SEARCH BASED GLOBAL PLANNER] circle_center param's type is not Array!");
+      GAUSSIAN_ERROR("[Global Planner] circle_center param's type is not Array!");
       return false;
     }
   }
@@ -185,7 +185,7 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
           planner_ = new AStarExpansion(p_calc_, cx, cy, path_cost, occ_dis_cost, circle_center_point, costmap_->getResolution());
         }
         bool use_grid_path;
-        private_nh.param("e1", use_grid_path, false);
+        private_nh.param("p1", use_grid_path, false);
         if (use_grid_path)
             path_maker_ = new GridPath(p_calc_);
         else
@@ -196,7 +196,7 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
         plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan", 1);
         potential_pub_ = private_nh.advertise<nav_msgs::OccupancyGrid>("potential", 1);
 
-        private_nh.param("p6", allow_unknown_, true);
+        private_nh.param("p6", allow_unknown_, false);
         planner_->setHasUnknown(allow_unknown_);
         private_nh.param("planner_window_x", planner_window_x_, 0.0);
         private_nh.param("planner_window_y", planner_window_y_, 0.0);

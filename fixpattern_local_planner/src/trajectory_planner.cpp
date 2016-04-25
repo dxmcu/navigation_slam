@@ -123,7 +123,7 @@ TrajectoryPlanner::TrajectoryPlanner(WorldModel& world_model,
                                      double pdist_scale, double gdist_scale, double occdist_scale,
                                      double max_vel_x, double min_vel_x,
                                      double max_vel_th, double min_vel_th, double min_in_place_vel_th,
-                                     double backup_vel)
+                                     double backup_vel, double min_hightlight_dis)
   : costmap_(costmap),
     world_model_(world_model), footprint_spec_(footprint_spec),
     num_calc_footprint_cost_(num_calc_footprint_cost),
@@ -134,7 +134,7 @@ TrajectoryPlanner::TrajectoryPlanner(WorldModel& world_model,
     acc_lim_x_(acc_lim_x), acc_lim_y_(acc_lim_y), acc_lim_theta_(acc_lim_theta),
     max_vel_x_(max_vel_x), min_vel_x_(min_vel_x),
     max_vel_th_(max_vel_th), min_vel_th_(min_vel_th), min_in_place_vel_th_(min_in_place_vel_th),
-    backup_vel_(backup_vel) {
+    backup_vel_(backup_vel), min_hightlight_dis_(min_hightlight_dis) {
 
   costmap_2d::calculateMinAndMaxDistances(footprint_spec_, inscribed_radius_, circumscribed_radius_);
 }
@@ -814,7 +814,7 @@ Trajectory TrajectoryPlanner::createTrajectories(double x, double y, double thet
   // any cell with a cost greater than the size of the map is impossible
   double impossible_cost = costmap_.getSizeInCellsX() * costmap_.getSizeInCellsY();
 
-  if (highlight < 0.4) highlight = 0.4;
+  if (highlight < min_hightlight_dis_) highlight = min_hightlight_dis_;
   vx_samp = max_vel;
   if (vx_samp > max_vel_x) vx_samp = max_vel_x;
   if (vx_samp < min_vel_x_) vx_samp = min_vel_x_;

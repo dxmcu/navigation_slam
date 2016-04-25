@@ -43,7 +43,7 @@ OdometryHelperRos::OdometryHelperRos(std::string odom_topic) {
 }
 
 void OdometryHelperRos::odomCallback(const nav_msgs::Odometry::ConstPtr& msg) {
-    GAUSSIAN_INFO_ONCE("odom received!");
+  GAUSSIAN_INFO_ONCE("odom received!");
 
   //we assume that the odometry is published in the frame of the base
   boost::mutex::scoped_lock lock(odom_mutex_);

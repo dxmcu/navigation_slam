@@ -203,6 +203,7 @@ class FixPatternTrajectoryPlannerROS {
   boost::recursive_mutex odom_lock_;
 
   double max_vel_theta_, min_vel_theta_, min_vel_abs_th_;
+  double min_hightlight_dis_;
   double min_in_place_rotational_vel_; 
   double acc_lim_x_, acc_lim_y_, acc_lim_theta_;
   double sim_period_;

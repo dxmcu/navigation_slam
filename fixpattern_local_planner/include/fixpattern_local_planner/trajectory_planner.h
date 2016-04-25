@@ -79,7 +79,7 @@ class TrajectoryPlanner{
                     double pdist_scale = 0.6, double gdist_scale = 0.8, double occdist_scale = 0.2,
                     double max_vel_x = 0.5, double min_vel_x = 0.1,
                     double max_vel_th = 1.0, double min_vel_th = -1.0, double min_in_place_vel_th = 0.4,
-                    double backup_vel = -0.1);
+                    double backup_vel = -0.1, double min_hightlight_dis = 0.5);
 
   /**
    * @brief  Destructs a trajectory controller
@@ -301,7 +301,7 @@ class TrajectoryPlanner{
   bool holonomic_robot_; ///< @brief Is the robot holonomic or not?
 
   double max_vel_x_, min_vel_x_, max_vel_th_, min_vel_th_, min_in_place_vel_th_; ///< @brief Velocity limits for the controller
-
+  double min_hightlight_dis_;
   double backup_vel_; ///< @brief The velocity to use while backing up
 
   bool simple_attractor_;  ///< @brief Enables simple attraction to a goal point
