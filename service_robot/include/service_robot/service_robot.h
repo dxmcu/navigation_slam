@@ -18,7 +18,6 @@
 #include <nav_core/recovery_behavior.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <std_msgs/UInt32.h>
-#include <move_base_msgs/MoveBaseActionGoal.h>
 #include <costmap_2d/costmap_2d_ros.h>
 #include <costmap_2d/costmap_2d.h>
 #include <autoscrubber_services/Start.h>
@@ -120,7 +119,6 @@ class ServiceRobot {
   void ResetState();
 
   void SimpleGoalCB(const geometry_msgs::PoseStamped::ConstPtr& goal);
-  void GoalCB(const move_base_msgs::MoveBaseActionGoal::ConstPtr& goal);
   void PauseCB(const std_msgs::UInt32::ConstPtr& param);
   void TerminateCB(const std_msgs::UInt32::ConstPtr& param);
   void ControlThread();

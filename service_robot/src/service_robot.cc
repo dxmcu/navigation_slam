@@ -89,7 +89,6 @@ ServiceRobot::ServiceRobot(tf::TransformListener* tf)
 
   ros::NodeHandle simple_nh("move_base_simple");
   simple_goal_sub_ = simple_nh.subscribe<geometry_msgs::PoseStamped>("goal", 10, boost::bind(&ServiceRobot::SimpleGoalCB, this, _1));
-  goal_sub_ = private_nh.subscribe<move_base_msgs::MoveBaseActionGoal>("goal", 10, boost::bind(&ServiceRobot::GoalCB, this, _1));
   pause_sub_ = simple_nh.subscribe<std_msgs::UInt32>("gaussian_pause", 10, boost::bind(&ServiceRobot::PauseCB, this, _1));
   terminate_sub_ = simple_nh.subscribe<std_msgs::UInt32>("gaussian_cancel", 10, boost::bind(&ServiceRobot::TerminateCB, this, _1));
   goal_reached_pub_ = simple_nh.advertise<std_msgs::UInt32>("/GUI/IS_GOAL_REACHED", 1);
@@ -185,13 +184,6 @@ void ServiceRobot::SimpleGoalCB(const geometry_msgs::PoseStamped::ConstPtr& goal
   global_planner_goal_.pose = goal->pose;
   global_planner_goal_.header.frame_id = global_frame_;
 //  reinterpret_cast<AStarControlOption*>(options_)->settle_planner_goal_ = &astar_planner_goal_;
-  autoscrubber_services::Start::Request req;
-  autoscrubber_services::Start::Response res;
-  Start(req, res);
-}
-
-void ServiceRobot::GoalCB(const move_base_msgs::MoveBaseActionGoal::ConstPtr& goal) {
-  ROS_DEBUG_NAMED("move_base", "In ROS goal callback, wrapping the PoseStamped in the action message and start ExecuteCycle.");
   autoscrubber_services::Start::Request req;
   autoscrubber_services::Start::Response res;
   Start(req, res);
