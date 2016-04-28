@@ -108,8 +108,8 @@ void AStarController::LocalizationCallBack(const std_msgs::Int8::ConstPtr& param
     localization_valid_ = true;
 //    GAUSSIAN_WARN("[ASTAR CONTROLLER] localization success!"); 
   } else {
-//    GAUSSIAN_WARN("[ASTAR CONTROLLER] localization failed!"); 
     localization_valid_ = false;
+//    GAUSSIAN_WARN("[ASTAR CONTROLLER] localization failed!"); 
   }
 }
 
@@ -236,7 +236,7 @@ bool AStarController::MakePlan(const geometry_msgs::PoseStamped& start, const ge
 //    if (PoseStampedDistance(goal, success_broader_goal_) < GS_DOUBLE_PRECISION)
 //      sbpl_broader = true;
     // if the planner fails or returns a zero length plan, planning failed
-    if (!co_->sbpl_global_planner->makePlan(start, goal, *plan, astar_path_, sbpl_broader_, state_ != A_PLANNING) || plan->empty()) {
+    if (!co_->sbpl_global_planner->makePlan(start, goal, *plan, astar_path_, sbpl_broader_, state_ != A_PLANNING, use_path_cost_) || plan->empty()) {
       GAUSSIAN_ERROR("[ASTAR PLANNER] sbpl failed to find a plan to point (%.2f, %.2f)", goal.pose.position.x, goal.pose.position.y);
       return false;
     }
@@ -368,6 +368,7 @@ void AStarController::PlanThread() {
     lock.unlock();
     ROS_DEBUG_NAMED("move_base_plan_thread", "Planning...");
 
+    use_path_cost_ = false;
     // get the starting pose of the robot
     geometry_msgs::PoseStamped start;
     tf::Stamped<tf::Pose> global_pose;
@@ -391,8 +392,11 @@ void AStarController::PlanThread() {
           start = planner_start_;
           gotStartPose = true;
         }
-      } else if(planning_state_ == P_INSERTING_SBPL) {
-        start = sbpl_planner_goal_;
+      } else if(planning_state_ == P_INSERTING_EXTENDED) {
+        // start = sbpl_planner_goal_;
+        GetAStarStart(0.4);
+        start = planner_start_;
+        use_path_cost_ = true;
         GetAStarTempGoal(sbpl_planner_goal_, co_->sbpl_max_distance - 0.5);
         temp_goal = sbpl_planner_goal_;
       }
@@ -455,9 +459,9 @@ void AStarController::PlanThread() {
           switch_path_ = true;
           origin_path_safe_cnt_ = 0;
           // first_run_controller_flag_ = true;
-        } else if (planning_state_ == P_INSERTING_SBPL) {
-          // co_->fixpattern_path->insert_middle_path(astar_path_.path(), start, temp_goal);
-          // first_run_controller_flag_ = true;
+        } else if (planning_state_ == P_INSERTING_EXTENDED) {
+          co_->fixpattern_path->insert_middle_path(astar_path_.path(), start, temp_goal);
+          first_run_controller_flag_ = true;
         } else { // unkonw state
           // switch to FIX_CLEARING state
           gotPlan = false;
@@ -633,7 +637,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
         } else {
           // switch to CONTROLLING state and go
           state_ = FIX_CONTROLLING;
-//          GetAStarTempGoal(sbpl_planner_goal_, 0.3);
+          GetAStarTempGoal(sbpl_planner_goal_, 0.3);
         }
       } else { 
         planner_goal_ = global_goal_;
@@ -645,6 +649,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
    
     // initialize planner and some flag
     co_->fixpattern_local_planner->reset_planner();
+    passed_path_.clear();
     first_run_controller_flag_ = true;
     using_sbpl_directly_ = false;
     last_using_bezier_ = false;
@@ -901,6 +906,12 @@ bool AStarController::GetAStarStart(double front_safe_check_dis) {
       planner_start_ = path.front();
       GAUSSIAN_WARN("[ASTAR CONTROLLER] GetAStarStart: taken path.front as start point");
     }
+  } else {
+    if (i < path.size()) {
+      planner_start_ = path.at(j);
+      GAUSSIAN_INFO("[ASTAR CONTROLLER] GetAStarStart: taken index(%d) point as start", i);
+    }
+  }
 /*
     if (accu_dis > 1.5) {
 //      double start_dis = 1.3;
@@ -946,7 +957,6 @@ bool AStarController::GetAStarStart(double front_safe_check_dis) {
       }
     }
 */
-  }
   planner_start_.header.frame_id = co_->global_frame;
 //  astar_start_pub_.publish(planner_start_);
   return start_got;
@@ -1010,6 +1020,40 @@ double AStarController::PoseStampedDistance(const geometry_msgs::PoseStamped& p1
   return hypot(p1.pose.position.x - p2.pose.position.x, p1.pose.position.y - p2.pose.position.y);
 }
 
+/*
+void CalculateRadius(std::vector<geometry_msgs::PoseStamped> passed_path_,
+                     int NO_NORMALIZE_COUNT, double MAX_RADIUS) {
+  NO_NORMALIZE_COUNT = NO_NORMALIZE_COUNT < 2 ? 2 : NO_NORMALIZE_COUNT;
+  for (unsigned int i = 0; i < path->size(); ++i) {
+    path->at(i).radius = 0.0;
+    if (i < NO_NORMALIZE_COUNT) {
+      path->at(i).radius = MAX_RADIUS;
+    } else {
+      gslib::Point2D p1(path->at(i - 2).position.x, path->at(i - 2).position.y);
+      gslib::Point2D p2(path->at(i - 1).position.x, path->at(i - 1).position.y);
+      gslib::Point2D p3(path->at(i).position.x, path->at(i).position.y);
+      gslib::Circle2D circle(p1, p2, p3);
+      path->at(i).radius = circle.GetRadius();
+      if (path->at(i).radius == -1 || path->at(i).radius > MAX_RADIUS) {
+        path->at(i).radius = MAX_RADIUS;
+      }
+    }
+  }
+}
+*/
+
+void AStarController::FillPassedPath(const geometry_msgs::PoseStamped& cur_position) {
+	if (passed_path_.size() == 0) {
+    passed_path_.push_back(cur_position);
+  } else {
+    double pose_diff = PoseStampedDistance(cur_position, passed_path_.front());
+    double yaw_diff = angles::shortest_angular_distance(tf::getYaw(cur_position.pose.orientation), tf::getYaw(passed_path_.front().pose.orientation));
+    if (pose_diff > 0.05 || fabs(yaw_diff) > M_PI / 6.0) {
+      passed_path_.insert(passed_path_.begin(), cur_position); 
+    }
+  }
+}
+
 bool AStarController::ExecuteCycle() {
   // we need to be able to publish velocity commands
   double t0, t1, t2, t3, t4, t5;
@@ -1025,6 +1069,7 @@ bool AStarController::ExecuteCycle() {
   } else {
     tf::poseStampedTFToMsg(global_pose, current_position);
   }
+  FillPassedPath(current_position);
   double cur_goal_distance = PoseStampedDistance(current_position, global_goal_);
 //  GAUSSIAN_INFO("[ASTAR CONTROLLER]:cur_goal_distance = %lf", cur_goal_distance);
   // check to see if we've moved far enough to reset our oscillation timeout
@@ -1150,19 +1195,20 @@ bool AStarController::ExecuteCycle() {
           }
         }
       }
-/*
+
+      // check for extended sbpl planner 
       if (!runPlanner_ &&
-          PoseStampedDistance(current_position, sbpl_planner_goal_) <= 0.5 &&
+          PoseStampedDistance(current_position, sbpl_planner_goal_) <= 0.8 &&
           PoseStampedDistance(sbpl_planner_goal_, global_goal_) >= 0.1) {
         // just restart the planner, and we'll not stop during this time
         boost::unique_lock<boost::mutex> lock(planner_mutex_);
-        planning_state_ = P_INSERTING_SBPL;
+        planning_state_ = P_INSERTING_EXTENDED;
         runPlanner_ = true;
         planner_cond_.notify_one();
         lock.unlock();
         GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] distance to sbpl goal < 0.5, replan");
       }
-*/
+
       t3 = GetTimeInSeconds();
       if (t3 - t2 > 0.04) {
         GAUSSIAN_INFO("Prune path cost %lf sec", t3 - t2);
@@ -1585,6 +1631,7 @@ void AStarController::ResetState() {
   state_ = A_PLANNING;
   recovery_trigger_ = A_PLANNING_R;
   PublishZeroVelocity();
+  passed_path_.clear();
   front_path_.FinishPath();
   switch_path_ = false;
   origin_path_safe_cnt_ = 0;
@@ -1868,7 +1915,7 @@ bool AStarController::HandleSwitchingPath(geometry_msgs::PoseStamped current_pos
     if (front_path_.CheckCurPoseOnPath(start_pose, co_->switch_corner_dis_diff, co_->switch_corner_yaw_diff)) {
       if (CheckFixPathFrontSafe(front_path_.GeometryPath(), co_->front_safe_check_dis) > 2.0 &&
           front_path_.Length() - co_->fixpattern_path->Length() < 0.0 &&
-          ++origin_path_safe_cnt_ > 3) {
+          ++origin_path_safe_cnt_ > 5) {
         co_->fixpattern_path->set_fix_path(current_position, front_path_.path(), false, true); 
         first_run_controller_flag_ = true;
         switch_path_ = false;
@@ -1898,7 +1945,7 @@ bool AStarController::HandleSwitchingPath(geometry_msgs::PoseStamped current_pos
             get_bezier_plan = true;
           }
         }
-        if(get_bezier_plan && ++origin_path_safe_cnt_ > 3 &&
+        if(get_bezier_plan && ++origin_path_safe_cnt_ > 10 &&
            CheckFixPathFrontSafe(front_path_.GeometryPath(), co_->front_safe_check_dis) > 2.0 &&
            front_path_.Length() - co_->fixpattern_path->Length() < 0.0) {
           co_->fixpattern_path->set_fix_path(current_position, front_path_.path(), false, false); 
@@ -1976,6 +2023,49 @@ bool AStarController::HandleGoingBack(const geometry_msgs::PoseStamped& current_
   }
   return need_backward;
 }
+
+/*
+bool AStarController::GoingBackRecovery(const geometry_msgs::PoseStamped& current_position, double backward_dis) {
+  geometry_msgs::Twist cmd_vel;
+  geometry_msgs::PoseStamped cur_pos = current_position;
+  if (backward_dis == 0.0) {
+    backward_dis = co_->backward_check_dis;
+  }
+  // check if need backward
+  ros::Time end_time = ros::Time::now() + ros::Duration(co_->stop_duration / 3);
+  bool need_backward = true;
+  ros::Rate r(10);
+  while (ros::Time::now() < end_time) {
+    if (!NeedBackward(cur_pos, backward_dis)) {
+      need_backward = false;
+      break;
+    }
+    GAUSSIAN_INFO("[ASTAR CONTROLLER] Need Backward, Publish Zero Vel");
+    // stop first, and set last_valid_control_
+    PublishZeroVelocity();
+    last_valid_control_ = ros::Time::now();
+    r.sleep();
+  }
+  ros::Rate control_rate(co_->controller_frequency);
+  tf::Stamped<tf::Pose> global_pose;
+//  while (need_backward && NeedBackward(cur_pos, 0.15) && CanBackward(0.25)) {
+  while (need_backward && NeedBackward(cur_pos, backward_dis + 0.05) && CanBackward(backward_dis + 0.15)) {
+    GAUSSIAN_INFO("[ASTAR CONTROLLER] going back");
+    // get curent position
+    controller_costmap_ros_->getRobotPose(global_pose);
+    tf::poseStampedTFToMsg(global_pose, cur_pos);
+
+    // make sure that we send the velocity command to the base
+    cmd_vel.linear.x = -0.1;
+    cmd_vel.angular.z = 0.0;
+    co_->vel_pub->publish(cmd_vel);
+
+    last_valid_control_ = ros::Time::now();
+    control_rate.sleep();
+  }
+  return need_backward;
+}
+*/
 
 bool AStarController::HandleRecovery(geometry_msgs::PoseStamped current_pos) {
   GAUSSIAN_INFO("[FIXPATTERN CONTROLLER] Handle Recovery!");

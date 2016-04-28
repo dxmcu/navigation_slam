@@ -147,7 +147,7 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
     private_nh.param("p12", turn_in_place_cost_mult, 50);
 
     private_nh.param("p13", map_size_, 400);
-
+    private_nh.param("p15", path_cost_mult_, 1);
     unsigned int size_x = costmap_ros_->getCostmap()->getSizeInCellsX();
     unsigned int size_y = costmap_ros_->getCostmap()->getSizeInCellsY();
     size_dir_ = num_of_angles;
@@ -168,6 +168,7 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
                            forward_and_turn_cost_mult, turn_in_place_cost_mult);
 
     need_to_reinitialize_environment_ = true;
+
     GAUSSIAN_INFO("[SEARCH BASED GLOBAL PLANNER] Search Based Global Planner initialized");
   } else {
     GAUSSIAN_WARN("[SEARCH BASED GLOBAL PLANNER] This planner has already been initialized,"
@@ -728,7 +729,8 @@ unsigned char SearchBasedGlobalPlanner::TransformCostmapCost(unsigned char cost)
 bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
                                         geometry_msgs::PoseStamped goal,
                                         std::vector<geometry_msgs::PoseStamped>& plan,
-                                        fixpattern_path::Path& path, bool broader_start_and_goal, bool extend_path) {
+                                        fixpattern_path::Path& path,
+	                                      bool broader_start_and_goal, bool extend_path, bool use_path_cost) {
 #ifdef DEBUG
   ProfilerStart("sbpl.prof");
 #endif
@@ -736,7 +738,6 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
     GAUSSIAN_ERROR("[SEARCH BASED GLOBAL PLANNER] SearchBasedGlobalPlanner is not initialized");
     return false;
   }
-
   plan.clear();
 
   broader_start_and_goal_ = broader_start_and_goal;
@@ -815,9 +816,15 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
       if (old_cost == new_cost) continue;
 
       env_->UpdateCost(ix, iy, new_cost);
-
       XYCell cell(ix, iy);
       changed_cells.push_back(cell);
+
+      // update path cost
+      if (use_path_cost && costmap_ros_->getPathCostmap() != NULL) {
+        env_->UpdatePathCost(ix, iy, costmap_ros_->getPathCostmap()->getCost(ix + start_cell_x, iy + start_cell_y) * path_cost_mult_);
+      } else {
+        env_->UpdatePathCost(ix, iy, 0);
+      }
     }
   }
 
@@ -957,10 +964,10 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
   path.set_sbpl_path(start ,tmp_path, false);
 /*  if (extend_path) {
     fixpattern_path::Path temp_sbpl_path;
-    temp_sbpl_path.set_sbpl_path(tmp_path);
+    temp_sbpl_path.set_sbpl_path(start ,tmp_path, false);
     path.ExtendPath(temp_sbpl_path.path());
   } else {
-    path.set_sbpl_path(tmp_path);
+    path.set_sbpl_path(start ,tmp_path, false);
   }
 */
 

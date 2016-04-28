@@ -53,11 +53,11 @@ typedef enum {
 } AStarRecoveryTrigger;
 
 typedef enum {
-  P_INSERTING_NONE   = 0,
-  P_INSERTING_BEGIN  = 1,
-  P_INSERTING_END    = 2,
-  P_INSERTING_MIDDLE = 3,
-  P_INSERTING_SBPL   = 4
+  P_INSERTING_NONE       = 0,
+  P_INSERTING_BEGIN      = 1,
+  P_INSERTING_END        = 2,
+  P_INSERTING_MIDDLE     = 3,
+  P_INSERTING_EXTENDED   = 4
 } AStarPlanningState;
 
 typedef enum {
@@ -189,6 +189,7 @@ class AStarController : public BaseController {
   bool HandleGoingBack(const geometry_msgs::PoseStamped& current_position, double backward_dis = 0.0);
   void PlanThread();
   double PoseStampedDistance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2);
+  void FillPassedPath(const geometry_msgs::PoseStamped& cur_position);
 
   void PublishPlan(const ros::Publisher& pub, const std::vector<geometry_msgs::PoseStamped>& plan);
   void PublishMovebaseStatus(unsigned int status_index);
@@ -241,6 +242,7 @@ class AStarController : public BaseController {
 
   // set up plan triple buffer
   std::vector<geometry_msgs::PoseStamped>* planner_plan_;
+  std::vector<geometry_msgs::PoseStamped> passed_path_;
   std::vector<fixpattern_path::PathPoint> fix_path_;
 
   // rotate direction of rotate_recovery
@@ -282,7 +284,7 @@ class AStarController : public BaseController {
   bool replan_directly_;
   // broader sbpl start and goal entry
   bool sbpl_broader_;
-
+  bool use_path_cost_;
   bool first_run_controller_flag_;
   bool localization_valid_;
   bool localization_start_;

@@ -280,6 +280,10 @@ void Environment::UpdateCost(unsigned int x, unsigned int y, unsigned char cost)
   need_to_update_heuristics_ = true;
 }
 
+void Environment::UpdatePathCost(unsigned int x, unsigned int y, unsigned int cost) {
+  grid_[x][y].path_cost = cost;
+}
+
 void Environment::EnsureHeuristicsUpdated() {
   if (need_to_update_heuristics_) {
     ComputeHeuristicValues();
@@ -327,6 +331,7 @@ bool Environment::ComputeHeuristicValues() {
 
     // iterate over successors
     unsigned char exp_cost = grid_[exp_x][exp_y].cost;
+    int exp_path_cost = grid_[exp_x][exp_y].path_cost;
     for (int dir = 0; dir < NUM_OF_HEURISTIC_SEARCH_DIR; dir++) {
       int new_x = exp_x + heuristic_dx_[dir];
       int new_y = exp_y + heuristic_dy_[dir];
@@ -338,15 +343,23 @@ bool Environment::ComputeHeuristicValues() {
 
       // compute the cost
       unsigned char map_cost = std::max(grid_[new_x][new_y].cost, exp_cost);
+      int map_path_cost = std::max(grid_[new_x][new_y].path_cost, exp_path_cost); 
 
       if (dir > 7) {
         // check two more cells through which the action goes
-        map_cost = std::max(map_cost, grid_[exp_x + heuristic_dx0_intersects_[dir]][exp_y + heuristic_dy0_intersects_[dir]].cost);
-        map_cost = std::max(map_cost, grid_[exp_x + heuristic_dx1_intersects_[dir]][exp_y + heuristic_dy1_intersects_[dir]].cost);
+        int dx0 = exp_x + heuristic_dx0_intersects_[dir];
+        int dy0 = exp_y + heuristic_dy0_intersects_[dir];
+        int dx1 = exp_x + heuristic_dx1_intersects_[dir];
+        int dy1 = exp_y + heuristic_dy1_intersects_[dir];
+        map_cost = std::max(map_cost, grid_[dx0][dy0].cost);
+        map_cost = std::max(map_cost, grid_[dx1][dy1].cost);
+        map_path_cost = std::max(map_path_cost, grid_[dx0][dy0].path_cost);
+        map_path_cost = std::max(map_path_cost, grid_[dx1][dy1].path_cost);
       }
 
       if (map_cost >= obstacle_threshold_)  // obstacle encountered
         continue;
+//      int cost = (map_cost + map_path_cost + 1) * heuristic_dxy_distance_mm_[dir];
       int cost = (map_cost + 1) * heuristic_dxy_distance_mm_[dir];
 
       // get the predecessor
@@ -394,6 +407,7 @@ int Environment::ComputeActionCost(int source_x, int source_y, int source_theta,
   if (!IsCellSafe(end_x, end_y)) return INFINITECOST;
 
   // need to iterate over discretized center cells and compute cost based on them
+  // int max_cost = 0;
   unsigned char max_cost = 0;
   for (unsigned int i = 0; i < action->interm_cells_3d.size(); ++i) {
     interm_cell = action->interm_cells_3d.at(i);
@@ -402,6 +416,7 @@ int Environment::ComputeActionCost(int source_x, int source_y, int source_theta,
 
     if (!IsCellSafe(interm_cell.x, interm_cell.y)) return INFINITECOST;
 
+//    max_cost = std::max(max_cost, grid_[interm_cell.x][interm_cell.y].cost + grid_[interm_cell.x][interm_cell.y].path_cost);
     max_cost = std::max(max_cost, grid_[interm_cell.x][interm_cell.y].cost);
   }
 
@@ -419,10 +434,12 @@ int Environment::ComputeActionCost(int source_x, int source_y, int source_theta,
   }
 
   // to ensure consistency of h2D:
+//  max_cost = std::max(max_cost, grid_[source_x][source_y].cost + grid_[source_x][source_y].path_cost);
+//  max_cost = std::max(max_cost, grid_[end_x][end_y].cost + grid_[end_x][end_y].path_cost);
   max_cost = std::max(max_cost, grid_[source_x][source_y].cost);
   max_cost = std::max(max_cost, grid_[end_x][end_y].cost);
 
-  return action->cost * (static_cast<int>(max_cost) + 1);  // use cell cost as multiplicative factor
+  return action->cost * (max_cost + 1);  // use cell cost as multiplicative factor
 }
 
 void Environment::GetPreds(EnvironmentEntry3D* entry, std::vector<EnvironmentEntry3D*>* pred_entries, std::vector<int>* costs) {

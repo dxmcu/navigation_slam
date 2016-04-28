@@ -59,7 +59,8 @@ class SearchBasedGlobalPlanner {
   bool makePlan(geometry_msgs::PoseStamped start,
                 geometry_msgs::PoseStamped goal,
                 std::vector<geometry_msgs::PoseStamped>& plan,
-                fixpattern_path::Path& path, bool broader_start_and_goal, bool extend_path);  // NOLINT
+                fixpattern_path::Path& path, 
+                bool broader_start_and_goal, bool extend_path, bool use_path_cost);  // NOLINT
 
  private:
   void RecomputeRHSVal(EnvironmentEntry3D* entry);
@@ -102,6 +103,7 @@ class SearchBasedGlobalPlanner {
   double allocated_time_, start_time_;
   double initial_epsilon_, eps_, epsilon_satisfied_;
   double sbpl_max_vel_, sbpl_low_vel_, sbpl_min_vel_;
+  int path_cost_mult_;
   ros::Publisher plan_pub_;
   bool initialized_;
   bool broader_start_and_goal_;
