@@ -103,7 +103,7 @@ class SearchBasedGlobalPlanner {
   double allocated_time_, start_time_;
   double initial_epsilon_, eps_, epsilon_satisfied_;
   double sbpl_max_vel_, sbpl_low_vel_, sbpl_min_vel_;
-  int path_cost_mult_;
+  double path_cost_mult_;
   ros::Publisher plan_pub_;
   bool initialized_;
   bool broader_start_and_goal_;

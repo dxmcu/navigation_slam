@@ -147,7 +147,7 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
     private_nh.param("p12", turn_in_place_cost_mult, 50);
 
     private_nh.param("p13", map_size_, 400);
-    private_nh.param("p15", path_cost_mult_, 1);
+    private_nh.param("p15", path_cost_mult_, 1.0);
     unsigned int size_x = costmap_ros_->getCostmap()->getSizeInCellsX();
     unsigned int size_y = costmap_ros_->getCostmap()->getSizeInCellsY();
     size_dir_ = num_of_angles;
@@ -812,6 +812,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
     for (unsigned int iy = 0; iy < map_size_; ++iy) {
       unsigned char old_cost = env_->GetCost(ix, iy);
       unsigned char new_cost = TransformCostmapCost(costmap_ros_->getCostmap()->getCost(ix + start_cell_x, iy + start_cell_y));
+      unsigned char new_path_cost = TransformCostmapCost(costmap_ros_->getPathCostmap()->getCost(ix + start_cell_x, iy + start_cell_y));
 
       if (old_cost == new_cost) continue;
 
@@ -821,7 +822,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
 
       // update path cost
       if (use_path_cost && costmap_ros_->getPathCostmap() != NULL) {
-        env_->UpdatePathCost(ix, iy, costmap_ros_->getPathCostmap()->getCost(ix + start_cell_x, iy + start_cell_y) * path_cost_mult_);
+        env_->UpdatePathCost(ix, iy, static_cast<int>(new_path_cost * path_cost_mult_));
       } else {
         env_->UpdatePathCost(ix, iy, 0);
       }

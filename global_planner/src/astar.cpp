@@ -65,20 +65,20 @@ unsigned int AStarExpansion::GetCircleCenterLargestCost(unsigned char* costs, st
   double pose_theta;
   int diff_index = next_i - current_i;
   if (diff_index == 1) {
-    pose_theta = -M_PI_2; 
-  } else if (diff_index == -1) {
-    pose_theta = M_PI_2; 
-  } else if (diff_index == -ny_) {
     pose_theta = 0; 
-  } else if (diff_index == ny_) {
+  } else if (diff_index == -1) {
     pose_theta = M_PI; 
+  } else if (diff_index == -ny_) {
+    pose_theta = -M_PI_2; 
+  } else if (diff_index == ny_) {
+    pose_theta = M_PI_2; 
   }
   double cth = cos(pose_theta);
   double sth = sin(pose_theta);
   for (int i = 0; i < circle_center.size(); ++i) {
     // find the bounding box of the polygon
-    double cx = (cth * circle_center[i].x - sth * circle_center[i].y + (next_i % ny_) * resolution_);
-    double cy = (sth * circle_center[i].x + cth * circle_center[i].y + (next_i / ny_) * resolution_);
+    double cx = (cth * circle_center[i].x - sth * circle_center[i].y + (current_i % ny_) * resolution_);
+    double cy = (sth * circle_center[i].x + cth * circle_center[i].y + (current_i / ny_) * resolution_);
     int cell_x = static_cast<int>(cx > 0 ? cx / resolution_ + 0.5 : cx / resolution_ - 0.5);  // (int)(cx / res + 0.5 * sign(c);
     int cell_y = static_cast<int>(cy > 0 ? cy / resolution_ + 0.5 : cy / resolution_ - 0.5);  // (int)(cy / res + 0.5);
     int cell_index =  cell_x + cell_y * ny_;

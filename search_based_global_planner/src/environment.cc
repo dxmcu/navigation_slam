@@ -359,8 +359,7 @@ bool Environment::ComputeHeuristicValues() {
 
       if (map_cost >= obstacle_threshold_)  // obstacle encountered
         continue;
-//      int cost = (map_cost + map_path_cost + 1) * heuristic_dxy_distance_mm_[dir];
-      int cost = (map_cost + 1) * heuristic_dxy_distance_mm_[dir];
+      int cost = (map_cost + map_path_cost + 1) * heuristic_dxy_distance_mm_[dir];
 
       // get the predecessor
       search_pred_space_ = &grid_[new_x][new_y];
@@ -407,8 +406,7 @@ int Environment::ComputeActionCost(int source_x, int source_y, int source_theta,
   if (!IsCellSafe(end_x, end_y)) return INFINITECOST;
 
   // need to iterate over discretized center cells and compute cost based on them
-  // int max_cost = 0;
-  unsigned char max_cost = 0;
+  int max_cost = 0;
   for (unsigned int i = 0; i < action->interm_cells_3d.size(); ++i) {
     interm_cell = action->interm_cells_3d.at(i);
     interm_cell.x = interm_cell.x + source_x;
@@ -416,8 +414,7 @@ int Environment::ComputeActionCost(int source_x, int source_y, int source_theta,
 
     if (!IsCellSafe(interm_cell.x, interm_cell.y)) return INFINITECOST;
 
-//    max_cost = std::max(max_cost, grid_[interm_cell.x][interm_cell.y].cost + grid_[interm_cell.x][interm_cell.y].path_cost);
-    max_cost = std::max(max_cost, grid_[interm_cell.x][interm_cell.y].cost);
+    max_cost = std::max(max_cost, grid_[interm_cell.x][interm_cell.y].cost + grid_[interm_cell.x][interm_cell.y].path_cost);
   }
 
   // check collisions that for the particular circle_center orientation along the action
@@ -434,10 +431,8 @@ int Environment::ComputeActionCost(int source_x, int source_y, int source_theta,
   }
 
   // to ensure consistency of h2D:
-//  max_cost = std::max(max_cost, grid_[source_x][source_y].cost + grid_[source_x][source_y].path_cost);
-//  max_cost = std::max(max_cost, grid_[end_x][end_y].cost + grid_[end_x][end_y].path_cost);
-  max_cost = std::max(max_cost, grid_[source_x][source_y].cost);
-  max_cost = std::max(max_cost, grid_[end_x][end_y].cost);
+  max_cost = std::max(max_cost, grid_[source_x][source_y].cost + grid_[source_x][source_y].path_cost);
+  max_cost = std::max(max_cost, grid_[end_x][end_y].cost + grid_[end_x][end_y].path_cost);
 
   return action->cost * (max_cost + 1);  // use cell cost as multiplicative factor
 }

@@ -210,7 +210,11 @@ cc_binary(
     srcs = glob([
         "service_robot/src/service_robot_node.cc",
     ]),
+    defines = [
+        "VALIDATE_USB",
+    ],
     deps = [
-        "libservice_robot",
+        ":libservice_robot",
+        "//security:usb_security_client",
     ],
 )

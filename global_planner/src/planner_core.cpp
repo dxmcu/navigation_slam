@@ -117,6 +117,7 @@ void ReadCircleCenterFromXMLRPC(XmlRpc::XmlRpcValue& circle_center_xmlrpc, const
     pt.y = GetNumberFromXMLRPC(point[1], full_param_name);
 
     points->push_back(pt);
+    GAUSSIAN_INFO("[Global Planner] circle_center[%d].x = %lf; .y = %lf", i, pt.x, pt.y);
   }
 }
 
@@ -133,6 +134,9 @@ bool GlobalPlanner::ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<
       GAUSSIAN_ERROR("[Global Planner] circle_center param's type is not Array!");
       return false;
     }
+  } else {
+    GAUSSIAN_ERROR("[Global Planner] Cannot find circle_center param!");
+    return false;
   }
 }
 
@@ -180,6 +184,8 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
           std::vector<XYPoint> circle_center_point;
           if (!ReadCircleCenterFromParams(private_nh, &circle_center_point)) {
             GAUSSIAN_WARN("Cannot read circle centers from parametars, just plan unsing base_link origin point");
+          } else {
+            GAUSSIAN_INFO("[Global Planner] circle_center size = %zu", circle_center_point.size());
           }
           //planner_ = new AStarExpansion(p_calc_, cx, cy, path_cost, occ_dis_cost);
           planner_ = new AStarExpansion(p_calc_, cx, cy, path_cost, occ_dis_cost, circle_center_point, costmap_->getResolution());
