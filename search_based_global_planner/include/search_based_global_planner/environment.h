@@ -29,7 +29,6 @@ typedef struct {
   int y;
   int heuristic;
   unsigned char cost;
-  int path_cost;
 
   int heap_index;
   int visited_iteration;
@@ -102,7 +101,6 @@ class Environment {
   EnvironmentEntry3D* SetStart(double x_m, double y_m, double theta_rad);
   EnvironmentEntry3D* SetGoal(double x_m, double y_m, double theta_rad);
   void UpdateCost(unsigned int x, unsigned int y, unsigned char cost);
-  void UpdatePathCost(unsigned int x, unsigned int y, unsigned int cost);
   void GetPreds(EnvironmentEntry3D* entry, std::vector<EnvironmentEntry3D*>* pred_entries, std::vector<int>* costs);
   void GetSuccs(EnvironmentEntry3D* entry, std::vector<EnvironmentEntry3D*>* succ_entries,
                 std::vector<int>* costs, std::vector<Action*>* actions = NULL);
