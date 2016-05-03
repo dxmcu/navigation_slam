@@ -253,6 +253,7 @@ class AStarController : public BaseController {
   bool sbpl_reached_goal_;
   bool taken_global_goal_;
   bool gotStartPlan_;
+  bool gotInitPlan_;
   bool gotGoalPlan_;
   bool switch_path_;
   unsigned int origin_path_safe_cnt_;

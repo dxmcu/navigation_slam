@@ -25,7 +25,7 @@ AStarController::AStarController(tf::TransformListener* tf,
     : tf_(*tf),
       controller_costmap_ros_(controller_costmap_ros), planner_plan_(NULL), 
       planner_goal_index_(0), sbpl_reached_goal_(false), 
-      runPlanner_(false), new_global_plan_(false), first_run_controller_flag_(true),
+      runPlanner_(false), new_global_plan_(false), first_run_controller_flag_(true), gotInitPlan_(false),
       using_sbpl_directly_(false), sbpl_broader_(false), last_using_bezier_(false), replan_directly_(false),
       astar_planner_timeout_cnt_(0), fix_local_planner_error_cnt_(0), goal_not_safe_cnt_(0), path_not_safe_cnt_(0){
   // set up plan triple buffer
@@ -235,10 +235,18 @@ bool AStarController::MakePlan(const geometry_msgs::PoseStamped& start, const ge
 //    bool sbpl_broader = sbpl_broader_;
 //    if (PoseStampedDistance(goal, success_broader_goal_) < GS_DOUBLE_PRECISION)
 //      sbpl_broader = true;
+    // set static costmap in first planning
+    if (gotInitPlan_) {
+      co_->sbpl_global_planner->setStaticCosmap(false);
+    } else {
+      co_->sbpl_global_planner->setStaticCosmap(true);
+    }
     // if the planner fails or returns a zero length plan, planning failed
     if (!co_->sbpl_global_planner->makePlan(start, goal, *plan, astar_path_, sbpl_broader_, state_ != A_PLANNING) || plan->empty()) {
       GAUSSIAN_ERROR("[ASTAR PLANNER] sbpl failed to find a plan to point (%.2f, %.2f)", goal.pose.position.x, goal.pose.position.y);
       return false;
+    } else {
+      gotInitPlan_ = true;
     }
   } else {
     // astar plan, it needs call set_fix_path to generate astar_path_
@@ -246,10 +254,18 @@ bool AStarController::MakePlan(const geometry_msgs::PoseStamped& start, const ge
 
     using_sbpl_directly_ = false;
     last_using_bezier_ = false;
+    // set static costmap in first planning
+    if (gotInitPlan_) {
+      co_->astar_global_planner->setStaticCosmap(false);
+    } else {
+      co_->astar_global_planner->setStaticCosmap(true);
+    }
 //    if (!co_->astar_global_planner->makePlan(start, goal, *plan) || plan->empty()) {
     if (!co_->astar_global_planner->makePlan(start, goal, *plan) || plan->empty()) {
       GAUSSIAN_ERROR("[ASTAR PLANNER] astar failed to find a plan to point (%.2f, %.2f)", global_goal_.pose.position.x, global_goal_.pose.position.y);
       return false;
+    } else {
+      gotInitPlan_ = true;
     }
 
     // assign to astar_path_
@@ -601,6 +617,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
        }
     }
 
+    gotInitPlan_ = false;
     // check distance from goal and current pose, if < 2.5m, switch to A_PLANNING 
     if (cur_goal_distance < 2.5 && 
 				footprint_checker_->FootprintCenterCost(global_goal_.pose.position.x, global_goal_.pose.position.y,
@@ -1604,6 +1621,7 @@ void AStarController::ResetState() {
   replan_directly_ = false;
   localization_valid_ = false;
   first_run_controller_flag_ = true;
+  gotInitPlan_ = false;
 }
 
 bool AStarController::IsGlobalGoalReached(const geometry_msgs::PoseStamped& current_position, const geometry_msgs::PoseStamped& global_goal,
@@ -1836,7 +1854,7 @@ bool AStarController::GetAStarInitalPath(const geometry_msgs::PoseStamped& globa
 //     path_recorder::PathRecorder recorder;
 //     recorder.CalculateCurvePath(&fix_path);
      co_->fixpattern_path->set_fix_path(global_start, fix_path, true); 
-
+     gotInitPlan_ = true;
      std::vector<geometry_msgs::PoseStamped> plan = co_->fixpattern_path->GeometryPath();
      for (auto&& p : plan) {  // NOLINT
        p.header.frame_id = co_->global_frame;

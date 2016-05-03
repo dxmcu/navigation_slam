@@ -60,7 +60,12 @@ class SearchBasedGlobalPlanner {
                 geometry_msgs::PoseStamped goal,
                 std::vector<geometry_msgs::PoseStamped>& plan,
                 fixpattern_path::Path& path, bool broader_start_and_goal, bool extend_path);  // NOLINT
-
+  /**
+   * @brief  setStaticCosmap function for the SBPL Planner
+   * @param  name The name of this planner
+   * @param  costmap_ros A pointer to the ROS wrapper of the costmap to use for planning
+   */
+  void setStaticCosmap(bool is_static);
  private:
   void RecomputeRHSVal(EnvironmentEntry3D* entry);
   void UpdateSetMembership(EnvironmentEntry3D* entry);
@@ -81,6 +86,7 @@ class SearchBasedGlobalPlanner {
 
  private:
   costmap_2d::Costmap2DROS* costmap_ros_;
+  costmap_2d::Costmap2D* costmap_;
 
   Environment* env_;
   EnvironmentEntry3D* start_entry_;

@@ -91,6 +91,7 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
     ros::NodeHandle private_nh("~/" + name);
     plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan", 1);
     costmap_ros_ = costmap_ros;
+    costmap_ = costmap_ros_->getCostmap();
 
     private_nh.param("p1", allocated_time_, 4.0);
     private_nh.param("p2", initial_epsilon_, 3.0);
@@ -116,7 +117,7 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
       footprint_point.push_back(XYPoint(p.x, p.y));
     }
 
-    resolution_ = costmap_ros_->getCostmap()->getResolution();
+    resolution_ = costmap_->getResolution();
 
     // check if the costmap has an inflation layer
     // Warning: footprint updates after initialization are not supported here
@@ -148,8 +149,8 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
 
     private_nh.param("p13", map_size_, 400);
 
-    unsigned int size_x = costmap_ros_->getCostmap()->getSizeInCellsX();
-    unsigned int size_y = costmap_ros_->getCostmap()->getSizeInCellsY();
+    unsigned int size_x = costmap_->getSizeInCellsX();
+    unsigned int size_y = costmap_->getSizeInCellsY();
     size_dir_ = num_of_angles;
 
     iteration_ = 0;
@@ -174,6 +175,21 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
              " you can't call it twice, doing nothing");
   }
 }
+
+void SearchBasedGlobalPlanner::setStaticCosmap(bool is_static) {
+  if (!initialized_) {
+    GAUSSIAN_ERROR("[SEARCH BASED GLOBAL PLANNER] publishPlan This planner has not been initialized yet,"
+              " but it is being used, please call initialize() before use");
+        return;
+  }
+  //set current costmap_ as static
+  if (is_static) {
+    costmap_ = costmap_ros_->getStaticCostmap();
+  } else {
+    costmap_ = costmap_ros_->getCostmap();
+  }
+}
+
 
 void SearchBasedGlobalPlanner::PublishPlan(const std::vector<geometry_msgs::PoseStamped>& plan) {
   if (!initialized_) {
@@ -752,7 +768,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
   // geometry_msgs::PoseStamped tmp_pos;
   // tf::poseStampedTFToMsg(global_pose, tmp_pos);
   unsigned int cell_x, cell_y;
-  if (!costmap_ros_->getCostmap()->worldToMap(start.pose.position.x,
+  if (!costmap_->worldToMap(start.pose.position.x,
                             start.pose.position.y, cell_x, cell_y)) {
     GAUSSIAN_ERROR("[SBPL LATTICE PLANNER]start_point: world to map failed");
     return false;
@@ -761,19 +777,19 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
   // get lower left point of sbpl map
   unsigned int start_cell_x = 0;
   unsigned int start_cell_y = 0;
-  if (cell_x > map_size_ / 2 && cell_x <= costmap_ros_->getCostmap()->getSizeInCellsX() - map_size_ / 2) {
+  if (cell_x > map_size_ / 2 && cell_x <= costmap_->getSizeInCellsX() - map_size_ / 2) {
     start_cell_x = cell_x - map_size_ / 2;
-  } else if (cell_x > costmap_ros_->getCostmap()->getSizeInCellsX() - map_size_ / 2) {
-    start_cell_x = costmap_ros_->getCostmap()->getSizeInCellsX() - map_size_;
+  } else if (cell_x > costmap_->getSizeInCellsX() - map_size_ / 2) {
+    start_cell_x = costmap_->getSizeInCellsX() - map_size_;
   }
-  if (cell_y > map_size_ / 2 && cell_y <= costmap_ros_->getCostmap()->getSizeInCellsY() - map_size_ / 2) {
+  if (cell_y > map_size_ / 2 && cell_y <= costmap_->getSizeInCellsY() - map_size_ / 2) {
     start_cell_y = cell_y - map_size_ / 2;
-  } else if (cell_y > costmap_ros_->getCostmap()->getSizeInCellsY() - map_size_ / 2) {
-    start_cell_y = costmap_ros_->getCostmap()->getSizeInCellsY() - map_size_;
+  } else if (cell_y > costmap_->getSizeInCellsY() - map_size_ / 2) {
+    start_cell_y = costmap_->getSizeInCellsY() - map_size_;
   }
 
   double start_x, start_y;
-  costmap_ros_->getCostmap()->mapToWorld(start_cell_x, start_cell_y, start_x, start_y);
+  costmap_->mapToWorld(start_cell_x, start_cell_y, start_x, start_y);
   start_x -= resolution_ / 2.0;
   start_y -= resolution_ / 2.0;
 
@@ -810,7 +826,7 @@ bool SearchBasedGlobalPlanner::makePlan(geometry_msgs::PoseStamped start,
   for (unsigned int ix = 0; ix < map_size_; ++ix) {
     for (unsigned int iy = 0; iy < map_size_; ++iy) {
       unsigned char old_cost = env_->GetCost(ix, iy);
-      unsigned char new_cost = TransformCostmapCost(costmap_ros_->getCostmap()->getCost(ix + start_cell_x, iy + start_cell_y));
+      unsigned char new_cost = TransformCostmapCost(costmap_->getCost(ix + start_cell_x, iy + start_cell_y));
 
       if (old_cost == new_cost) continue;
 
