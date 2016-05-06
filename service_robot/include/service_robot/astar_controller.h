@@ -92,6 +92,9 @@ struct AStarControlOption : BaseControlOption {
   double switch_normal_yaw_diff;
   double stop_to_zero_acc;
   bool use_farther_planner;
+  double init_path_sample_dis;
+  double init_path_sample_yaw;
+
   int* fixpattern_reached_goal;
   fixpattern_path::Path* fixpattern_path;
   geometry_msgs::PoseStamped* global_planner_goal;
@@ -197,6 +200,7 @@ class AStarController : public BaseController {
   void PublishHeadingGoal(void);
   void PublishGoalReached(geometry_msgs::PoseStamped goal_pose);
   // rotate recovery
+  void UpdateRecoveryYaw(geometry_msgs::PoseStamped current_position);
   bool CanRotate(double x, double y, double yaw, int dir);
   bool RotateToYaw(double target_yaw);
   bool RotateRecovery();
@@ -268,6 +272,7 @@ class AStarController : public BaseController {
   unsigned int obstacle_index_;
   unsigned int front_goal_index_;
   double cmd_vel_ratio_;
+  double rotate_recovery_target_yaw_[15];
   boost::mutex planner_mutex_;
   boost::condition_variable planner_cond_;
   geometry_msgs::PoseStamped planner_start_;

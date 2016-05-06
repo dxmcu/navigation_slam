@@ -181,6 +181,8 @@ class ServiceRobot {
   double fixpattern_footprint_padding_;
   double sbpl_footprint_padding_;
   bool use_farther_planner_;
+  double init_path_sample_dis_;
+  double init_path_sample_yaw_;
 
   // sbpl param
   std::vector<geometry_msgs::Point> circle_center_points_;

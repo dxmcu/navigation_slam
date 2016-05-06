@@ -54,8 +54,8 @@ AStarController::AStarController(tf::TransformListener* tf,
   rotate_failure_times_ = 0;
   try_recovery_times_ = 0;
   cmd_vel_ratio_ = 1.0;
-  // set for fixpattern_path
 
+  // set for fixpattern_path
   ros::NodeHandle fixpattern_nh("~/fixpattern_global_planner");
   fixpattern_pub_ = fixpattern_nh.advertise<nav_msgs::Path>("plan", 1);
   ros::NodeHandle n;
@@ -1517,16 +1517,17 @@ bool AStarController::ExecuteCycle() {
         ros::Time end_time = ros::Time::now() + ros::Duration(co_->stop_duration / 2.0);
         ros::Rate r(10);
         while (ros::Time::now() < end_time) {
-          if (GetAStarGoal(current_position)) {
-            new_goal_got = true;
-            break;
-          } else if (cur_goal_distance < co_->sbpl_max_distance
-                      && IsGoalSafe(global_goal_, 0.10, 0.15)) {
+          if (astar_planner_timeout_cnt_ > 8 && co_->use_farther_planner && IsGoalSafe(global_goal_, 0.10, 0.15)) {
+            astar_planner_timeout_cnt_ = 0; 
             new_goal_got = true;
             planner_goal_ = global_goal_;
             taken_global_goal_ = true;
+            break;
           }
-          GAUSSIAN_WARN("[FIX CONTROLLER] CLEARING state: getting new AStar Goal");
+          if (GetAStarGoal(current_position)) {
+            new_goal_got = true;
+            break;
+          }
           last_valid_control_ = ros::Time::now();
           r.sleep();
         }
@@ -1840,11 +1841,18 @@ bool AStarController::GetAStarInitalPath(const geometry_msgs::PoseStamped& globa
 //     }
 
      geometry_msgs::PoseStamped pre_pose = planner_plan_->front();
+     fix_path.push_back(fixpattern_path::GeometryPoseToPathPoint(planner_plan_->front().pose));
      double yaw_diff;
-     for (int i = 0; i < planner_plan_->size(); ++i) {
+     double acc_dis = 0.0;
+     int acc_count = 0;
+     for (int i = 1; i < planner_plan_->size() - 1; ++i, ++acc_count) {
+       acc_dis += PoseStampedDistance(planner_plan_->at(i - 1), planner_plan_->at(i)); 
        yaw_diff = angles::shortest_angular_distance(tf::getYaw(pre_pose.pose.orientation), tf::getYaw(planner_plan_->at(i).pose.orientation));
 //       if (i % 3 == 0 || i == planner_plan_->size() || fabs(yaw_diff) > M_PI / 3.0) {
-       if (i % 5 == 0) {
+//       if (i % 5 == 0) {
+       if (acc_dis > co_->init_path_sample_dis || fabs(yaw_diff) > co_->init_path_sample_yaw || acc_count % 5 == 0 ) {
+         acc_dis = 0.0;
+         acc_count = 0;
          fix_path.push_back(fixpattern_path::GeometryPoseToPathPoint(planner_plan_->at(i).pose));
          pre_pose = planner_plan_->at(i);
        }
@@ -2054,6 +2062,29 @@ bool AStarController::HandleRecovery(geometry_msgs::PoseStamped current_pos) {
   return ret;
 }
 
+void AStarController::UpdateRecoveryYaw(geometry_msgs::PoseStamped current_position) {
+  double current_yaw = tf::getYaw(current_position.pose.orientation);
+  rotate_recovery_target_yaw_[0] = current_yaw + 0.0;
+  rotate_recovery_target_yaw_[1] = current_yaw + 0.0;
+  rotate_recovery_target_yaw_[2] = current_yaw + 0.0;
+  rotate_recovery_target_yaw_[3] = current_yaw + M_PI / 4.0;
+  rotate_recovery_target_yaw_[4] = current_yaw + M_PI / 4.0;
+  rotate_recovery_target_yaw_[5] = current_yaw - M_PI;
+  rotate_recovery_target_yaw_[6] = current_yaw - M_PI / 4.0;
+  rotate_recovery_target_yaw_[7] = current_yaw - M_PI / 4.0;
+  rotate_recovery_target_yaw_[8] = current_yaw - M_PI / 4.0;
+/*
+  rotate_recovery_target_yaw_[6] = current_yaw + M_PI;
+  rotate_recovery_target_yaw_[7] = current_yaw + M_PI / 4.0;
+  rotate_recovery_target_yaw_[8] = current_yaw + M_PI / 4.0;
+  rotate_recovery_target_yaw_[9] = current_yaw - M_PI;
+  rotate_recovery_target_yaw_[10] = current_yaw - M_PI / 4.0;
+  rotate_recovery_target_yaw_[11] = current_yaw - M_PI / 4.0;
+  rotate_recovery_target_yaw_[12] = current_yaw + M_PI;
+*/
+}
+
+
 bool AStarController::CanRotate(double x, double y, double yaw, int dir) {
   // only check 0.4 radian, ignore current footprint
   for (int i = 1; i <= 4; ++i) {
@@ -2206,7 +2237,39 @@ bool AStarController::RotateRecovery() {
   geometry_msgs::PoseStamped current_position;
   tf::poseStampedTFToMsg(global_pose, current_position);
 
-  double yaw = tf::getYaw(current_position.pose.orientation);
+  if (astar_planner_timeout_cnt_ == 1) {
+    UpdateRecoveryYaw(current_position);
+  } else if (astar_planner_timeout_cnt_ > 8) {
+    return true;
+  }
+
+  double current_yaw = tf::getYaw(current_position.pose.orientation);
+  double target_yaw = rotate_recovery_target_yaw_[astar_planner_timeout_cnt_];
+  double theta_sim_granularity = target_yaw > current_yaw ? 0.1 : -0.1;
+
+  int num_step = M_PI / 4.0 / fabs(theta_sim_granularity);
+  if (num_step == 0) num_step = 1;
+
+  bool footprint_safe = true;
+  // ignore current footprint
+  for (int i = 1; i <= num_step; ++i) {
+    double sample_yaw = angles::normalize_angle(current_yaw + i * theta_sim_granularity);
+    if (footprint_checker_->CircleCenterCost(current_position.pose.position.x, current_position.pose.position.y,
+                                             sample_yaw, co_->circle_center_points) < 0) {
+      footprint_safe = false;
+      break;
+    }
+  }
+  if (footprint_safe) {
+    GAUSSIAN_INFO("[ASTAR CONTROLLER] RotateToYaw, current_yaw: %lf, target_yaw: %lf", current_yaw, target_yaw);
+    RotateToYaw(target_yaw);
+    return true;
+  } else {
+    GAUSSIAN_INFO("[ASTAR CONTROLLER] Cannot Rotate to target_yaw: %lf", target_yaw);
+    return false;
+  }
+
+/*
   if (rotate_recovery_dir_ == 0) rotate_recovery_dir_ = 1;
   double target_yaw = angles::normalize_angle(yaw + rotate_recovery_dir_ * M_PI / 6);
   double theta_sim_granularity = rotate_recovery_dir_ > 0 ? 0.1 : -0.1;
@@ -2278,6 +2341,7 @@ bool AStarController::RotateRecovery() {
   cmd_vel.angular.z = 0.0;
   co_->vel_pub->publish(cmd_vel);
   return true;
+*/
 }
 
 };  // namespace service_robot
