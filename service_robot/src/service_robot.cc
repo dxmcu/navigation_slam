@@ -65,6 +65,7 @@ ServiceRobot::ServiceRobot(tf::TransformListener* tf)
 
   private_nh.param("p13", fixpattern_footprint_padding_, 0.2);
   private_nh.param("p14", sbpl_footprint_padding_, 0.1);
+  private_nh.param("p26", use_farther_planner_, false);
 
   if (!ReadCircleCenterFromParams(private_nh, &circle_center_points_)) {
     GAUSSIAN_ERROR("[SERVICEROBOT] read circle_center_point failed");
@@ -156,6 +157,7 @@ ServiceRobot::ServiceRobot(tf::TransformListener* tf)
   reinterpret_cast<AStarControlOption*>(options_)->backward_center_points = backward_center_points_;
   reinterpret_cast<AStarControlOption*>(options_)->footprint_center_points = footprint_center_points_;
   reinterpret_cast<AStarControlOption*>(options_)->sbpl_footprint_padding = sbpl_footprint_padding_;
+  reinterpret_cast<AStarControlOption*>(options_)->use_farther_planner = use_farther_planner_;
   reinterpret_cast<AStarControlOption*>(options_)->fixpattern_footprint_padding = fixpattern_footprint_padding_;
   reinterpret_cast<AStarControlOption*>(options_)->global_planner_goal = &global_planner_goal_;
   controllers_ = new AStarController(&tf_, controller_costmap_ros_);
@@ -356,11 +358,11 @@ bool ServiceRobot::ReadBackwardCenterFromParams(ros::NodeHandle& nh, std::vector
     if (backward_center_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray) {
       ReadCircleCenterFromXMLRPC(backward_center_xmlrpc, full_param_name, points);
       for (int i = 0; i < points->size(); ++i) {
-        GAUSSIAN_INFO("[SERVICEROBOT] circle_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
+        GAUSSIAN_INFO("[SERVICEROBOT] backward circle_center[%d].x = %lf; .y = %lf", i, points->at(i).x, points->at(i).y);
       }
       return true;
     } else {
-      GAUSSIAN_ERROR("[SERVICEROBOT] circle_center param's type is not Array!");
+      GAUSSIAN_ERROR("[SERVICEROBOT] backward circle_center param's type is not Array!");
       return false;
     }
   }

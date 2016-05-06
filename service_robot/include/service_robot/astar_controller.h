@@ -44,7 +44,7 @@ typedef enum {
 typedef enum {
   A_PLANNING_R    = 0,
   FIX_CONTROLLING_R = 1,
-  FIX_RECOVERY_R    = 2,
+  PLANNER_RECOVERY_R= 2,
   FIX_GETNEWGOAL_R  = 3,
   FIX_FRONTSAFE_R   = 4,
   FIX_OSCILLATION_R = 5,
@@ -91,6 +91,7 @@ struct AStarControlOption : BaseControlOption {
   double switch_normal_dis_diff;
   double switch_normal_yaw_diff;
   double stop_to_zero_acc;
+  bool use_farther_planner;
   int* fixpattern_reached_goal;
   fixpattern_path::Path* fixpattern_path;
   geometry_msgs::PoseStamped* global_planner_goal;
@@ -179,6 +180,7 @@ class AStarController : public BaseController {
   bool IsGlobalGoalReached(const geometry_msgs::PoseStamped& current_position, const geometry_msgs::PoseStamped& global_goal,
                             double xy_goal_tolerance, double yaw_goal_tolerance);
   double CheckFixPathFrontSafe(const std::vector<geometry_msgs::PoseStamped>& path, double front_safe_check_dis);
+  bool UpdateFixPath(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::PoseStamped& global_start, double front_safe_check_dis, bool use_static_costmap);
   bool NeedBackward(const geometry_msgs::PoseStamped& pose, double distance);
   bool GetAStarInitalPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
   bool GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, int begin_index = 0);

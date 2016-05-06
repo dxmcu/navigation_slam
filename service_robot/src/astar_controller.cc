@@ -32,7 +32,7 @@ AStarController::AStarController(tf::TransformListener* tf,
   planner_plan_ = new std::vector<geometry_msgs::PoseStamped>();
 
   // create footprint_checker_
-  footprint_checker_ = new service_robot::FootprintChecker(*controller_costmap_ros_->getCostmap());
+  footprint_checker_ = new service_robot::FootprintChecker(controller_costmap_ros_->getCostmap());
 
   footprint_spec_ = controller_costmap_ros_->getRobotFootprint();
   // set up the planner's thread
@@ -480,7 +480,7 @@ void AStarController::PlanThread() {
           runPlanner_ = false;
           switch_path_ = false;
           state_ = FIX_CLEARING;
-          recovery_trigger_ = FIX_RECOVERY_R;
+          recovery_trigger_ = PLANNER_RECOVERY_R;
           GAUSSIAN_ERROR("[ASTAR CONTROLLER] planning_state_ unknown, enter recovery");
         }
 
@@ -495,7 +495,6 @@ void AStarController::PlanThread() {
       GAUSSIAN_ERROR("[ASTAR PLANNER] No Plan...");
 //      sbpl_broader_ = true;
       ros::Time attempt_end = last_valid_plan_ + ros::Duration(co_->planner_patience);
-      // ros::Time attempt_end = ros::Time::now() + ros::Duration(co_->planner_patience);
       // check if we've tried to make a plan for over our time limit
       lock.lock();
       if (ros::Time::now() > attempt_end && runPlanner_) {
@@ -504,7 +503,7 @@ void AStarController::PlanThread() {
         PublishZeroVelocity();
         // switch to FIX_CLEARING state
         state_ = FIX_CLEARING;
-        recovery_trigger_ = FIX_RECOVERY_R;
+        recovery_trigger_ = PLANNER_RECOVERY_R;
         planning_state_ = P_INSERTING_BEGIN;
         ++astar_planner_timeout_cnt_;
         GAUSSIAN_ERROR("[ASTAR PLANNER] Alarm Here!!! Not got plan until planner_patience, enter recovery; timeout_cnt = %d", astar_planner_timeout_cnt_);
@@ -644,8 +643,8 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
             GAUSSIAN_WARN("[ASTAR_CONTROLLER] CheckFixPathFrontSafe failed, switch to A_PLANNING state");
           } else {
             state_ = FIX_CLEARING;
-            recovery_trigger_ = FIX_RECOVERY_R;
-            GAUSSIAN_WARN("[ASTAR_CONTROLLER] get Astar goal fialed, siwtch to FIX_RECOVERY_R");
+            recovery_trigger_ = PLANNER_RECOVERY_R;
+            GAUSSIAN_WARN("[ASTAR_CONTROLLER] get Astar goal fialed, siwtch to PLANNER_RECOVERY_R");
           }
         } else {
           // switch to CONTROLLING state and go
@@ -1398,7 +1397,7 @@ bool AStarController::ExecuteCycle() {
             if (!co_->fixpattern_local_planner->isFootprintSafe()) {
               recovery_trigger_ = BACKWARD_RECOVERY_R;
             } else {
-              recovery_trigger_ = FIX_RECOVERY_R;
+              recovery_trigger_ = PLANNER_RECOVERY_R;
             }
             break;
           } else {
@@ -1448,7 +1447,7 @@ bool AStarController::ExecuteCycle() {
         recovery_trigger_ = FIX_GETNEWGOAL_R;
       }
 
-      if (recovery_trigger_ == FIX_RECOVERY_R) {
+      if (recovery_trigger_ == PLANNER_RECOVERY_R) {
         // we will try Going Back first
         HandleGoingBack(current_position);
         double x = current_position.pose.position.x;
@@ -1839,7 +1838,7 @@ bool AStarController::GetAStarInitalPath(const geometry_msgs::PoseStamped& globa
 //     for (int i = 0; i < planner_plan_->size(); i += 3) {
 //       fix_path.push_back(fixpattern_path::GeometryPoseToPathPoint(planner_plan_->at(i).pose));
 //     }
-//
+
      geometry_msgs::PoseStamped pre_pose = planner_plan_->front();
      double yaw_diff;
      for (int i = 0; i < planner_plan_->size(); ++i) {
@@ -1854,7 +1853,22 @@ bool AStarController::GetAStarInitalPath(const geometry_msgs::PoseStamped& globa
 //     path_recorder::PathRecorder recorder;
 //     recorder.CalculateCurvePath(&fix_path);
      co_->fixpattern_path->set_fix_path(global_start, fix_path, true); 
-     gotInitPlan_ = true;
+
+     // check fix_path is safe: if not, get  goal on path and switch to PLANNING state 
+     std::vector<geometry_msgs::PoseStamped> updated_fix_path = co_->fixpattern_path->GeometryPath();
+     double path_length = co_->fixpattern_path->Length();
+     int try_count = 10;
+     footprint_checker_->setStaticCostmap(controller_costmap_ros_, true);
+
+     while(!gotInitPlan_ && --try_count < 0) {
+       if (UpdateFixPath(updated_fix_path, global_start, path_length, true)) {
+         gotInitPlan_ = true;
+         break;
+       }
+     }
+     
+     footprint_checker_->setStaticCostmap(controller_costmap_ros_, false);
+
      std::vector<geometry_msgs::PoseStamped> plan = co_->fixpattern_path->GeometryPath();
      for (auto&& p : plan) {  // NOLINT
        p.header.frame_id = co_->global_frame;
@@ -1864,6 +1878,32 @@ bool AStarController::GetAStarInitalPath(const geometry_msgs::PoseStamped& globa
 
      GAUSSIAN_INFO("[ASTAR CONTROLLER] InitialPath: After set_fix_path size = %d", (int)plan.size());
      return true;
+  }
+}
+
+bool AStarController::UpdateFixPath(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::PoseStamped& global_start, double front_safe_check_dis, bool use_static_costmap) {
+  if (CheckFixPathFrontSafe(path, front_safe_check_dis) < front_safe_check_dis - 0.30) {
+    GetAStarGoal(global_start, obstacle_index_);
+    GetAStarStart(front_safe_check_dis);
+    // set static costmap in first planning
+    if (use_static_costmap) {
+      co_->sbpl_global_planner->setStaticCosmap(false);
+    }
+    if (!co_->sbpl_global_planner->makePlan(planner_start_, planner_goal_, *planner_plan_, astar_path_, false, false) || planner_plan_->empty()) {
+      GAUSSIAN_ERROR("[ASTAR CONTROLLER] UpdateFixPath: sbpl failed to find a plan to point (%.2f, %.2f)", planner_goal_.pose.position.x, planner_goal_.pose.position.y);
+      return false;
+    } else {
+      co_->fixpattern_path->insert_middle_path(astar_path_.path(), planner_start_, planner_goal_);
+      GAUSSIAN_INFO("[ASTAR CONTROLLER] UpdateFixPath: insert sbpl path into fix_path");
+      if (CheckFixPathFrontSafe(path, front_safe_check_dis) < front_safe_check_dis - 0.30) {
+        GAUSSIAN_WARN("[ASTAR CONTROLLER] UpdateFixPath: after updating, path is not safe, return and retry!");
+        return false;
+      } else {
+        return true;
+      }
+    }
+  } else {
+    return true;
   }
 }
 

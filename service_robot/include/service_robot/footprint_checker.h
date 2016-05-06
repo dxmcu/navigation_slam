@@ -14,6 +14,7 @@
 
 #include <ros/ros.h>
 #include <costmap_2d/costmap_2d.h>
+#include <costmap_2d/costmap_2d_ros.h>
 #include <costmap_2d/footprint.h>
 #include <costmap_2d/cost_values.h>
 #include <vector>
@@ -34,13 +35,14 @@ class FootprintChecker {
    * @param costmap The costmap that should be used
    * @return
    */
-  explicit FootprintChecker(const costmap_2d::Costmap2D& costmap);
+  explicit FootprintChecker(const costmap_2d::Costmap2D* costmap);
 
   /**
    * @brief  Destructor for the world model
    */
   virtual ~FootprintChecker() { }
 
+  void setStaticCostmap(costmap_2d::Costmap2DROS* costmap_ros, bool use_static_costmap);  
 //  double RecoveryCircleCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& footprint_spec, geometry_msgs::PoseStamped* goal_pose);
   double RecoveryCircleCost(const geometry_msgs::PoseStamped& current_pos, const std::vector<geometry_msgs::Point>& footprint_spec, geometry_msgs::PoseStamped* goal_pose);
 
@@ -55,11 +57,11 @@ class FootprintChecker {
       double new_y = y + (circle_center_points[i].x * sin_th + circle_center_points[i].y * cos_th);
 
       unsigned int cell_x, cell_y;
-      if (!costmap_.worldToMap(new_x, new_y, cell_x, cell_y)) {
+      if (!costmap_->worldToMap(new_x, new_y, cell_x, cell_y)) {
 //        return 0.0;
         return -1.0;
       }
-      unsigned char cost = costmap_.getCost(cell_x, cell_y);
+      unsigned char cost = costmap_->getCost(cell_x, cell_y);
       if (cost >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
           check_cnt -= 1.0;
 //        return -1.0;
@@ -80,10 +82,10 @@ class FootprintChecker {
       double new_y = y + (footprint_center_points[i].x * sin_th + footprint_center_points[i].y * cos_th);
 
       unsigned int cell_x, cell_y;
-      if (!costmap_.worldToMap(new_x, new_y, cell_x, cell_y)) {
+      if (!costmap_->worldToMap(new_x, new_y, cell_x, cell_y)) {
         ++check_cost_cnt;
       } else {
-        unsigned char cost = costmap_.getCost(cell_x, cell_y);
+        unsigned char cost = costmap_->getCost(cell_x, cell_y);
         GAUSSIAN_INFO("[Footprint_Checker] footprint_center[%d].cost = %d, check_cnt = %d",i, cost, check_cost_cnt + 1);
         if (cost >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
           ++check_cost_cnt;
@@ -151,7 +153,7 @@ class FootprintChecker {
    */
   double PointCost(int x, int y);
 
-  const costmap_2d::Costmap2D& costmap_;  ///< @brief Allows access of costmap obstacle information
+  const costmap_2d::Costmap2D* costmap_;  ///< @brief Allows access of costmap obstacle information
 };
 
 };  // namespace service_robot

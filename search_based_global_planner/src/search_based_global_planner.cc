@@ -185,8 +185,10 @@ void SearchBasedGlobalPlanner::setStaticCosmap(bool is_static) {
   //set current costmap_ as static
   if (is_static) {
     costmap_ = costmap_ros_->getStaticCostmap();
+    GAUSSIAN_INFO("[SEARCH BASED GLOBAL PLANNER] take static costmap!");
   } else {
     costmap_ = costmap_ros_->getCostmap();
+    GAUSSIAN_INFO("[SEARCH BASED GLOBAL PLANNER] take normal costmap!");
   }
 }
 
