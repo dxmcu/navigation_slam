@@ -1044,7 +1044,8 @@ bool AStarController::ExecuteCycle() {
           return true;  //(lee)
         }
       }
-/*      {
+
+      {
         bool need_backward = HandleGoingBack(current_position);
         // check if need going back
         if (need_backward) {
@@ -1055,7 +1056,7 @@ bool AStarController::ExecuteCycle() {
           return false;
         }
       }
-*/
+
 
       // check if swtich to origin path needed
       HandleSwitchingPath(current_position);
