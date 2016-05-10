@@ -46,15 +46,17 @@ class FootprintChecker {
 //  double RecoveryCircleCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& footprint_spec, geometry_msgs::PoseStamped* goal_pose);
   double RecoveryCircleCost(const geometry_msgs::PoseStamped& current_pos, const std::vector<geometry_msgs::Point>& footprint_spec, geometry_msgs::PoseStamped* goal_pose);
 
-  double CircleCenterCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& circle_center_points) {
+  double CircleCenterCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& circle_center_points, double extend_x, double extend_y) {
     double cos_th = cos(theta);
     double sin_th = sin(theta);
 
     double ret = 0.0;
     double check_cnt = 0.0;
     for (unsigned int i = 0; i < circle_center_points.size(); ++i) {
-      double new_x = x + (circle_center_points[i].x * cos_th - circle_center_points[i].y * sin_th);
-      double new_y = y + (circle_center_points[i].x * sin_th + circle_center_points[i].y * cos_th);
+      double center_x = circle_center_points[i].x > 0.0 ? circle_center_points[i].x + extend_x : circle_center_points[i].x - extend_x;
+      double center_y = circle_center_points[i].y > 0.0 ? circle_center_points[i].y + extend_y : circle_center_points[i].y - extend_y;
+      double new_x = x + (center_x * cos_th - center_y * sin_th);
+      double new_y = y + (center_x * sin_th + center_y * cos_th);
 
       unsigned int cell_x, cell_y;
       if (!costmap_->worldToMap(new_x, new_y, cell_x, cell_y)) {

@@ -94,6 +94,7 @@ struct AStarControlOption : BaseControlOption {
   bool use_farther_planner;
   double init_path_sample_dis;
   double init_path_sample_yaw;
+  double init_path_circle_center_extend_y;
 
   int* fixpattern_reached_goal;
   fixpattern_path::Path* fixpattern_path;
@@ -182,13 +183,15 @@ class AStarController : public BaseController {
                            const std::vector<geometry_msgs::Point>& circle_center_points, double length);
   bool IsGlobalGoalReached(const geometry_msgs::PoseStamped& current_position, const geometry_msgs::PoseStamped& global_goal,
                             double xy_goal_tolerance, double yaw_goal_tolerance);
-  double CheckFixPathFrontSafe(const std::vector<geometry_msgs::PoseStamped>& path, double front_safe_check_dis);
+  double CheckFixPathFrontSafe(const std::vector<geometry_msgs::PoseStamped>& path, double front_safe_check_dis, double extend_x, double extend_y);
   bool UpdateFixPath(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::PoseStamped& global_start, double front_safe_check_dis, bool use_static_costmap);
   bool NeedBackward(const geometry_msgs::PoseStamped& pose, double distance);
-  bool GetAStarInitalPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
+  bool GetAStarInitailPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
   bool GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, int begin_index = 0);
   bool GetAStarTempGoal(geometry_msgs::PoseStamped& goal_pose, double offset_dis);
   bool GetAStarStart(double front_safe_check_dis);
+  void SampleInitailPath(std::vector<geometry_msgs::PoseStamped>* planner_plan,
+                         std::vector<fixpattern_path::PathPoint>& fix_path);
   bool GetCurrentPosition(geometry_msgs::PoseStamped& current_position);
   unsigned int GetPoseIndexOfPath(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::PoseStamped& pose);
   bool HandleGoingBack(const geometry_msgs::PoseStamped& current_position, double backward_dis = 0.0);
@@ -216,9 +219,7 @@ class AStarController : public BaseController {
   bool CanBackward(double distance);
 
   void LocalizationCallBack(const std_msgs::Int8::ConstPtr& param);
-  void SetInitialPoseCallback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& init_pose);
 
-  bool GetCurrentPoseCallBack(autoscrubber_services::GetCurrentPose::Request& req, autoscrubber_services::GetCurrentPose::Response& res);
  private:
   tf::TransformListener& tf_;
 

@@ -204,8 +204,8 @@ bool FixPatternTrajectoryPlannerROS::stopWithAccLimits(PlannerType planner_type,
   double yaw = tf::getYaw(global_pose.getRotation());
   bool valid_cmd = true;
   if (planner_type == TRAJECTORY_PLANNER) {
-    valid_cmd = tc_->checkTrajectory(global_pose.getOrigin().getX(), global_pose.getOrigin().getY(), yaw,
-                                     robot_vel.getOrigin().getX(), robot_vel.getOrigin().getY(), vel_yaw, vx, vy, vth);
+    valid_cmd = tc_->CheckTrajectoryWithSimTime(global_pose.getOrigin().getX(), global_pose.getOrigin().getY(), yaw,
+                                                robot_vel.getOrigin().getX(), robot_vel.getOrigin().getY(), vel_yaw, vx, vy, vth, 2.0);
   } else if (planner_type == LOOKAHEAD_PLANNER) {
     valid_cmd = la_->CheckTrajectory(global_pose.getOrigin().getX(), global_pose.getOrigin().getY(), yaw,
                                      robot_vel.getOrigin().getX(), robot_vel.getOrigin().getY(), vel_yaw, vx, vy, vth);
