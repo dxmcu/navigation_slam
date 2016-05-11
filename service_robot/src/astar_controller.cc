@@ -14,9 +14,6 @@
 #include <nav_msgs/Path.h>
 #include <angles/angles.h>
 #include <std_msgs/UInt32.h>
-#include <autoscrubber_services/StartRotate.h>
-#include <autoscrubber_services/StopRotate.h>
-#include <autoscrubber_services/CheckRotate.h>
 
 namespace service_robot {
 
@@ -72,7 +69,9 @@ AStarController::AStarController(tf::TransformListener* tf,
 
   start_rotate_client_ = device_nh.serviceClient<autoscrubber_services::StartRotate>("start_rotate");
   stop_rotate_client_ = device_nh.serviceClient<autoscrubber_services::StopRotate>("stop_rotate");
-  check_rotate_client_ = device_nh.serviceClient<autoscrubber_services::CheckRotate>("Check_rotate");
+  check_rotate_client_ = device_nh.serviceClient<autoscrubber_services::CheckRotate>("check_rotate");
+
+  check_goal_srv_ = n.advertiseService("check_goal", &AStarController::CheckGoalIsSafe, this);
 }
 
 AStarController::~AStarController() {
@@ -94,6 +93,12 @@ void AStarController::LocalizationCallBack(const std_msgs::Int8::ConstPtr& param
     localization_valid_ = false;
 //    GAUSSIAN_WARN("[ASTAR CONTROLLER] localization failed!"); 
   }
+}
+
+bool AStarController::CheckGoalIsSafe(autoscrubber_services::CheckGoal::Request& req, autoscrubber_services::CheckGoal::Response& res) {
+  geometry_msgs::PoseStamped goal_pose = req.goal_pose; 
+  res.isSafe.data = IsGoalSafe(goal_pose, 0.10, 0.15);
+  return true;
 }
 
 bool AStarController::MakePlan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>* plan) {
@@ -422,10 +427,18 @@ void AStarController::PlanThread() {
         }
 
         if (gotPlan) {
-          runPlanner_ = false;
-          state_ = FIX_CONTROLLING;
+          if (co_->fixpattern_path->Length() - front_path_.Length() > 5.0 && front_path_.Length() > 0.5) {
+            GAUSSIAN_WARN("[FIX CONTROLLER] new plan length - pre plan length > 5.0m, take global goal as astar_goal_!");
+            planner_goal_ = global_goal_;
+            taken_global_goal_ = true;
+            new_global_plan_ = false;
+            // runPlanner_ = true;
+            state_ = A_PLANNING;
+          } else {
+            runPlanner_ = false;
+            state_ = FIX_CONTROLLING;
+          }
         } 
-
         lock.unlock();
       }
     } else if (state_ == A_PLANNING) {  // if we didn't get a plan and we are in the planning state (the robot isn't moving)
@@ -1121,7 +1134,7 @@ bool AStarController::ExecuteCycle() {
             && !IsGoalSafe(global_goal_, 0.10, 0.15)) { 
           if (front_safe_dis < 0.5) {
             PublishZeroVelocity();
-            PublishMovebaseStatus(E_PATH_NOT_SAFE);
+            PublishMovebaseStatus(E_GOAL_NOT_SAFE);
             bool is_goal_safe = false;
             ros::Rate check_rate(10);
             ros::Time check_end_time = ros::Time::now() + ros::Duration(co_->goal_safe_check_duration);

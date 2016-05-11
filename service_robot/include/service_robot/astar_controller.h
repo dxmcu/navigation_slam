@@ -22,7 +22,10 @@
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <costmap_2d/costmap_2d_ros.h>
 #include <costmap_2d/costmap_2d.h>
-#include <autoscrubber_services/GetCurrentPose.h>
+#include <autoscrubber_services/StartRotate.h>
+#include <autoscrubber_services/StopRotate.h>
+#include <autoscrubber_services/CheckRotate.h>
+#include <autoscrubber_services/CheckGoal.h>
 #include <fixpattern_path/path.h>
 #include <search_based_global_planner/search_based_global_planner.h>
 #include <fixpattern_local_planner/trajectory_planner_ros.h>
@@ -68,6 +71,7 @@ typedef enum {
   I_GOAL_HEADING,
   I_GOAL_REACHED,
   I_GOAL_UNREACHED,
+  E_GOAL_NOT_SAFE,
   MAX_RET,
 } StatusIndex;
 
@@ -219,6 +223,7 @@ class AStarController : public BaseController {
   bool CanBackward(double distance);
 
   void LocalizationCallBack(const std_msgs::Int8::ConstPtr& param);
+  bool CheckGoalIsSafe(autoscrubber_services::CheckGoal::Request& req, autoscrubber_services::CheckGoal::Response& res); // NOLINT
 
  private:
   tf::TransformListener& tf_;
@@ -310,7 +315,7 @@ class AStarController : public BaseController {
   ros::Publisher move_base_status_pub_;
   ros::Subscriber set_init_sub_;
   ros::Subscriber localization_sub_;
-  ros::ServiceServer get_current_pose_srv_;
+  ros::ServiceServer check_goal_srv_;
   ros::ServiceClient start_rotate_client_;
   ros::ServiceClient stop_rotate_client_;
   ros::ServiceClient check_rotate_client_;
