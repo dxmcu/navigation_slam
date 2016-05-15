@@ -15,7 +15,10 @@
 #include <security/security_client.h>
 #include <security/usb_validator.h>
 void SecurityCallback(int ret) {
-  if (0 != ret) exit(-1);
+  if (0 != ret) {
+    std::cout << "usb_validator unconneted, return directly!" << std::endl;
+	 	exit(-1);
+  }
 }
 #endif
 

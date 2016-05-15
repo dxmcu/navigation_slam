@@ -97,7 +97,8 @@ void AStarController::LocalizationCallBack(const std_msgs::Int8::ConstPtr& param
 
 bool AStarController::CheckGoalIsSafe(autoscrubber_services::CheckGoal::Request& req, autoscrubber_services::CheckGoal::Response& res) {
   geometry_msgs::PoseStamped goal_pose = req.goal_pose; 
-  res.isSafe.data = IsGoalSafe(goal_pose, 0.10, 0.15);
+  footprint_checker_->setStaticCostmap(controller_costmap_ros_, false);
+  res.isSafe = IsGoalSafe(goal_pose, 0.15, 0.15);
   return true;
 }
 
@@ -683,7 +684,8 @@ bool AStarController::IsGoalSafe(const geometry_msgs::PoseStamped& goal_pose, do
     path.push_back(p);
   }
   for (int i = 0; i < path.size(); ++i) {
-    if (footprint_checker_->FootprintCost(path[i].pose.position.x, path[i].pose.position.y, yaw, footprint_spec_, 0.0, 0.0) < 0) {
+    if (footprint_checker_->CircleCenterCost(path[i].pose.position.x, path[i].pose.position.y, yaw, co_->circle_center_points, 0.0, 0.0) < 0) {
+//    if (footprint_checker_->FootprintCost(path[i].pose.position.x, path[i].pose.position.y, yaw, footprint_spec_, 0.0, 0.0) < 0) {
       return false;
     }
   }
@@ -1049,7 +1051,7 @@ bool AStarController::ExecuteCycle() {
           recovery_trigger_ = FIX_GETNEWGOAL_R;
           GAUSSIAN_ERROR("[FIXPATTERN CONTROLLER] HandleGoingBack, entering A_PLANNING state");
           break;  //(lee)
-        } else  {
+        } else {
           // publish goal reached 
           PublishGoalReached(global_goal_);
           PublishMovebaseStatus(I_GOAL_REACHED);
@@ -1139,7 +1141,7 @@ bool AStarController::ExecuteCycle() {
             ros::Rate check_rate(10);
             ros::Time check_end_time = ros::Time::now() + ros::Duration(co_->goal_safe_check_duration);
             unsigned int check_goal_safe_cnt = 0;
-            while (ros::Time::now() < check_end_time) {
+            while (ros::Time::now() < check_end_time && env_->run_flag) {
               if (IsGoalSafe(global_goal_, 0.10, 0.15)) {
                 if (++check_goal_safe_cnt > 5) {
                   is_goal_safe = true;
@@ -1165,7 +1167,9 @@ bool AStarController::ExecuteCycle() {
               co_->fixpattern_path->FinishPath();
 
               // publish goal unreached
-              PublishGoalReached(current_position);
+              if (env_->run_flag) {
+                PublishGoalReached(current_position);
+              }
               PublishMovebaseStatus(I_GOAL_UNREACHED);
 
               // TODO(chenkan): check if this is needed
@@ -2067,7 +2071,7 @@ bool AStarController::RotateToYaw(double target_yaw) {
 
   ros::Rate r(co_->controller_frequency);
 //  while (fabs(angle_diff) > 0.1 && CanRotate(x, y, yaw, angle_diff > 0 ? 1 : -1)) {
-  while (fabs(angle_diff) > 0.1) {
+  while (fabs(angle_diff) > 0.1 && env_->run_flag) {
     GAUSSIAN_INFO("rotate to yaw: cur_yaw = %lf, target_yaw = %lf, yaw_diff = %lf",yaw ,target_yaw, angle_diff);
     cmd_vel.angular.z = angle_diff > 0 ? 0.3 : -0.3;
     co_->vel_pub->publish(cmd_vel);
@@ -2172,7 +2176,7 @@ bool AStarController::GoingForward(double distance) {
   cmd_vel.angular.z = 0.0;
 
   ros::Rate r(co_->controller_frequency);
-  while (ros::Time::now() < end_time && CanForward(0.15)) {
+  while (ros::Time::now() < end_time && CanForward(0.15) && env_->run_flag) {
  // while (ros::Time::now() < end_time) {
     co_->vel_pub->publish(cmd_vel);
     last_valid_control_ = ros::Time::now();

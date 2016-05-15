@@ -180,20 +180,20 @@ double FootprintChecker::FootprintCost(const geometry_msgs::Point& position, con
       return 0.0;
   }
 
-  double FootprintChecker::BroaderFootprintCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& footprint_spec, double broader_theta_x, double broader_theta_y) {
+  double FootprintChecker::BroaderFootprintCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& footprint_spec, double broader_delta_x, double broader_delta_y) {
     geometry_msgs::Point robot_position;
     robot_position.x = x;
     robot_position.y = y;
     double cos_th = cos(theta);
     double sin_th = sin(theta);
     double footprint_cost = 0.0; 
-    double broader_x = broader_theta_x;
-    double broader_y = broader_theta_y;
+    double broader_x = broader_delta_x;
+    double broader_y = broader_delta_y;
     int step_num = broader_x / 0.3;
     std::vector<geometry_msgs::Point> broader_footprint;
     for (int j = 0; j < step_num; ++j) { 
-      broader_x = std::max(broader_theta_x - 0.3 * j, 0.3);
-      broader_y = std::max(broader_theta_y - 0.3 * j, 0.3);
+      broader_x = std::max(broader_delta_x - 0.3 * j, 0.3);
+      broader_y = std::max(broader_delta_y - 0.3 * j, 0.3);
       for (int i = 0; i < footprint_spec.size(); ++i) {
         geometry_msgs::Point footprint_pt = footprint_spec[i];
         geometry_msgs::Point new_pt;
