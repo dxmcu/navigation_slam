@@ -61,10 +61,12 @@ class FootprintChecker {
       unsigned int cell_x, cell_y;
       if (!costmap_->worldToMap(new_x, new_y, cell_x, cell_y)) {
 //        return 0.0;
-        return -1.0;
+        return -200.0;
       }
       unsigned char cost = costmap_->getCost(cell_x, cell_y);
-      if (cost >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
+      if (cost == costmap_2d::NO_INFORMATION) {
+        return -101.0;
+			} else if (cost >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
           check_cnt -= 1.0;
 //        return -1.0;
       }

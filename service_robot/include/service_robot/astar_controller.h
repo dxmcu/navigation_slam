@@ -181,6 +181,7 @@ class AStarController : public BaseController {
    */
   bool IsGoalFootprintSafe(double front_safe_dis_a, double front_safe_dis_b, const geometry_msgs::PoseStamped& pose);
   bool IsGoalSafe(const geometry_msgs::PoseStamped& goal_pose, double goal_front_check_dis, double goal_back_check_dis);
+  bool IsGoalUnreachable(const geometry_msgs::PoseStamped& goal_pose);
   bool IsFixPathFrontSafe(double front_safe_check_dis);
   bool IsPathFootprintSafe(const fixpattern_path::Path& fix_path, double length);
   bool IsPathFootprintSafe(const std::vector<geometry_msgs::PoseStamped>& path,
