@@ -40,7 +40,7 @@ double FootprintChecker::FootprintCost(const geometry_msgs::Point& position, con
 //  GAUSSIAN_INFO("[Footprint Check] inscribed_radius = %lf, circumscribed_radius = %lf", inscribed_radius, circumscribed_radius);
   // get the cell coord of the center point of the robot
   if (!costmap_->worldToMap(position.x, position.y, cell_x, cell_y)) {
-    return 0.0;
+    return -200.0;
   }
 
   // if number of points in the footprint is less than 3, we'll just assume a circular robot
@@ -62,12 +62,12 @@ double FootprintChecker::FootprintCost(const geometry_msgs::Point& position, con
   for (unsigned int i = 0; i < footprint.size() - 1; ++i) {
     // get the cell coord of the first point
     if (!costmap_->worldToMap(footprint[i].x, footprint[i].y, x0, y0)) {
-      return 0.0;
+      return -200.0;
     }
 
     // get the cell coord of the second point
     if (!costmap_->worldToMap(footprint[i + 1].x, footprint[i + 1].y, x1, y1)) {
-      return 0.0;
+      return -200.0;
     }
 
     line_cost = LineCost(x0, x1, y0, y1);
@@ -82,12 +82,12 @@ double FootprintChecker::FootprintCost(const geometry_msgs::Point& position, con
   // we also need to connect the first point in the footprint to the last point
   // get the cell coord of the last point
   if (!costmap_->worldToMap(footprint.back().x, footprint.back().y, x0, y0)) {
-    return 0.0;
+    return -200.0;
   }
 
   // get the cell coord of the first point
   if (!costmap_->worldToMap(footprint.front().x, footprint.front().y, x1, y1)) {
-    return 0.0;
+    return -200.0;
   }
 
   line_cost = LineCost(x0, x1, y0, y1);
@@ -189,11 +189,11 @@ double FootprintChecker::FootprintCost(const geometry_msgs::Point& position, con
     double footprint_cost = 0.0; 
     double broader_x = broader_delta_x;
     double broader_y = broader_delta_y;
-    int step_num = broader_x / 0.3;
+    int step_num = std::max(broader_x / 0.03 + 1, broader_y / 0.03 + 1);
     std::vector<geometry_msgs::Point> broader_footprint;
-    for (int j = 0; j < step_num; ++j) { 
-      broader_x = std::max(broader_delta_x - 0.3 * j, 0.3);
-      broader_y = std::max(broader_delta_y - 0.3 * j, 0.3);
+    for (int j = 0; j <= step_num; ++j) { 
+      broader_x = std::max(broader_delta_x - 0.03 * j, 0.0);
+      broader_y = std::max(broader_delta_y - 0.03 * j, 0.0);
       for (int i = 0; i < footprint_spec.size(); ++i) {
         geometry_msgs::Point footprint_pt = footprint_spec[i];
         geometry_msgs::Point new_pt;
@@ -207,6 +207,7 @@ double FootprintChecker::FootprintCost(const geometry_msgs::Point& position, con
       double temp_cost = FootprintCost(robot_position, broader_footprint, 0.0, 0.0);
       footprint_cost = std::min(footprint_cost, temp_cost); 
       if (footprint_cost < 0.0) {
+        GAUSSIAN_ERROR("[Footprint Checker] BroaderFootprintCost checking failed");
         return footprint_cost;
       }
     }

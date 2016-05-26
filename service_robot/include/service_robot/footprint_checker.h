@@ -102,6 +102,13 @@ class FootprintChecker {
     return ret;
   }
 
+  double FootprintCenterCost(const geometry_msgs::PoseStamped& current_position, const std::vector<geometry_msgs::Point>& footprint_center_points) {
+    double x = current_position.pose.position.x;
+    double y = current_position.pose.position.y;
+    double yaw = tf::getYaw(current_position.pose.orientation);
+    return FootprintCenterCost(x, y, yaw, footprint_center_points);
+  }
+
   double FootprintCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& footprint_spec, double inscribed_radius = 0.0, double circumscribed_radius = 0.0) {
     double cos_th = cos(theta);
     double sin_th = sin(theta);
@@ -125,8 +132,15 @@ class FootprintChecker {
   }
 
   double BroaderFootprintCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& footprint_spec,
-                        double broader_theta_x, double broader_theta_y);
+                        double broader_delta_x, double broader_delta_y);
 
+  double BroaderFootprintCost(const geometry_msgs::PoseStamped& current_position, const std::vector<geometry_msgs::Point>& footprint_spec,
+                        double broader_delta_x, double broader_delta_y) {
+    double x = current_position.pose.position.x;
+    double y = current_position.pose.position.y;
+    double yaw = tf::getYaw(current_position.pose.orientation);
+    return BroaderFootprintCost(x, y, yaw, footprint_spec, broader_delta_x, broader_delta_y);
+  }
   /**
    * @brief  Checks if any obstacles in the costmap lie inside a convex footprint that is rasterized into the grid
    * @param  position The position of the robot in world coordinates

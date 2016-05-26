@@ -458,6 +458,13 @@ void AStarController::PlanThread() {
         planning_state_ = P_INSERTING_BEGIN;
         ++astar_planner_timeout_cnt_;
         GAUSSIAN_ERROR("[ASTAR PLANNER] Alarm Here!!! Not got plan until planner_patience, enter recovery; timeout_cnt = %d", astar_planner_timeout_cnt_);
+        if (!gotInitPlan_ && astar_planner_timeout_cnt_ > 3) {
+          PublishMovebaseStatus(E_GOAL_UNREACHABLE);
+          env_->run_flag = false;
+          env_->pause_flag = false;
+          GAUSSIAN_ERROR("[ASTAR CONTROLLER] global_goal not safe, just return here!");
+          lock.unlock();
+        }
       } else if (runPlanner_) {
         // to update global costmap
         usleep(500000);
@@ -579,12 +586,12 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
 
     // 4. check if current_position footpirnt is invalid
     // if yes - recovery; no - get new goal and replan
-    if (footprint_checker_->FootprintCenterCost(current_position.pose.position.x, current_position.pose.position.y,
-                                                tf::getYaw(current_position.pose.orientation), co_->footprint_center_points) < 0) {
+    if (footprint_checker_->BroaderFootprintCost(current_position, footprint_spec_, 0.08, 0.08) < 0.0
+        || footprint_checker_->FootprintCenterCost(current_position, co_->footprint_center_points) < 0.0) {
        GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] footprint cost check < 0!, switch to Recovery");
        // TODO(lizhen) not terminate even HandleRecovery failed?
        if (!HandleRecovery(current_position)) {
-         GAUSSIAN_ERROR("[FIXPATTERN CONTROLLER] footprint not safe and recovery failed, terminate!");
+         GAUSSIAN_ERROR("[FIXPATTERN CONTROLLER] footprint not safe and recovery failed, we'll not terminate!");
          //continue; 
        }
     }
@@ -1437,9 +1444,8 @@ bool AStarController::ExecuteCycle() {
         double y = current_position.pose.position.y;
         double yaw = tf::getYaw(current_position.pose.orientation);
         // check if oboscal in footprint, yes - recovery; no - get new goal and replan
-        if (footprint_checker_->FootprintCost(x, y, yaw, footprint_spec_, 0.0, 0.0) < 0 
-            || footprint_checker_->BroaderFootprintCost(x, y, yaw, co_->footprint_center_points, 0.10, 0.05) < 0
-            || footprint_checker_->FootprintCenterCost(x, y, yaw, co_->footprint_center_points) < 0) {
+        if (footprint_checker_->BroaderFootprintCost(current_position, footprint_spec_, 0.08, 0.08) < 0.0
+            || footprint_checker_->FootprintCenterCost(current_position, co_->footprint_center_points) < 0.0) {
           GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] footprint cost check < 0!, switch to Recovery");
           PublishMovebaseStatus(E_PATH_NOT_SAFE);
           HandleRecovery(current_position);
@@ -1472,7 +1478,7 @@ bool AStarController::ExecuteCycle() {
 */
         } else {
           GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] footprint cost check OK!, switch to Replan");
-          if (astar_planner_timeout_cnt_ > 2) {
+          if (astar_planner_timeout_cnt_ > 3) {
 //            PublishMovebaseStatus(E_GOAL_UNREACHABLE);
             GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] Handle Rotate Recovery");
             RotateRecovery();
@@ -1488,7 +1494,7 @@ bool AStarController::ExecuteCycle() {
         PublishZeroVelocity();
 
         bool new_goal_got = false; 
-        if (try_recovery_times_ > 5 && co_->use_farther_planner && IsGoalSafe(global_goal_, 0.10, 0.15)) {
+        if (try_recovery_times_ > 6 && co_->use_farther_planner && IsGoalSafe(global_goal_, 0.10, 0.15)) {
           GAUSSIAN_WARN("[FIX CONTROLLER] CLEARING state: try_recovery_times_> 5, got global goal as astar_goal_!");
           try_recovery_times_ = 0; 
           new_goal_got = true;
@@ -2246,7 +2252,7 @@ bool AStarController::RotateRecovery() {
   GAUSSIAN_INFO("[ASTAR CONTROLLER] RotateRecovery: try_recovery_times_ = %d", try_recovery_times_);
   if (try_recovery_times_ == 0) {
     UpdateRecoveryYaw(current_position);
-  } else if (try_recovery_times_ > 5) {
+  } else if (try_recovery_times_ > 6) {
     return true;
   }
 
