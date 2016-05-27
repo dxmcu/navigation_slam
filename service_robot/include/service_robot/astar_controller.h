@@ -99,6 +99,8 @@ struct AStarControlOption : BaseControlOption {
   double init_path_sample_dis;
   double init_path_sample_yaw;
   double init_path_circle_center_extend_y;
+  double recovery_footprint_extend_x;
+  double recovery_footprint_extend_y;
 
   int* fixpattern_reached_goal;
   fixpattern_path::Path* fixpattern_path;

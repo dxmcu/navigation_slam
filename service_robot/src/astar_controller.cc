@@ -174,38 +174,37 @@ bool AStarController::MakePlan(const geometry_msgs::PoseStamped& start, const ge
 //    if (PoseStampedDistance(goal, success_broader_goal_) < GS_DOUBLE_PRECISION)
 //      sbpl_broader = true;
     // set static costmap in first planning
-    if (!gotInitPlan_ && astar_planner_timeout_cnt_ < 2) {
+    if (!gotInitPlan_ && astar_planner_timeout_cnt_ < 1) {
       co_->sbpl_global_planner->setStaticCosmap(true);
-      GAUSSIAN_WARN("[ASTAR PLANNER] first planning, sbpl taking static costmap");
+      GAUSSIAN_WARN("[ASTAR PLANNER] first planning, s_planner taking static costmap");
     } else {
       co_->sbpl_global_planner->setStaticCosmap(false);
     }
     // if the planner fails or returns a zero length plan, planning failed
     if (!co_->sbpl_global_planner->makePlan(start, goal, *plan, astar_path_, sbpl_broader_, state_ != A_PLANNING) || plan->empty()) {
-      GAUSSIAN_ERROR("[ASTAR PLANNER] sbpl failed to find a plan to point (%.2f, %.2f)", goal.pose.position.x, goal.pose.position.y);
+      GAUSSIAN_ERROR("[ASTAR PLANNER] s_planner failed to find a plan to point (%.2f, %.2f)", goal.pose.position.x, goal.pose.position.y);
       return false;
     } else {
       gotInitPlan_ = true;
     }
   } else {
     // astar plan, it needs call set_fix_path to generate astar_path_
-    GAUSSIAN_INFO("[ASTAR PLANNER] astar plan to the global_goal_");
+    GAUSSIAN_INFO("[ASTAR PLANNER] take a_planner");
 
     using_sbpl_directly_ = false;
     last_using_bezier_ = false;
     // set static costmap in first planning
-    if (!gotInitPlan_ && astar_planner_timeout_cnt_ < 2) {
+    if (!gotInitPlan_ && astar_planner_timeout_cnt_ < 1) {
       co_->astar_global_planner->setStaticCosmap(true);
-      GAUSSIAN_WARN("[ASTAR PLANNER] first planning, astar taking static costmap");
+      GAUSSIAN_WARN("[ASTAR PLANNER] first planning, a_planner taking static costmap");
     } else {
       co_->astar_global_planner->setStaticCosmap(false);
     }
-//    if (!co_->astar_global_planner->makePlan(start, goal, *plan) || plan->empty()) {
     if (!co_->astar_global_planner->makePlan(start, goal, *plan) || plan->empty()) {
-      GAUSSIAN_ERROR("[ASTAR PLANNER] astar failed to find a plan to point (%.2f, %.2f)", global_goal_.pose.position.x, global_goal_.pose.position.y);
+      GAUSSIAN_ERROR("[ASTAR PLANNER] a_planner failed to find a plan to point (%.2f, %.2f)", global_goal_.pose.position.x, global_goal_.pose.position.y);
       return false;
     } else {
-      gotInitPlan_ = true;
+      if (!gotInitPlan_) gotInitPlan_ = true;
     }
 
     // assign to astar_path_
@@ -458,12 +457,12 @@ void AStarController::PlanThread() {
         planning_state_ = P_INSERTING_BEGIN;
         ++astar_planner_timeout_cnt_;
         GAUSSIAN_ERROR("[ASTAR PLANNER] Alarm Here!!! Not got plan until planner_patience, enter recovery; timeout_cnt = %d", astar_planner_timeout_cnt_);
-        if (!gotInitPlan_ && astar_planner_timeout_cnt_ > 3) {
+        if (!gotInitPlan_ && astar_planner_timeout_cnt_ > 4) {
           PublishMovebaseStatus(E_GOAL_UNREACHABLE);
           env_->run_flag = false;
           env_->pause_flag = false;
-          GAUSSIAN_ERROR("[ASTAR CONTROLLER] global_goal not safe, just return here!");
-          lock.unlock();
+          GAUSSIAN_ERROR("[ASTAR CONTROLLER] planner_timeout_cnt_ > 3, set run_flag false and return here!");
+        } else {
         }
       } else if (runPlanner_) {
         // to update global costmap
@@ -515,7 +514,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
       PublishMovebaseStatus(E_GOAL_UNREACHABLE);
       env_->run_flag = false;
       env_->pause_flag = false;
-      GAUSSIAN_ERROR("[ASTAR CONTROLLER] global_goal not safe, just return here!");
+      GAUSSIAN_ERROR("[ASTAR CONTROLLER] global_goal unknown or outside of map, just return here!");
       continue; 
     }
     // clear footprint on normal costmap
@@ -586,7 +585,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
 
     // 4. check if current_position footpirnt is invalid
     // if yes - recovery; no - get new goal and replan
-    if (footprint_checker_->BroaderFootprintCost(current_position, footprint_spec_, 0.08, 0.08) < 0.0
+    if (footprint_checker_->BroaderFootprintCost(current_position, footprint_spec_, co_->recovery_footprint_extend_x, co_->recovery_footprint_extend_y) < 0.0
         || footprint_checker_->FootprintCenterCost(current_position, co_->footprint_center_points) < 0.0) {
        GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] footprint cost check < 0!, switch to Recovery");
        // TODO(lizhen) not terminate even HandleRecovery failed?
@@ -1130,6 +1129,7 @@ bool AStarController::ExecuteCycle() {
 */
       // check if swtich to origin path needed
       HandleSwitchingPath(current_position);
+
       t2 = GetTimeInSeconds();
       if (t2 - t1 > 0.04) {
         GAUSSIAN_INFO("check reached goal and HandleSwitch cost %lf sec", t2 - t1);
@@ -1444,7 +1444,7 @@ bool AStarController::ExecuteCycle() {
         double y = current_position.pose.position.y;
         double yaw = tf::getYaw(current_position.pose.orientation);
         // check if oboscal in footprint, yes - recovery; no - get new goal and replan
-        if (footprint_checker_->BroaderFootprintCost(current_position, footprint_spec_, 0.08, 0.08) < 0.0
+        if (footprint_checker_->BroaderFootprintCost(current_position, footprint_spec_, co_->recovery_footprint_extend_x, co_->recovery_footprint_extend_y) < 0.0
             || footprint_checker_->FootprintCenterCost(current_position, co_->footprint_center_points) < 0.0) {
           GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] footprint cost check < 0!, switch to Recovery");
           PublishMovebaseStatus(E_PATH_NOT_SAFE);
@@ -1827,7 +1827,6 @@ void AStarController::SampleInitailPath(std::vector<geometry_msgs::PoseStamped>*
     for (int i = 1; i < planner_plan->size() - 1; ++i, ++acc_count) {
       acc_dis += PoseStampedDistance(planner_plan->at(i - 1), planner_plan->at(i)); 
       yaw_diff = angles::shortest_angular_distance(tf::getYaw(pre_pose.pose.orientation), tf::getYaw(planner_plan->at(i).pose.orientation));
-//      if (i % 5 == 0) {
       if (acc_dis > co_->init_path_sample_dis || fabs(yaw_diff) > co_->init_path_sample_yaw || acc_count % 5 == 0 ) {
         acc_dis = 0.0;
         acc_count = 0;
@@ -1846,31 +1845,6 @@ bool AStarController::GetAStarInitailPath(const geometry_msgs::PoseStamped& glob
     GAUSSIAN_INFO("[ASTAR CONTROLLER] InitialPath: get initial path_size = %d", (int)planner_plan_->size());
     std::vector<fixpattern_path::PathPoint> fix_path;
     SampleInitailPath(planner_plan_, fix_path);
-//    for (int i = 0; i < planner_plan_->size(); i += 3) {
-//      fix_path.push_back(fixpattern_path::GeometryPoseToPathPoint(planner_plan_->at(i).pose));
-//    }
-/*
-    geometry_msgs::PoseStamped pre_pose = planner_plan_->front();
-    fix_path.push_back(fixpattern_path::GeometryPoseToPathPoint(planner_plan_->front().pose));
-    double yaw_diff;
-    double acc_dis = 0.0;
-    int acc_count = 0;
-    for (int i = 1; i < planner_plan_->size() - 1; ++i, ++acc_count) {
-      acc_dis += PoseStampedDistance(planner_plan_->at(i - 1), planner_plan_->at(i)); 
-      yaw_diff = angles::shortest_angular_distance(tf::getYaw(pre_pose.pose.orientation), tf::getYaw(planner_plan_->at(i).pose.orientation));
-//      if (i % 3 == 0 || i == planner_plan_->size() || fabs(yaw_diff) > M_PI / 3.0) {
-//      if (i % 5 == 0) {
-      if (acc_dis > co_->init_path_sample_dis || fabs(yaw_diff) > co_->init_path_sample_yaw || acc_count % 5 == 0 ) {
-        acc_dis = 0.0;
-        acc_count = 0;
-        fix_path.push_back(fixpattern_path::GeometryPoseToPathPoint(planner_plan_->at(i).pose));
-        pre_pose = planner_plan_->at(i);
-      }
-    }
-    fix_path.push_back(fixpattern_path::GeometryPoseToPathPoint(planner_plan_->back().pose));
-*/
-//    path_recorder::PathRecorder recorder;
-//    recorder.CalculateCurvePath(&fix_path);
     co_->fixpattern_path->set_fix_path(global_start, fix_path, true); 
 
     // check fix_path is safe: if not, get  goal on path and switch to PLANNING state 

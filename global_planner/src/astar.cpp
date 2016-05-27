@@ -133,9 +133,9 @@ void AStarExpansion::add(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* c
       return;
     }
 
-    if (use_circle_center_ && GetCircleCenterLargestCost(costs, circle_center_point_, current_i, next_i) >= lethal_cost_) {
-      return;
-    }
+//    if (use_circle_center_ && GetCircleCenterLargestCost(costs, circle_center_point_, current_i, next_i) >= lethal_cost_) {
+//      return;
+//    }
 
     potential[next_i] = p_calc_->calculatePotential(potential, costs[next_i] + neutral_cost_, next_i, prev_potential);
     int x = next_i % nx_, y = next_i / nx_;

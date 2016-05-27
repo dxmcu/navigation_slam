@@ -69,6 +69,8 @@ ServiceRobot::ServiceRobot(tf::TransformListener* tf)
   private_nh.param("p27", init_path_sample_dis_, 0.3);
   private_nh.param("p28", init_path_sample_yaw_, M_PI / 3.0);
   private_nh.param("p29", init_path_circle_center_extend_y_, 0.08);
+  private_nh.param("p30", recovery_footprint_extend_x_, 0.03);
+  private_nh.param("p31", recovery_footprint_extend_y_, 0.03);
 
   if (!ReadCircleCenterFromParams(private_nh, &circle_center_points_)) {
     GAUSSIAN_ERROR("[SERVICEROBOT] read circle_center_point failed");
@@ -164,6 +166,8 @@ ServiceRobot::ServiceRobot(tf::TransformListener* tf)
   reinterpret_cast<AStarControlOption*>(options_)->init_path_sample_dis = init_path_sample_dis_;
   reinterpret_cast<AStarControlOption*>(options_)->init_path_sample_yaw = init_path_sample_yaw_;
   reinterpret_cast<AStarControlOption*>(options_)->init_path_circle_center_extend_y = init_path_circle_center_extend_y_;
+  reinterpret_cast<AStarControlOption*>(options_)->recovery_footprint_extend_x = recovery_footprint_extend_x_;
+  reinterpret_cast<AStarControlOption*>(options_)->recovery_footprint_extend_y = recovery_footprint_extend_y_;
   reinterpret_cast<AStarControlOption*>(options_)->fixpattern_footprint_padding = fixpattern_footprint_padding_;
   reinterpret_cast<AStarControlOption*>(options_)->global_planner_goal = &global_planner_goal_;
   controllers_ = new AStarController(&tf_, controller_costmap_ros_);

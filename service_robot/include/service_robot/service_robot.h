@@ -184,6 +184,8 @@ class ServiceRobot {
   double init_path_sample_dis_;
   double init_path_sample_yaw_;
   double init_path_circle_center_extend_y_;
+  double recovery_footprint_extend_x_;
+  double recovery_footprint_extend_y_;
 
   // sbpl param
   std::vector<geometry_msgs::Point> circle_center_points_;
