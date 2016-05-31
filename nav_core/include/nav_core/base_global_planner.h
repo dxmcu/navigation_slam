@@ -74,6 +74,11 @@ namespace nav_core {
        * @auther added by lizhen 
        */
       virtual void setStaticCosmap(bool is_static){}
+      /**
+       * @brief getExtendPoint if global planner failed
+       * @auther added by lizhen 
+       */
+      virtual void getExtendPoint(double& wx, double& wy){}
 
     protected:
       BaseGlobalPlanner(){}

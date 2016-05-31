@@ -24,7 +24,8 @@ AStarController::AStarController(tf::TransformListener* tf,
       planner_goal_index_(0), sbpl_reached_goal_(false), 
       runPlanner_(false), new_global_plan_(false), first_run_controller_flag_(true), gotInitPlan_(false),
       using_sbpl_directly_(false), sbpl_broader_(false), last_using_bezier_(false), replan_directly_(false),
-      astar_planner_timeout_cnt_(0), fix_local_planner_error_cnt_(0), goal_not_safe_cnt_(0), path_not_safe_cnt_(0){
+      astar_planner_timeout_cnt_(0), local_planner_timeout_cnt_(0), fix_local_planner_error_cnt_(0),
+      goal_not_safe_cnt_(0), path_not_safe_cnt_(0) {
   // set up plan triple buffer
   planner_plan_ = new std::vector<geometry_msgs::PoseStamped>();
 
@@ -40,10 +41,10 @@ AStarController::AStarController(tf::TransformListener* tf,
   
   // disable localization_recovery_ when start	
   localization_valid_ = false;
-  localization_start_ = false;
   // we'll start executing recovery behaviors at the beginning of our list
   recovery_trigger_ = A_PLANNING_R;
 
+  using_static_costmap_ = false;
   switch_path_ = false;
   origin_path_safe_cnt_ = 0;
   // set rotate_recovery_dir_
@@ -64,6 +65,7 @@ AStarController::AStarController(tf::TransformListener* tf,
   astar_goal_pub_ = n.advertise<geometry_msgs::PoseStamped>("a_goal", 10);
   astar_start_pub_ = n.advertise<geometry_msgs::PoseStamped>("a_start", 10);
   sbpl_goal_pub_ = n.advertise<geometry_msgs::PoseStamped>("s_temp_goal", 10);
+  astar_extend_pose_pub_ = n.advertise<geometry_msgs::PoseStamped>("a_extend_pose", 10);
 
   localization_sub_ = n.subscribe<std_msgs::Int8>("/localization_bit", 100, boost::bind(&AStarController::LocalizationCallBack, this, _1));
 
@@ -173,19 +175,16 @@ bool AStarController::MakePlan(const geometry_msgs::PoseStamped& start, const ge
 //    bool sbpl_broader = sbpl_broader_;
 //    if (PoseStampedDistance(goal, success_broader_goal_) < GS_DOUBLE_PRECISION)
 //      sbpl_broader = true;
-    // set static costmap in first planning
-    if (!gotInitPlan_ && astar_planner_timeout_cnt_ < 1) {
-      co_->sbpl_global_planner->setStaticCosmap(true);
-      GAUSSIAN_WARN("[ASTAR PLANNER] first planning, s_planner taking static costmap");
-    } else {
-      co_->sbpl_global_planner->setStaticCosmap(false);
-    }
+    // set static costmap if first planning
+    co_->sbpl_global_planner->setStaticCosmap(using_static_costmap_);
+
     // if the planner fails or returns a zero length plan, planning failed
     if (!co_->sbpl_global_planner->makePlan(start, goal, *plan, astar_path_, sbpl_broader_, state_ != A_PLANNING) || plan->empty()) {
       GAUSSIAN_ERROR("[ASTAR PLANNER] s_planner failed to find a plan to point (%.2f, %.2f)", goal.pose.position.x, goal.pose.position.y);
       return false;
     } else {
       gotInitPlan_ = true;
+      GAUSSIAN_INFO("[ASTAR PLANNER] got s path size = %zu, path len = %lf", astar_path_.path().size(), astar_path_.Length());
     }
   } else {
     // astar plan, it needs call set_fix_path to generate astar_path_
@@ -193,38 +192,28 @@ bool AStarController::MakePlan(const geometry_msgs::PoseStamped& start, const ge
 
     using_sbpl_directly_ = false;
     last_using_bezier_ = false;
-    // set static costmap in first planning
-    if (!gotInitPlan_ && astar_planner_timeout_cnt_ < 1) {
-      co_->astar_global_planner->setStaticCosmap(true);
-      GAUSSIAN_WARN("[ASTAR PLANNER] first planning, a_planner taking static costmap");
-    } else {
-      co_->astar_global_planner->setStaticCosmap(false);
-    }
+    // set static costmap if first planning
+    co_->astar_global_planner->setStaticCosmap(using_static_costmap_);
     if (!co_->astar_global_planner->makePlan(start, goal, *plan) || plan->empty()) {
       GAUSSIAN_ERROR("[ASTAR PLANNER] a_planner failed to find a plan to point (%.2f, %.2f)", global_goal_.pose.position.x, global_goal_.pose.position.y);
+      PublishAStarExtendPose(start, goal);
       return false;
-    } else {
-      if (!gotInitPlan_) gotInitPlan_ = true;
     }
 
     // assign to astar_path_
     std::vector<fixpattern_path::PathPoint> path;
-/*
-    for (int i = 0; i < plan->size(); i += 3) {
-      path.push_back(fixpattern_path::GeometryPoseToPathPoint(plan->at(i).pose));
-    }
-    path.push_back(fixpattern_path::GeometryPoseToPathPoint(plan->back().pose));
-*/
-    SampleInitailPath(plan, path);
-    GAUSSIAN_INFO("[ASTAR PLANNER] got astar plan path size = %zu", path.size());
+    SampleInitialPath(plan, path);
     astar_path_.set_fix_path(start, path, true); 
-    double path_length_diff = astar_path_.Length() - co_->fixpattern_path->Length();
-    GAUSSIAN_INFO("[ASTAR PLANNER] length (astar_path_ - fix_path_) = %lf", path_length_diff);
-    if (co_->fixpattern_path->Length() > 0.5 && path_length_diff > co_->max_path_length_diff) {
-      GAUSSIAN_ERROR("[ASTAR PLANNER] astar got a farther path, abandon it and return false");
-      return false;
+    GAUSSIAN_INFO("[ASTAR PLANNER] got a path size = %zu, path len = %lf", path.size(), astar_path_.Length());
+
+    std::vector<geometry_msgs::PoseStamped> a_plan = astar_path_.GeometryPath();
+    for (auto&& p : a_plan) {  // NOLINT
+      p.header.frame_id = co_->global_frame;
+      p.header.stamp = ros::Time::now();
     }
+    PublishPlan(fixpattern_pub_, a_plan);
     
+    return true;
 /*
     // get sbpl goal and goal direction
     size_t i = 0;
@@ -259,6 +248,33 @@ bool AStarController::MakePlan(const geometry_msgs::PoseStamped& start, const ge
   return true;
 }
 
+void AStarController::PublishAStarExtendPose(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal) {
+  double extend_x, extend_y;
+  co_->astar_global_planner->getExtendPoint(extend_x, extend_y);
+	geometry_msgs::PoseStamped extend_pose;
+  double target_yaw = fixpattern_path::CalculateDirection(fixpattern_path::GeometryPoseToPathPoint(start.pose), fixpattern_path::GeometryPoseToPathPoint(goal.pose));
+  extend_pose.header.frame_id = co_->global_frame;
+  extend_pose.header.stamp = ros::Time::now();
+  extend_pose.pose.position.x = extend_x;
+  extend_pose.pose.position.y = extend_y;
+  tf::Quaternion temp;
+  temp.setRPY(0, 0, target_yaw);
+  extend_pose.pose.orientation.x = temp.getX();
+  extend_pose.pose.orientation.y = temp.getY();
+  extend_pose.pose.orientation.z = temp.getZ();
+  extend_pose.pose.orientation.w = temp.getW();
+  target_yaw = fixpattern_path::CalculateDirection(fixpattern_path::GeometryPoseToPathPoint(extend_pose.pose), fixpattern_path::GeometryPoseToPathPoint(goal.pose));
+  temp.setRPY(0, 0, target_yaw);
+  extend_pose.pose.orientation.x = temp.getX();
+  extend_pose.pose.orientation.y = temp.getY();
+  extend_pose.pose.orientation.z = temp.getZ();
+  extend_pose.pose.orientation.w = temp.getW();
+  extend_pose.header.frame_id = co_->global_frame;
+  astar_extend_pose_pub_.publish(extend_pose);
+  double extend_dis = PoseStampedDistance(start, extend_pose);
+  GAUSSIAN_WARN("[ASTAR CONTROLLER] InitialPath: a_planner extend dis = %lf", extend_dis); 
+}
+
 void AStarController::PublishZeroVelocity() {
   if (fabs(last_valid_cmd_vel_.linear.x) > 0.001) {
     geometry_msgs::Twist cmd_vel;
@@ -279,7 +295,7 @@ void AStarController::PublishVelWithAcc(geometry_msgs::Twist last_cmd_vel, doubl
     cmd_vel.linear.y = 0.0;
     cmd_vel.angular.z = 0.0;
     ros::Rate r(10);
-    while(fabs(cmd_vel.linear.x) > 0.001 && CanForward(0.15) && env_->run_flag) {
+    while(fabs(cmd_vel.linear.x) > 0.001 && CanForward(0.05) && env_->run_flag) {
       cmd_vel.linear.x = cmd_vel.linear.x - vel_acc < 0.05 ? 0.0 : cmd_vel.linear.x - vel_acc;
       co_->vel_pub->publish(cmd_vel);
       r.sleep();
@@ -317,6 +333,12 @@ void AStarController::PlanThread() {
       last_valid_plan_ = ros::Time::now();
     }
 
+    if (!gotInitPlan_ && astar_planner_timeout_cnt_ < 1) {
+      using_static_costmap_ = true;
+    } else {
+      using_static_costmap_ = false;
+      footprint_checker_->setStaticCostmap(controller_costmap_ros_, false);
+    }
     GAUSSIAN_INFO("[ASTAR PLANNER] Plan Start!");
     ros::Time start_time = ros::Time::now();
 //    controller_costmap_ros_->getCostmap();
@@ -340,14 +362,11 @@ void AStarController::PlanThread() {
     }
     if (state_ == FIX_CONTROLLING) {
 			if(planning_state_ == P_INSERTING_MIDDLE) {
-        if (!GetAStarStart(co_->front_safe_check_dis)) {
+        if (!GetAStarStart(co_->front_safe_check_dis, 0.0, 0.0)) {
           GAUSSIAN_WARN("[ASTAR PLANNER]Unable to get AStar start, take current pose in place, and planning_state_ = BEGIN ");
-//          if (planning_state_ == P_INSERTING_MIDDLE) {
           planning_state_ = P_INSERTING_BEGIN;
-//          }
         } else {
           start = planner_start_;
-          gotStartPose = true;
         }
       } else if(planning_state_ == P_INSERTING_SBPL) {
         start = sbpl_planner_goal_;
@@ -389,15 +408,24 @@ void AStarController::PlanThread() {
         front_path_.set_path(co_->fixpattern_path->path(), false, false);
         front_goal_ = temp_goal;
         if (taken_global_goal_ || planning_state_ == P_INSERTING_NONE) {
-          taken_global_goal_ = false;
           if (using_sbpl_directly_) {
             co_->fixpattern_path->set_sbpl_path(start, astar_path_.path(), true);
+            gotInitPlan_ = true;
           } else {
-            co_->fixpattern_path->set_fix_path(start, astar_path_.path(), true);
+            co_->fixpattern_path->set_path(astar_path_.path(), false, false);
+            // check fix_path is safe: if not, get goal on path and switch to PLANNING state 
+            if (RecheckFixPath(start, using_static_costmap_)) {
+              GAUSSIAN_INFO("[ASTAR CONTROLLER] recheck fixpath successed!");
+            } else {
+              GAUSSIAN_WARN("[ASTAR CONTROLLER] recheck fixpath failed!");
+            }
           }
+          taken_global_goal_ = false;
+          gotInitPlan_ = true;
           first_run_controller_flag_ = true;
           switch_path_ = true;
           origin_path_safe_cnt_ = 0;
+          footprint_checker_->setStaticCostmap(controller_costmap_ros_, false);
         } else if (planning_state_ == P_INSERTING_BEGIN) {
           double corner_yaw_diff = state_ == A_PLANNING ? M_PI / 36.0 : M_PI / 3.0;
           co_->fixpattern_path->insert_begin_path(astar_path_.path(), start, temp_goal, false, corner_yaw_diff);
@@ -422,18 +450,29 @@ void AStarController::PlanThread() {
           runPlanner_ = false;
           switch_path_ = false;
           state_ = FIX_CLEARING;
-          recovery_trigger_ = PLANNER_RECOVERY_R;
+          recovery_trigger_ = GLOBAL_PLANNER_RECOVERY_R;
           GAUSSIAN_ERROR("[ASTAR CONTROLLER] planning_state_ unknown, enter recovery");
         }
 
         if (gotPlan) {
-          if (co_->fixpattern_path->Length() - front_path_.Length() > 5.0 && front_path_.Length() > 0.5) {
-            GAUSSIAN_WARN("[FIX CONTROLLER] new plan length - pre plan length > 5.0m, take global goal as astar_goal_!");
-            planner_goal_ = global_goal_;
-            taken_global_goal_ = true;
-            new_global_plan_ = false;
-            // runPlanner_ = true;
-            state_ = A_PLANNING;
+          double path_length_diff = co_->fixpattern_path->Length() - front_path_.Length();
+          if (front_path_.Length() > 0.5 && path_length_diff > co_->max_path_length_diff) {
+            GAUSSIAN_WARN("[FIX CONTROLLER] getting farther path, new plan - pre plan length = %lf > %lfm!", path_length_diff, co_->max_path_length_diff);
+            if (co_->use_farther_planner) {
+              planner_goal_ = global_goal_;
+              taken_global_goal_ = true;
+              new_global_plan_ = false;
+              // runPlanner_ = true;
+              state_ = A_PLANNING;
+              GAUSSIAN_WARN("[FIX CONTROLLER] taking global goal as astar_goal_ and replan!");
+            } else {
+              gotPlan = false;
+              runPlanner_ = false;
+              switch_path_ = false;
+              state_ = FIX_CLEARING;
+              recovery_trigger_ = GLOBAL_PLANNER_RECOVERY_R;
+              GAUSSIAN_ERROR("[ASTAR CONTROLLER] getting farther path, switch to GLOBAL_PLANNER_RECOVERY_R");
+            }
           } else {
             runPlanner_ = false;
             state_ = FIX_CONTROLLING;
@@ -453,7 +492,7 @@ void AStarController::PlanThread() {
         PublishZeroVelocity();
         // switch to FIX_CLEARING state
         state_ = FIX_CLEARING;
-        recovery_trigger_ = PLANNER_RECOVERY_R;
+        recovery_trigger_ = GLOBAL_PLANNER_RECOVERY_R;
         planning_state_ = P_INSERTING_BEGIN;
         ++astar_planner_timeout_cnt_;
         GAUSSIAN_ERROR("[ASTAR PLANNER] Alarm Here!!! Not got plan until planner_patience, enter recovery; timeout_cnt = %d", astar_planner_timeout_cnt_);
@@ -462,12 +501,11 @@ void AStarController::PlanThread() {
           env_->run_flag = false;
           env_->pause_flag = false;
           GAUSSIAN_ERROR("[ASTAR CONTROLLER] planner_timeout_cnt_ > 3, set run_flag false and return here!");
-        } else {
         }
       } else if (runPlanner_) {
         // to update global costmap
         usleep(500000);
-//        GetAStarGoal(start);
+//        GetAStarGoal(start, 0.0, 0.0);
       }
       lock.unlock();
     } else if (state_ == FIX_CONTROLLING && planning_state_ == P_INSERTING_MIDDLE) { 
@@ -509,7 +547,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
    
     // 0. check if goal is safe
     // check if goal outside map or unknow area 
-    GAUSSIAN_INFO("[ASTAR CONTROLLER] Start to handle goal! check global goal safe or not!");
+    GAUSSIAN_INFO("[ASTAR CONTROLLER] Start to handle goal!");
     if (IsGoalUnreachable(global_goal_)) {
       PublishMovebaseStatus(E_GOAL_UNREACHABLE);
       env_->run_flag = false;
@@ -517,18 +555,12 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
       GAUSSIAN_ERROR("[ASTAR CONTROLLER] global_goal unknown or outside of map, just return here!");
       continue; 
     }
-    // clear footprint on normal costmap
-    controller_costmap_ros_->clearFootprintInCostmap(global_goal_.pose.position.x, global_goal_.pose.position.y, 
-                                                       tf::getYaw(global_goal_.pose.orientation), 0.15);
-    // clear footprint on static costmap
-    controller_costmap_ros_->clearFootprintInCostmap(controller_costmap_ros_->getStaticCostmap(), global_goal_.pose.position.x,
-                                                       global_goal_.pose.position.y, tf::getYaw(global_goal_.pose.orientation), 0.15);
-    footprint_checker_->setStaticCostmap(controller_costmap_ros_, true);
-    bool is_static_goal_safe = IsGoalSafe(global_goal_, 0.10, 0.10);
-    footprint_checker_->setStaticCostmap(controller_costmap_ros_, false);
-    bool is_normal_goal_safe = IsGoalSafe(global_goal_, 0.10, 0.10);
-    if (!is_static_goal_safe && !is_normal_goal_safe) {
-//      PublishGoalReached(global_goal_);
+    GAUSSIAN_INFO("[ASTAR CONTROLLER] checking global goal is reachable");
+
+    // clear footprint on normal and static costmap
+    ClearFootprintInCostmap(global_goal_, 0.15, true);
+    // check if goal safe on normal and static costmap
+    if (!IsGoalSafe(global_goal_, 0.10, 0.10, true) && !IsGoalSafe(global_goal_, 0.10, 0.10, false)) {
       PublishMovebaseStatus(E_GOAL_UNREACHABLE);
       env_->run_flag = false;
       env_->pause_flag = false;
@@ -537,11 +569,9 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
     }
     footprint_checker_->setStaticCostmap(controller_costmap_ros_, false);
 
-    GAUSSIAN_INFO("[ASTAR CONTROLLER] check localization!");
-
     // 1. check if location is valid
     unsigned int try_count = 0;
-    while (!HandleLocalizationRecovery() && ++try_count < 3) {
+    while (!LocalizationRecovery() && ++try_count < 3) {
       GAUSSIAN_WARN("[ASTAR CONTROLLER] localization failed! Recovery now by inplace_rotating");
       usleep(500000);
     }
@@ -552,10 +582,10 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
       GAUSSIAN_ERROR("[ASTAR CONTROLLER] localization failed and try count > 3, just return here!");
       continue; 
     }
+    GAUSSIAN_INFO("[ASTAR CONTROLLER] check localization successed!");
     usleep(50000);
    
     // 2. get current pose 
-    GAUSSIAN_INFO("[ASTAR CONTROLLER] get current pose!");
     double cur_goal_distance;
     controller_costmap_ros_->getCostmap(); // costmap only updated when we calling getCostmap()
     geometry_msgs::PoseStamped current_position;
@@ -583,23 +613,37 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
       continue; 
     }
 
-    // 4. check if current_position footpirnt is invalid
-    // if yes - recovery; no - get new goal and replan
-    if (footprint_checker_->BroaderFootprintCost(current_position, footprint_spec_, co_->recovery_footprint_extend_x, co_->recovery_footprint_extend_y) < 0.0
-        || footprint_checker_->FootprintCenterCost(current_position, co_->footprint_center_points) < 0.0) {
+    // 4. check if current_position footpirnt is valid
+    // if no - HandleGoingBack and Escape recovery;
+	
+    if (HandleGoingBack(current_position, co_->backward_check_dis + 0.05)) {
+      controller_costmap_ros_->getRobotPose(global_pose);
+      tf::poseStampedTFToMsg(global_pose, current_position);
+      cur_goal_distance = PoseStampedDistance(current_position, global_goal_); 
+    } else {
+      GAUSSIAN_INFO("[FIXPATTERN CONTROLLER] front safe check ok, continue");
+    } 
+    if (footprint_checker_->BroaderFootprintCost(current_position, footprint_spec_, co_->recovery_footprint_extend_x + 0.03, co_->recovery_footprint_extend_y + 0.03) < 0.0) {
        GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] footprint cost check < 0!, switch to Recovery");
-       // TODO(lizhen) not terminate even HandleRecovery failed?
-       if (!HandleRecovery(current_position)) {
-         GAUSSIAN_ERROR("[FIXPATTERN CONTROLLER] footprint not safe and recovery failed, we'll not terminate!");
-         //continue; 
+       // TODO(lizhen) not terminate even EscapeRecovery failed?
+       if (!EscapeRecovery(current_position)) {
+         GAUSSIAN_ERROR("[FIXPATTERN CONTROLLER] footprint not safe and recovery failed, we'll not terminate and try to clear footprint!");
+         ClearFootprintInCostmap(current_position, 0.05, true);
        }
-    }
+    } else {
+       GAUSSIAN_INFO("[FIXPATTERN CONTROLLER] broader footprint cost check ok, continue");
+    } 
 
     gotInitPlan_ = false;
+    using_static_costmap_ = true;
+    planner_goal_ = global_goal_;
+    taken_global_goal_ = true;
+    state_ = A_PLANNING;
+    planning_state_ = P_INSERTING_NONE;
+    GAUSSIAN_INFO("[ASTAR CONTROLLER] taking global goal as planner_goal, and set state_ = start planning");
+/*
     // check distance from goal and current pose, if < 2.5m, switch to A_PLANNING 
-    if (cur_goal_distance < 2.5 && 
-				footprint_checker_->FootprintCenterCost(global_goal_.pose.position.x, global_goal_.pose.position.y,
-                                                tf::getYaw(global_goal_.pose.orientation), co_->footprint_center_points) >= 0) { 
+    if (cur_goal_distance < 2.5) { 
       GAUSSIAN_INFO("[ASTAR CONTROLLER] dis_current_goal < 2.5m and footprint check OK, take global goal as planner_goal");
       planner_goal_ = global_goal_;
       taken_global_goal_ = true;
@@ -610,13 +654,13 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
       GAUSSIAN_INFO("[ASTAR_CONTROLLER] try to get Astar Path, and set as fixpattern_path");
       // setSaticCostmap only for inital AStar Plan 
       co_->astar_global_planner->setStaticCosmap(true);
-      bool init_path_got = GetAStarInitailPath(current_position, global_goal_);
+      bool init_path_got = GetAStarInitialPath(current_position, global_goal_);
       co_->astar_global_planner->setStaticCosmap(false);
       if (init_path_got) {
         std::vector<geometry_msgs::PoseStamped> fix_path = co_->fixpattern_path->GeometryPath();
         // check fix_path is safe: if not, get astar goal on path and switch to PLANNING state 
         if (CheckFixPathFrontSafe(fix_path, co_->front_safe_check_dis, 0.0, 0.0) < 1.5) {
-          if (GetAStarGoal(current_position, obstacle_index_)) {
+          if (GetAStarGoal(current_position, 0.0, 0.0, obstacle_index_)) {
             state_ = A_PLANNING;
             planning_state_ = P_INSERTING_BEGIN;
             GAUSSIAN_WARN("[ASTAR_CONTROLLER] CheckFixPathFrontSafe failed, switch to A_PLANNING state");
@@ -628,7 +672,6 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
         } else {
           // switch to CONTROLLING state and go
           state_ = FIX_CONTROLLING;
-//          GetAStarTempGoal(sbpl_planner_goal_, 0.3);
         }
       } else { 
         planner_goal_ = global_goal_;
@@ -637,7 +680,7 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
         planning_state_ = P_INSERTING_NONE;
       }
     }
-   
+*/   
     // initialize planner and some flag
     co_->fixpattern_local_planner->reset_planner();
     first_run_controller_flag_ = true;
@@ -714,6 +757,16 @@ bool AStarController::Control(BaseControlOption* option, ControlEnvironment* env
   return true;
 }
 
+void AStarController::ClearFootprintInCostmap(const geometry_msgs::PoseStamped& pose, double clear_extend_dis, bool is_static_needed) {
+  controller_costmap_ros_->clearFootprintInCostmap(pose.pose.position.x, pose.pose.position.y, 
+                                                   tf::getYaw(pose.pose.orientation), clear_extend_dis);
+  // clear current pose footprint on static costmap
+  if (is_static_needed) {	
+    controller_costmap_ros_->clearFootprintInCostmap(controller_costmap_ros_->getStaticCostmap(), pose.pose.position.x,
+                                                     pose.pose.position.y, tf::getYaw(pose.pose.orientation), clear_extend_dis);
+  }
+}
+
 bool AStarController::IsGoalUnreachable(const geometry_msgs::PoseStamped& goal_pose) {
     if (footprint_checker_->CircleCenterCost(goal_pose.pose.position.x, goal_pose.pose.position.y, tf::getYaw(goal_pose.pose.orientation),
                                                co_->circle_center_points, 0.0, 0.0) < -100.0) {
@@ -723,7 +776,9 @@ bool AStarController::IsGoalUnreachable(const geometry_msgs::PoseStamped& goal_p
     }
 }
 
-bool AStarController::IsGoalSafe(const geometry_msgs::PoseStamped& goal_pose, double goal_front_check_dis, double goal_back_check_dis) {
+bool AStarController::IsGoalSafe(const geometry_msgs::PoseStamped& goal_pose, double goal_front_check_dis, double goal_back_check_dis, bool using_static_costmap) {
+  footprint_checker_->setStaticCostmap(controller_costmap_ros_, using_static_costmap);
+
   if (!IsGoalFootprintSafe(0.5, 0.0, goal_pose)) {
     return false;
   }
@@ -837,13 +892,13 @@ bool AStarController::IsPathFootprintSafe(const fixpattern_path::Path& fix_path,
   return false;
 }
 
-double AStarController::CheckFixPathFrontSafe(const std::vector<geometry_msgs::PoseStamped>& path, double front_safe_check_dis, double extend_x, double extend_y) {
+double AStarController::CheckFixPathFrontSafe(const std::vector<geometry_msgs::PoseStamped>& path, double front_safe_check_dis, double extend_x, double extend_y, int begin_index) {
   double accu_dis = 0.0;
   double off_obstacle_dis = 0.0;
   bool cross_obstacle = false;
   int i, j;
   unsigned int temp_goal_index = 0;
-  for (i = 0; i < path.size(); i += 5) {
+  for (i = begin_index; i < path.size(); i += 5) {
     double yaw = tf::getYaw(path[i].pose.orientation);
     if (footprint_checker_->CircleCenterCost(path[i].pose.position.x, path[i].pose.position.y,
                                              yaw, co_->circle_center_points, extend_x, extend_y) < 0) {
@@ -862,24 +917,31 @@ double AStarController::CheckFixPathFrontSafe(const std::vector<geometry_msgs::P
   return accu_dis;
 }
 
-bool AStarController::GetAStarStart(double front_safe_check_dis) {
+bool AStarController::GetAStarStart(double front_safe_check_dis, double extend_x, double extend_y, int obstacle_index) {
   std::vector<geometry_msgs::PoseStamped> path = co_->fixpattern_path->GeometryPath();
   double accu_dis = 0.0;
   double off_obstacle_dis = 0.0;
   bool cross_obstacle = false;
   bool start_got = false;
   int i, j;
-  for (i = 0; i < path.size(); i += 5) {
-    double yaw = tf::getYaw(path[i].pose.orientation);
-    if (footprint_checker_->CircleCenterCost(path[i].pose.position.x, path[i].pose.position.y,
-                                             yaw, co_->circle_center_points, 0.0, 0.0) < 0) {
-      cross_obstacle = true;
-      obstacle_index_ = i;
-      GAUSSIAN_INFO("[ASTAR CONTROLLER] GetAStarStart: obstacle_index_ = %d", obstacle_index_);
-      break;
+  if (obstacle_index >= path.size()) obstacle_index = 0;
+  if (obstacle_index == 0) {
+    for (i = 0; i < path.size(); i += 5) {
+      double yaw = tf::getYaw(path[i].pose.orientation);
+      if (footprint_checker_->CircleCenterCost(path[i].pose.position.x, path[i].pose.position.y,
+                                               yaw, co_->circle_center_points, extend_x, extend_y) < 0) {
+        cross_obstacle = true;
+//        obstacle_index_ = i;
+        obstacle_index = i;
+        GAUSSIAN_INFO("[ASTAR CONTROLLER] GetAStarStart: obstacle_index = %d", obstacle_index);
+        break;
+      }
+      if (i != 0) accu_dis += PoseStampedDistance(path[i], path[i - 5]);
+      if (accu_dis >= front_safe_check_dis) break;
     }
-    if (i != 0) accu_dis += PoseStampedDistance(path[i], path[i - 5]);
-    if (accu_dis >= front_safe_check_dis) break;
+  } else {
+    cross_obstacle = true;
+    accu_dis = 1.1;
   }
   if (cross_obstacle) {
     double start_dis;
@@ -893,7 +955,7 @@ bool AStarController::GetAStarStart(double front_safe_check_dis) {
       start_dis = 0.0;
     }
     if (start_dis > 0.0) {
-      for (j = obstacle_index_; j > 2; j -= 2) {
+      for (j = obstacle_index; j > 2; j -= 2) {
         off_obstacle_dis += PoseStampedDistance(path[j], path[j - 2]);
         if (off_obstacle_dis > start_dis) {
           planner_start_ = path.at(j);
@@ -1059,6 +1121,9 @@ bool AStarController::ExecuteCycle() {
     // in case new plan has different rotate dir
     co_->fixpattern_local_planner->reset_planner();
 
+    if (gotInitPlan_) {
+      footprint_checker_->setStaticCostmap(controller_costmap_ros_, false);
+    }
     ROS_DEBUG_NAMED("service_robot", "pointers swapped!");
   }
   if (!localization_valid_) {
@@ -1189,8 +1254,9 @@ bool AStarController::ExecuteCycle() {
         if (cur_goal_distance < co_->goal_safe_check_dis
             && front_safe_dis < co_->front_safe_check_dis
             && !IsGoalSafe(global_goal_, 0.10, 0.15)) { 
-          if (front_safe_dis < 0.5) {
-            PublishZeroVelocity();
+          if (front_safe_dis < 0.35) {
+            PublishVelWithAcc(last_valid_cmd_vel_, co_->stop_to_zero_acc);
+//            PublishZeroVelocity();
             PublishMovebaseStatus(E_GOAL_NOT_SAFE);
             bool is_goal_safe = false;
             ros::Rate check_rate(10);
@@ -1246,6 +1312,11 @@ bool AStarController::ExecuteCycle() {
             ros::Rate r(10);
             bool front_safe = false;
             unsigned int front_safe_cnt = 0;
+            unsigned int waiting_cnt = 0;
+
+            switch_path_ = false;
+            controller_costmap_ros_->getRobotPose(global_pose);
+            tf::poseStampedTFToMsg(global_pose, current_position);
             while (ros::Time::now() < end_time) {
               front_safe_dis = CheckFixPathFrontSafe(fix_path, co_->front_safe_check_dis, 0.0, 0.0);
               PublishMovebaseStatus(E_PATH_NOT_SAFE);
@@ -1254,7 +1325,17 @@ bool AStarController::ExecuteCycle() {
                   front_safe = true;
                   break;
                 }
-              } 
+              } else if (++waiting_cnt > 5 && !runPlanner_ && !switch_path_){
+                GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] front not safe, stop here and enable PlanThread");
+                if (GetAStarGoal(current_position, 0.0, 0.0, obstacle_index_)) {
+                  planning_state_ = P_INSERTING_BEGIN;
+                  // enable the planner thread in case it isn't running on a clock
+                  boost::unique_lock<boost::mutex> lock(planner_mutex_);
+                  runPlanner_ = true;
+                  planner_cond_.notify_one();
+                  lock.unlock();
+                }
+              }
               GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] path front not safe, dis = %lf <= 0.6, stop here until stop_duration", front_safe_dis);
               r.sleep();
             }
@@ -1262,17 +1343,18 @@ bool AStarController::ExecuteCycle() {
               PublishZeroVelocity();
               controller_costmap_ros_->getRobotPose(global_pose);
               tf::poseStampedTFToMsg(global_pose, current_position);
-              HandleGoingBack(current_position);
-              GAUSSIAN_ERROR("[FIXPATTERN CONTROLLER] !IsPathFrontSafe dis = %lf,stop and switch to CLEARING", front_safe_dis);
-              state_ = FIX_CLEARING;
-              if (front_safe_dis < 0.05) {
-                recovery_trigger_ = BACKWARD_RECOVERY_R;
-              } else {
+              if (HandleGoingBack(current_position) || !switch_path_) {
+                GAUSSIAN_ERROR("[FIXPATTERN CONTROLLER] !IsPathFrontSafe dis = %lf, stop and switch to CLEARING", front_safe_dis);
+                state_ = FIX_CLEARING;
                 recovery_trigger_ = FIX_GETNEWGOAL_R;
+              } else if (switch_path_) {
+                GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] path front not safe, using pre planning path and continue");
               }
-            } else {
+            } else if (switch_path_) {
               // clear local planner error cnt, to avoid it stop again
               fix_local_planner_error_cnt_ = 0;
+              HandleSwitchingPath(current_position, true);
+              GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] pre path front change safe again, switch to pre path");
             }
             break;
           } else {
@@ -1285,7 +1367,7 @@ bool AStarController::ExecuteCycle() {
             if (!runPlanner_ && ++front_safe_check_cnt_ > 10) {
               if (front_safe_dis < 0.6) {
                 GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] path front not safe, dis = %lf <= 0.6, try to stop here", front_safe_dis);
-                if (front_safe_dis <= 0.2) {
+                if (front_safe_dis <= 0.3) {
                   PublishZeroVelocity();
                 } else {
                   PublishVelWithAcc(last_valid_cmd_vel_, co_->stop_to_zero_acc);
@@ -1294,7 +1376,7 @@ bool AStarController::ExecuteCycle() {
               } else if (front_safe_dis < 1.5) {
                 GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] Enable PlanThread and continue FIX_CONTROLLING");
 //                CheckFixPathFrontSafe(fix_path, co_->front_safe_check_dis, true, 0.0, 0.0); // get planner_start
-                if (GetAStarGoal(current_position, obstacle_index_)) {
+                if (GetAStarGoal(current_position, 0.0, 0.0, obstacle_index_)) {
                   planning_state_ = P_INSERTING_MIDDLE;
                   // enable the planner thread in case it isn't running on a clock
                   boost::unique_lock<boost::mutex> lock(planner_mutex_);
@@ -1349,6 +1431,7 @@ bool AStarController::ExecuteCycle() {
           }
         } else {
           fix_local_planner_error_cnt_ = 0;
+          local_planner_timeout_cnt_ = 0;
           last_valid_cmd_vel_ = cmd_vel;
         }
 
@@ -1382,13 +1465,17 @@ bool AStarController::ExecuteCycle() {
             // we'll move into our obstacle clearing mode
             // TODO(lizhen): check this variable
             fix_local_planner_error_cnt_ = 0;
+            ++local_planner_timeout_cnt_;
             PublishZeroVelocity();
             state_ = FIX_CLEARING;
+            recovery_trigger_ = LOCAL_PLANNER_RECOVERY_R;
+/*
             if (!co_->fixpattern_local_planner->isFootprintSafe()) {
               recovery_trigger_ = BACKWARD_RECOVERY_R;
             } else {
-              recovery_trigger_ = PLANNER_RECOVERY_R;
+              recovery_trigger_ = LOCAL_PLANNER_RECOVERY_R;
             }
+*/
             break;
           } else {
             // otherwise, if we can't find a valid control, we'll retry, until
@@ -1419,7 +1506,7 @@ bool AStarController::ExecuteCycle() {
           GAUSSIAN_WARN("[FIX CONTROLLER] CLEARING state: waiting for valid localization");
           r.sleep();
         }
-        if (HandleLocalizationRecovery()) {
+        if (LocalizationRecovery()) {
           PublishZeroVelocity();
           state_ = FIX_CLEARING;
           recovery_trigger_ = FIX_GETNEWGOAL_R;
@@ -1430,57 +1517,56 @@ bool AStarController::ExecuteCycle() {
       if (recovery_trigger_ == BACKWARD_RECOVERY_R) {
         GAUSSIAN_WARN("[FIX CONTROLLER] in BACKWARD_RECOVERY_R state");
         PublishMovebaseStatus(E_PATH_NOT_SAFE);
-        HandleGoingBack(current_position);
+        HandleGoingBack(current_position, co_->backward_check_dis + 0.08);
 //        GoingBackward(0.15);
         PublishZeroVelocity();
         state_ = FIX_CLEARING;
         recovery_trigger_ = FIX_GETNEWGOAL_R;
       }
 
-      if (recovery_trigger_ == PLANNER_RECOVERY_R) {
+      if (recovery_trigger_ == LOCAL_PLANNER_RECOVERY_R) {
+        PublishMovebaseStatus(E_PATH_NOT_SAFE);
+        if (local_planner_timeout_cnt_ > 10) {
+          PublishMovebaseStatus(E_GOAL_UNREACHABLE);
+          env_->run_flag = false;
+          env_->pause_flag = false;
+          GAUSSIAN_ERROR("[FIXPATTERN CONTROLLER] LOCAL_PLANNER_RECOVERY_R: local_planner_timeout_cnt_ > 10, set run_flag false and return here!");
+          break;
+				} else if (local_planner_timeout_cnt_ > 5) {
+          GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] LOCAL_PLANNER_RECOVERY_R: local_planner_timeout_cnt_ = %d > 10!, clear footprint on costmap, and switch to GLOBAL_PLANNER_RECOVERY_R", local_planner_timeout_cnt_);
+          ClearFootprintInCostmap(current_position, 0.05, false);
+          state_ = FIX_CONTROLLING;
+          break;
+        }
+        recovery_trigger_ = GLOBAL_PLANNER_RECOVERY_R;
+      }
+
+      if (recovery_trigger_ == GLOBAL_PLANNER_RECOVERY_R) {
         // we will try Going Back first
-        HandleGoingBack(current_position);
-        double x = current_position.pose.position.x;
-        double y = current_position.pose.position.y;
-        double yaw = tf::getYaw(current_position.pose.orientation);
+        HandleGoingBack(current_position, co_->backward_check_dis + 0.05);
         // check if oboscal in footprint, yes - recovery; no - get new goal and replan
-        if (footprint_checker_->BroaderFootprintCost(current_position, footprint_spec_, co_->recovery_footprint_extend_x, co_->recovery_footprint_extend_y) < 0.0
-            || footprint_checker_->FootprintCenterCost(current_position, co_->footprint_center_points) < 0.0) {
-          GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] footprint cost check < 0!, switch to Recovery");
+        if (footprint_checker_->BroaderFootprintCost(current_position, footprint_spec_, co_->recovery_footprint_extend_x, co_->recovery_footprint_extend_y) < 0.0) {
+          GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] GLOBAL_PLANNER_RECOVERY_R: footprint cost check < 0!, switch to Recovery");
           PublishMovebaseStatus(E_PATH_NOT_SAFE);
-          HandleRecovery(current_position);
+          EscapeRecovery(current_position);
           state_ = FIX_CLEARING;
           recovery_trigger_ = FIX_GETNEWGOAL_R;
           break;
-/*
-          if (HandleRecovery(current_position)) {
-            state_ = FIX_CLEARING;
-            recovery_trigger_ = FIX_GETNEWGOAL_R;
-          } else {
-            // TODO(lizhen) Recovery Failed, Alarm here and terminate
-            ResetState();
-            // disable the planner thread
-            boost::unique_lock<boost::mutex> lock(planner_mutex_);
-            runPlanner_ = false;
-            lock.unlock();
-
-            // TODO(chenkan): check if this is needed
-            co_->fixpattern_local_planner->reset_planner();
-
-            // we need to notify fixpattern_path
-            co_->fixpattern_path->FinishPath();
-
-            // TODO(lizhen) Alarm here
-            switch_controller_ = false;
-            GAUSSIAN_ERROR("[FIX CONTROLLER] Recovery failed, terminate");
-            return true;
-          }
-*/
         } else {
-          GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] footprint cost check OK!, switch to Replan");
-          if (astar_planner_timeout_cnt_ > 3) {
-//            PublishMovebaseStatus(E_GOAL_UNREACHABLE);
-            GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] Handle Rotate Recovery");
+          GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] GLOBAL_PLANNER_RECOVERY_R: footprint cost check OK! cheking astar_planner_timeout_cnt_ = %d, try_recovery_times_ = %d", astar_planner_timeout_cnt_, try_recovery_times_);
+          if ((astar_planner_timeout_cnt_ > 12 || try_recovery_times_ > 8) && !co_->use_farther_planner) {
+            PublishMovebaseStatus(E_GOAL_UNREACHABLE);
+            env_->run_flag = false;
+            env_->pause_flag = false;
+            GAUSSIAN_ERROR("[FIXPATTERN CONTROLLER] GLOBAL_PLANNER_RECOVERY_R: astar_planner_timeout_cnt_ > 12 || try_recovery_times_ > 6, set run_flag false and return here!");
+            break;
+          }
+          if (try_recovery_times_ > 7) {
+            GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] GLOBAL_PLANNER_RECOVERY_R: try_recovery_times_ > 7, ClearFootprintInCostmap");
+            ClearFootprintInCostmap(current_position, 0.05, false);
+          }
+          if (astar_planner_timeout_cnt_ > 2) {
+            GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] GLOBAL_PLANNER_RECOVERY_R: Handle Rotate Recovery");
             RotateRecovery();
           }
           state_ = FIX_CLEARING;
@@ -1509,7 +1595,7 @@ bool AStarController::ExecuteCycle() {
           ros::Time end_time = ros::Time::now() + ros::Duration(co_->stop_duration / 2.0);
           ros::Rate r(10);
           while (ros::Time::now() < end_time) {
-            if (GetAStarGoal(current_position)) {
+            if (GetAStarGoal(current_position, 0.0, 0.0)) {
               new_goal_got = true;
               break;
             }
@@ -1602,6 +1688,7 @@ void AStarController::ResetState() {
   cmd_vel_ratio_ = 1.0;
   astar_planner_timeout_cnt_ = 0;
   try_recovery_times_ = 0;
+  obstacle_index_ = 0;
   // reset some variables
   using_sbpl_directly_ = false;
   last_using_bezier_ = false;
@@ -1648,7 +1735,7 @@ unsigned int AStarController::GetPoseIndexOfPath(const std::vector<geometry_msgs
   return index;
 }
 
-bool AStarController::GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, int begin_index) {
+bool AStarController::GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, double extend_x, double extend_y, int begin_index) {
   double start = GetTimeInSeconds();
   double cur_goal_dis = PoseStampedDistance(cur_pose, global_goal_);
  /* if (path.size() == 0) {
@@ -1658,7 +1745,7 @@ bool AStarController::GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, i
 */
 //  if (planning_state_ == P_INSERTING_BEGIN) {
   if (true) {
-    co_->fixpattern_path->Prune(fixpattern_path::GeometryPoseToPathPoint(cur_pose.pose), co_->max_offroad_dis, co_->max_offroad_yaw, false);
+    co_->fixpattern_path->Prune(fixpattern_path::GeometryPoseToPathPoint(cur_pose.pose), co_->max_offroad_dis, co_->max_offroad_yaw, true);
   }
   std::vector<geometry_msgs::PoseStamped> path = co_->fixpattern_path->GeometryPath();
   GAUSSIAN_INFO("[ASTAR CONTROLLER] cur_goal_dis = %lf, path_size = %zu", cur_goal_dis, path.size());
@@ -1714,7 +1801,7 @@ bool AStarController::GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, i
         double x = path[i].pose.position.x;
         double y = path[i].pose.position.y;
         double yaw = tf::getYaw(path[i].pose.orientation);
-        if (footprint_checker_->CircleCenterCost(x, y, yaw, co_->circle_center_points, 0.0, 0.0) < 0 ||
+        if (footprint_checker_->CircleCenterCost(x, y, yaw, co_->circle_center_points, extend_x, extend_y) < 0 ||
              !IsGoalFootprintSafe(goal_safe_dis_a, goal_safe_dis_b, path[i])) {
            cross_obstacle = true;
 //           GAUSSIAN_INFO("[ASTAR CONTROLLER] path[%d] not safe", i);
@@ -1817,7 +1904,7 @@ void AStarController::PublishGoalReached(geometry_msgs::PoseStamped goal_pose) {
   goal_reached_pub_.publish(goal_pose);
 }
 
-void AStarController::SampleInitailPath(std::vector<geometry_msgs::PoseStamped>* planner_plan,
+void AStarController::SampleInitialPath(std::vector<geometry_msgs::PoseStamped>* planner_plan,
                                         std::vector<fixpattern_path::PathPoint>& fix_path) {
     geometry_msgs::PoseStamped pre_pose = planner_plan->front();
     fix_path.push_back(fixpattern_path::GeometryPoseToPathPoint(planner_plan->front().pose));
@@ -1837,31 +1924,25 @@ void AStarController::SampleInitailPath(std::vector<geometry_msgs::PoseStamped>*
     fix_path.push_back(fixpattern_path::GeometryPoseToPathPoint(planner_plan->back().pose));
 }
 
-bool AStarController::GetAStarInitailPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal) {
+bool AStarController::GetAStarInitialPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal) {
   if (!co_->astar_global_planner->makePlan(global_start, global_goal, *planner_plan_) || planner_plan_->empty()) {
-    GAUSSIAN_ERROR("[ASTAR CONTROLLER] InitialPath: astar failed to find a plan to point (%.2f, %.2f)", global_goal.pose.position.x, global_goal.pose.position.y);
+    GAUSSIAN_ERROR("[ASTAR CONTROLLER] InitialPath: a_planner failed to find a plan to point (%.2f, %.2f)", global_goal.pose.position.x, global_goal.pose.position.y);
+    PublishAStarExtendPose(global_start, global_goal);
     return false;
   } else {
-    GAUSSIAN_INFO("[ASTAR CONTROLLER] InitialPath: get initial path_size = %d", (int)planner_plan_->size());
     std::vector<fixpattern_path::PathPoint> fix_path;
-    SampleInitailPath(planner_plan_, fix_path);
+    SampleInitialPath(planner_plan_, fix_path);
     co_->fixpattern_path->set_fix_path(global_start, fix_path, true); 
 
     // check fix_path is safe: if not, get  goal on path and switch to PLANNING state 
-    std::vector<geometry_msgs::PoseStamped> updated_fix_path = co_->fixpattern_path->GeometryPath();
-    double path_length = co_->fixpattern_path->Length();
-    int try_count = 10;
-    footprint_checker_->setStaticCostmap(controller_costmap_ros_, true);
-
-    while(--try_count < 0) {
-      if (UpdateFixPath(updated_fix_path, global_start, path_length, true)) {
-        break;
-      }
+    
+    if (RecheckFixPath(global_start, true)) {
+      GAUSSIAN_INFO("[ASTAR CONTROLLER] InitialPath: recheck fixpath successed!");
+    } else {
+      GAUSSIAN_WARN("[ASTAR CONTROLLER] InitialPath: recheck fixpath failed!");
     }
     
     gotInitPlan_ = true;
-    co_->sbpl_global_planner->setStaticCosmap(true);
-    footprint_checker_->setStaticCostmap(controller_costmap_ros_, false);
 
     std::vector<geometry_msgs::PoseStamped> plan = co_->fixpattern_path->GeometryPath();
     for (auto&& p : plan) {  // NOLINT
@@ -1875,35 +1956,44 @@ bool AStarController::GetAStarInitailPath(const geometry_msgs::PoseStamped& glob
   }
 }
 
-bool AStarController::UpdateFixPath(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::PoseStamped& global_start, double front_safe_check_dis, bool use_static_costmap) {
-  if (CheckFixPathFrontSafe(path, front_safe_check_dis, 0.0, co_->init_path_circle_center_extend_y) < front_safe_check_dis - 0.30) {
-    GetAStarGoal(global_start, obstacle_index_);
-    GetAStarStart(front_safe_check_dis);
-    // set static costmap in first planning
-    if (use_static_costmap) {
-      co_->sbpl_global_planner->setStaticCosmap(true);
-    }
-    if (!co_->sbpl_global_planner->makePlan(planner_start_, planner_goal_, *planner_plan_, astar_path_, false, false) || planner_plan_->empty()) {
-      GAUSSIAN_ERROR("[ASTAR CONTROLLER] UpdateFixPath: sbpl failed to find a plan to point (%.2f, %.2f)", planner_goal_.pose.position.x, planner_goal_.pose.position.y);
-      return false;
-    } else {
-      co_->fixpattern_path->insert_middle_path(astar_path_.path(), planner_start_, planner_goal_);
-      GAUSSIAN_INFO("[ASTAR CONTROLLER] UpdateFixPath: insert sbpl path into fix_path");
-      if (CheckFixPathFrontSafe(path, front_safe_check_dis, 0.0, co_->init_path_circle_center_extend_y) < front_safe_check_dis - 0.30) {
-        GAUSSIAN_WARN("[ASTAR CONTROLLER] UpdateFixPath: after updating, path is not safe, return and retry!");
-        return false;
+bool AStarController::RecheckFixPath(const geometry_msgs::PoseStamped& global_start, bool using_static_costmap) {
+  // set footprint_checker costmap is static or not
+  footprint_checker_->setStaticCostmap(controller_costmap_ros_, using_static_costmap);
+  // check fix_path is safe: if not, get goal on path and switch to PLANNING state 
+  int try_count = 10;	
+  while(--try_count > 0) {
+    if (CheckFixPathFrontSafe(co_->fixpattern_path->GeometryPath(), co_->fixpattern_path->Length(), 0.0, co_->init_path_circle_center_extend_y) < co_->fixpattern_path->Length() - 0.30, 0) {
+      GetAStarGoal(global_start, 0.0, co_->init_path_circle_center_extend_y, obstacle_index_);
+      GetAStarStart(co_->fixpattern_path->Length(), 0.0, co_->init_path_circle_center_extend_y, obstacle_index_);
+      GAUSSIAN_ERROR("[ASTAR CONTROLLER] RecheckFixPath: path_not safe, start to recheck and replan");
+
+      fixpattern_path::Path temp_sbpl_path;
+      // set static costmap in first planning
+      co_->sbpl_global_planner->setStaticCosmap(using_static_costmap);
+      if (!co_->sbpl_global_planner->makePlan(planner_start_, planner_goal_, *planner_plan_, temp_sbpl_path, false, false)
+          || planner_plan_->empty()) {
+        GAUSSIAN_ERROR("[ASTAR CONTROLLER] RecheckFixPath: sbpl failed to find a plan to point (%.2f, %.2f)", planner_goal_.pose.position.x, planner_goal_.pose.position.y);
       } else {
-        GAUSSIAN_INFO("[ASTAR CONTROLLER] UpdateFixPath: double check fixpath safe, return directly!");
-        return true;
+        co_->fixpattern_path->insert_middle_path(temp_sbpl_path.path(), planner_start_, planner_goal_);
+        GAUSSIAN_INFO("[ASTAR CONTROLLER] RecheckFixPath: after inserting sbpl path, fix_path length = %lf", co_->fixpattern_path->Length());
       }
+    } else {
+      GAUSSIAN_INFO("[ASTAR CONTROLLER] RecheckFixPath: check fixpath safe, updated successed!");
+      return true;
     }
-  } else {
-    GAUSSIAN_INFO("[ASTAR CONTROLLER] UpdateFixPath: check fixpath safe, update none!");
-    return true;
-  }
+  } 
+
+  if (try_count <= 0) {
+    GAUSSIAN_WARN("[ASTAR CONTROLLER] RecheckFixPath: check fixpath not safe then 10 times, return false!");
+    return false;
+  }	
 }
 
-bool AStarController::HandleSwitchingPath(geometry_msgs::PoseStamped current_position) {
+bool AStarController::HandleSwitchingPath(geometry_msgs::PoseStamped current_position, bool switch_directly) {
+  if (switch_path_ && switch_directly) {
+    co_->fixpattern_path->set_fix_path(current_position, front_path_.path(), false, false); 
+    return true;
+  }
   if (!switch_path_) return false; 
   if (front_path_.path().size() < 30 || front_path_.Length() < 1.0 || 
       PoseStampedDistance(planner_start_, current_position) > 1.5 || 
@@ -1967,7 +2057,7 @@ bool AStarController::HandleSwitchingPath(geometry_msgs::PoseStamped current_pos
   return true;
 }
 
-bool AStarController::HandleLocalizationRecovery() {
+bool AStarController::LocalizationRecovery() {
   if (!localization_valid_) {
     GAUSSIAN_WARN("[ASTAR CONTROLLER] localization failed! Recovery now by inplace_rotating");
     autoscrubber_services::StartRotate start_rotate;
@@ -1989,15 +2079,14 @@ bool AStarController::HandleLocalizationRecovery() {
   return localization_valid_;
 }
 
-
-bool AStarController::HandleGoingBack(const geometry_msgs::PoseStamped& current_position, double backward_dis) {
+bool AStarController::HandleGoingBack(geometry_msgs::PoseStamped& current_position, double backward_dis) {
   geometry_msgs::Twist cmd_vel;
   geometry_msgs::PoseStamped cur_pos = current_position;
-  if (backward_dis == 0.0) {
+  if (backward_dis <= 0.01) {
     backward_dis = co_->backward_check_dis;
   }
   // check if need backward
-  ros::Time end_time = ros::Time::now() + ros::Duration(co_->stop_duration / 3);
+  ros::Time end_time = ros::Time::now() + ros::Duration(co_->stop_duration / 5);
   bool need_backward = true;
   ros::Rate r(10);
   while (ros::Time::now() < end_time) {
@@ -2028,10 +2117,11 @@ bool AStarController::HandleGoingBack(const geometry_msgs::PoseStamped& current_
     last_valid_control_ = ros::Time::now();
     control_rate.sleep();
   }
+  current_position = cur_pos;
   return need_backward;
 }
 
-bool AStarController::HandleRecovery(geometry_msgs::PoseStamped current_pos) {
+bool AStarController::EscapeRecovery(geometry_msgs::PoseStamped current_pos) {
   GAUSSIAN_INFO("[FIXPATTERN CONTROLLER] Handle Recovery!");
   bool ret = false;
   geometry_msgs::PoseStamped goal_pos;
@@ -2041,13 +2131,25 @@ bool AStarController::HandleRecovery(geometry_msgs::PoseStamped current_pos) {
     if (RotateToYaw(target_yaw)) {
       GAUSSIAN_INFO("rotate to yaw done, next going forward dis = %lf", target_dis);
 //      if (CanForward(target_dis)) {
-      if (GoingForward(target_dis / 2.5)) {
+      if (GoingForward(target_dis / 3.5)) {
         GAUSSIAN_INFO("GoingForward done");
-        ret = true;
+        return true;
       }
-		}
+    }
   }
-  return ret;
+
+  GAUSSIAN_INFO("[ASTAR CONTROLLER] RotateRecovery: Cannot Rotate to target_yaw: %lf, try to go forward", target_yaw);
+  // go forward, if can
+  if (GoingForward(0.20)) {
+    return true;
+  }
+
+  // backward...
+  if (GoingBackward(0.20)) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 void AStarController::UpdateRecoveryYaw(geometry_msgs::PoseStamped current_position) {
@@ -2100,8 +2202,8 @@ bool AStarController::RotateToYaw(double target_yaw) {
   cmd_vel.linear.y = 0.0;
 
   ros::Rate r(co_->controller_frequency);
-//  while (fabs(angle_diff) > 0.1 && CanRotate(x, y, yaw, angle_diff > 0 ? 1 : -1)) {
-  while (fabs(angle_diff) > 0.1 && env_->run_flag) {
+  while (fabs(angle_diff) > 0.1 && CanRotate(x, y, yaw, angle_diff > 0 ? 1 : -1) && env_->run_flag) {
+//  while (fabs(angle_diff) > 0.1 && env_->run_flag) {
     GAUSSIAN_INFO("rotate to yaw: cur_yaw = %lf, target_yaw = %lf, yaw_diff = %lf",yaw ,target_yaw, angle_diff);
     cmd_vel.angular.z = angle_diff > 0 ? 0.3 : -0.3;
     co_->vel_pub->publish(cmd_vel);
@@ -2116,7 +2218,12 @@ bool AStarController::RotateToYaw(double target_yaw) {
 
     r.sleep();
   }
-  return true;
+
+  if (fabs(angle_diff) > 0.1) {
+    return false;
+  } else {
+    return true;
+  }
 }
 
 bool AStarController::CanBackward(double distance) {
@@ -2130,10 +2237,11 @@ bool AStarController::CanBackward(double distance) {
   double yaw = tf::getYaw(current_position.pose.orientation);
   double resolution = controller_costmap_ros_->getCostmap()->getResolution();
   int num_step = distance / resolution;
+  int skip_num = 3; 
 
   std::vector<geometry_msgs::PoseStamped> path;
   // ignore current footprint
-  for (int i = 1; i <= num_step; ++i) {
+  for (int i = skip_num; i <= num_step + skip_num - 1; ++i) {
     double new_x = x - i * resolution * cos(yaw);
     double new_y = y - i * resolution * sin(yaw);
     if (footprint_checker_->CircleCenterCost(new_x, new_y, yaw,
@@ -2147,7 +2255,7 @@ bool AStarController::CanBackward(double distance) {
 }
 
 bool AStarController::GoingBackward(double distance) {
-  if (!CanBackward(0.35)) return false;
+  if (!CanBackward(0.20)) return false;
 
   double backward_time = distance / 0.1;
   ros::Time end_time = ros::Time::now() + ros::Duration(backward_time);
@@ -2158,7 +2266,7 @@ bool AStarController::GoingBackward(double distance) {
   cmd_vel.angular.z = 0.0;
 
   ros::Rate r(co_->controller_frequency);
-  while (ros::Time::now() < end_time && CanBackward(0.35)) {
+  while (ros::Time::now() < end_time && CanBackward(0.20)) {
     co_->vel_pub->publish(cmd_vel);
     last_valid_control_ = ros::Time::now();
 
@@ -2178,10 +2286,11 @@ bool AStarController::CanForward(double distance) {
   double yaw = tf::getYaw(current_position.pose.orientation);
   double resolution = controller_costmap_ros_->getCostmap()->getResolution();
   int num_step = distance / resolution;
+  int skip_num = 2;
 
   std::vector<geometry_msgs::PoseStamped> path;
   // ignore current footprint
-  for (int i = 0; i <= num_step; ++i) {
+  for (int i = skip_num; i <= num_step + skip_num - 1; ++i) {
     double new_x = x + i * resolution * cos(yaw);
     double new_y = y + i * resolution * sin(yaw);
     if (footprint_checker_->CircleCenterCost(new_x, new_y, yaw,
@@ -2195,18 +2304,18 @@ bool AStarController::CanForward(double distance) {
 }
 
 bool AStarController::GoingForward(double distance) {
-  if (!CanForward(0.15)) return false;
+  if (!CanForward(0.05)) return false;
 
   double forward_time = distance / 0.1;
   ros::Time end_time = ros::Time::now() + ros::Duration(forward_time);
 
   geometry_msgs::Twist cmd_vel;
-  cmd_vel.linear.x = 0.1;
+  cmd_vel.linear.x = 0.15;
   cmd_vel.linear.y = 0.0;
   cmd_vel.angular.z = 0.0;
 
   ros::Rate r(co_->controller_frequency);
-  while (ros::Time::now() < end_time && CanForward(0.15) && env_->run_flag) {
+  while (ros::Time::now() < end_time && CanForward(0.05) && env_->run_flag) {
  // while (ros::Time::now() < end_time) {
     co_->vel_pub->publish(cmd_vel);
     last_valid_control_ = ros::Time::now();
@@ -2227,6 +2336,7 @@ bool AStarController::RotateRecovery() {
   if (try_recovery_times_ == 0) {
     UpdateRecoveryYaw(current_position);
   } else if (try_recovery_times_ > 6) {
+    ++try_recovery_times_;
     return true;
   }
 
@@ -2234,7 +2344,6 @@ bool AStarController::RotateRecovery() {
   double target_yaw = rotate_recovery_target_yaw_[try_recovery_times_];
   double theta_sim_granularity = target_yaw > current_yaw ? 0.1 : -0.1;
   GAUSSIAN_INFO("[ASTAR CONTROLLER] RotateRecovery: current_yaw: %lf, target_yaw: %lf", current_yaw, target_yaw);
-  ++try_recovery_times_;
 
   int num_step = M_PI / 4.0 / fabs(theta_sim_granularity);
   if (num_step == 0) num_step = 1;
@@ -2251,11 +2360,23 @@ bool AStarController::RotateRecovery() {
   }
   if (footprint_safe) {
     GAUSSIAN_INFO("[ASTAR CONTROLLER] RotateRecovery: footprint_safe, try to rotate");
-    RotateToYaw(target_yaw);
-    return true;
-  } else {
-    GAUSSIAN_INFO("[ASTAR CONTROLLER] RotateRecovery: Cannot Rotate to target_yaw: %lf", target_yaw);
-    return false;
+    if (RotateToYaw(target_yaw)) {
+      return true;
+    }
+  } 
+  {
+    GAUSSIAN_INFO("[ASTAR CONTROLLER] RotateRecovery: Cannot Rotate to target_yaw: %lf, try to go forward", target_yaw);
+    // go forward, if can
+    if (GoingForward(0.20)) {
+      return true;
+    }
+
+    // backward...
+    if (GoingBackward(0.20)) {
+      return true;
+    } else {
+      return false;
+    }
   }
 
 /*

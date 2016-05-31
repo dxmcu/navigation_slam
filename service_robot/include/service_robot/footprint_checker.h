@@ -67,7 +67,7 @@ class FootprintChecker {
       if (cost == costmap_2d::NO_INFORMATION) {
         return -101.0;
 			} else if (cost >= costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
-          check_cnt -= 1.0;
+        check_cnt -= 1.0;
 //        return -1.0;
       }
       if (ret < cost) ret = cost;

@@ -101,6 +101,7 @@ class Expander {
             }
             }
         }
+        int min_cost_index_;
 
     protected:
         inline int toIndex(int x, int y) {

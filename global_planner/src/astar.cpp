@@ -100,6 +100,7 @@ bool AStarExpansion::calculatePotentials(costmap_2d::Costmap2DROS* costmap_ros, 
 
     int goal_i = toIndex(end_x, end_y);
     int cycle = 0;
+    min_cost_ = 0x7FFFFFFF;
 
     while (queue_.size() > 0 && cycle < cycles) {
         Index top = queue_[0];
@@ -142,11 +143,16 @@ void AStarExpansion::add(costmap_2d::Costmap2DROS* costmap_ros, unsigned char* c
     float distance = abs(end_x - x) + abs(end_y - y);
     float obstacle_distance = costmap_ros->getObstacleDistance(x, y);
     int occ_cost = (int)(10.0 / obstacle_distance * occ_dis_cost_);
-    int next_cost;
+    int next_cost, next_pure_cost;
     if (path_costs != NULL) {
       next_cost = potential[next_i] + distance * neutral_cost_ + occ_cost + path_costs[next_i] * path_cost_;
     } else {
       next_cost = potential[next_i] + distance * neutral_cost_ + occ_cost;
+    }
+    next_pure_cost = potential[next_i] + distance * neutral_cost_;
+    if (next_pure_cost < min_cost_) {
+      min_cost_ = next_pure_cost; 
+      min_cost_index_ = next_i;
     }
     queue_.push_back(Index(next_i, next_cost));
     std::push_heap(queue_.begin(), queue_.end(), greater1());

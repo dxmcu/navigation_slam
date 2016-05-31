@@ -189,11 +189,11 @@ double FootprintChecker::FootprintCost(const geometry_msgs::Point& position, con
     double footprint_cost = 0.0; 
     double broader_x = broader_delta_x;
     double broader_y = broader_delta_y;
-    int step_num = std::max(broader_x / 0.03 + 1, broader_y / 0.03 + 1);
+    int step_num = std::max(broader_x / 0.01 + 1, broader_y / 0.01 + 1);
     std::vector<geometry_msgs::Point> broader_footprint;
     for (int j = 0; j <= step_num; ++j) { 
-      broader_x = std::max(broader_delta_x - 0.03 * j, 0.0);
-      broader_y = std::max(broader_delta_y - 0.03 * j, 0.0);
+      broader_x = std::max(broader_delta_x - 0.01 * j, 0.0);
+      broader_y = std::max(broader_delta_y - 0.01 * j, 0.0);
       for (int i = 0; i < footprint_spec.size(); ++i) {
         geometry_msgs::Point footprint_pt = footprint_spec[i];
         geometry_msgs::Point new_pt;

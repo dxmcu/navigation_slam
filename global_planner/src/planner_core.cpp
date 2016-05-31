@@ -216,7 +216,7 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
         double cost_factor;
         private_nh.param("cost_factor", cost_factor, 3.0);
         bool publish_potential;
-        private_nh.param("publish_potential", publish_potential, true);
+        private_nh.param("publish_potential", publish_potential, false);
         planner_->setLethalCost(lethal_cost);
         path_maker_->setLethalCost(lethal_cost);
         planner_->setNeutralCost(neutral_cost);
@@ -294,6 +294,13 @@ bool GlobalPlanner::worldToMap(double wx, double wy, double& mx, double& my) {
         return true;
 
     return false;
+}
+
+void GlobalPlanner::getExtendPoint(double& wx, double& wy) {
+  int mx = planner_->min_cost_index_ % costmap_->getSizeInCellsX();
+  int my = planner_->min_cost_index_ / costmap_->getSizeInCellsX();
+  my = my >= costmap_->getSizeInCellsY() ? 0 : my;
+  mapToWorld(mx, my, wx, wy);
 }
 
 bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal,

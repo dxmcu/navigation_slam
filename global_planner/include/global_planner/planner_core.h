@@ -92,6 +92,7 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
 
 //        void initialize(std::string name, costmap_2d::Costmap2D* costmap, std::string frame_id);
         void initialize(std::string name, costmap_2d::Costmap2D* costmap, costmap_2d::Costmap2D* path_costmap, std::string frame_id);
+
         /**
          * @brief Given a goal pose in the world, compute a plan
          * @param start The start pose
@@ -168,6 +169,10 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
          */
         void setStaticCosmap(bool is_static);
 
+        /**
+         * @brief getExtendPoint if astar plann failed
+         */
+        void getExtendPoint(double& wx, double& wy);
     protected:
 
         /**

@@ -45,14 +45,15 @@ typedef enum {
 } AStarState;
 
 typedef enum {
-  A_PLANNING_R    = 0,
-  FIX_CONTROLLING_R = 1,
-  PLANNER_RECOVERY_R= 2,
-  FIX_GETNEWGOAL_R  = 3,
-  FIX_FRONTSAFE_R   = 4,
-  FIX_OSCILLATION_R = 5,
-  LOCATION_RECOVERY_R = 6,
-  BACKWARD_RECOVERY_R = 7
+  A_PLANNING_R = 0,
+  FIX_CONTROLLING_R,
+  GLOBAL_PLANNER_RECOVERY_R,
+  LOCAL_PLANNER_RECOVERY_R,
+  FIX_GETNEWGOAL_R,
+  FIX_FRONTSAFE_R,
+  FIX_OSCILLATION_R,
+  LOCATION_RECOVERY_R,
+  BACKWARD_RECOVERY_R
 } AStarRecoveryTrigger;
 
 typedef enum {
@@ -181,8 +182,9 @@ class AStarController : public BaseController {
    *
    * @return Transformed PoseStamped
    */
+  void ClearFootprintInCostmap(const geometry_msgs::PoseStamped& pose, double clear_extend_dis, bool is_static_needed = true);
   bool IsGoalFootprintSafe(double front_safe_dis_a, double front_safe_dis_b, const geometry_msgs::PoseStamped& pose);
-  bool IsGoalSafe(const geometry_msgs::PoseStamped& goal_pose, double goal_front_check_dis, double goal_back_check_dis);
+  bool IsGoalSafe(const geometry_msgs::PoseStamped& goal_pose, double goal_front_check_dis, double goal_back_check_dis, bool using_static_costmap = false);
   bool IsGoalUnreachable(const geometry_msgs::PoseStamped& goal_pose);
   bool IsFixPathFrontSafe(double front_safe_check_dis);
   bool IsPathFootprintSafe(const fixpattern_path::Path& fix_path, double length);
@@ -190,18 +192,19 @@ class AStarController : public BaseController {
                            const std::vector<geometry_msgs::Point>& circle_center_points, double length);
   bool IsGlobalGoalReached(const geometry_msgs::PoseStamped& current_position, const geometry_msgs::PoseStamped& global_goal,
                             double xy_goal_tolerance, double yaw_goal_tolerance);
-  double CheckFixPathFrontSafe(const std::vector<geometry_msgs::PoseStamped>& path, double front_safe_check_dis, double extend_x, double extend_y);
-  bool UpdateFixPath(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::PoseStamped& global_start, double front_safe_check_dis, bool use_static_costmap);
+  double CheckFixPathFrontSafe(const std::vector<geometry_msgs::PoseStamped>& path, double front_safe_check_dis, double extend_x, double extend_y, int begin_index = 0);
+  bool RecheckFixPath(const geometry_msgs::PoseStamped& global_start, bool using_static_costmap);
   bool NeedBackward(const geometry_msgs::PoseStamped& pose, double distance);
-  bool GetAStarInitailPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
-  bool GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, int begin_index = 0);
-  bool GetAStarTempGoal(geometry_msgs::PoseStamped& goal_pose, double offset_dis);
-  bool GetAStarStart(double front_safe_check_dis);
-  void SampleInitailPath(std::vector<geometry_msgs::PoseStamped>* planner_plan,
+  void SampleInitialPath(std::vector<geometry_msgs::PoseStamped>* planner_plan,
                          std::vector<fixpattern_path::PathPoint>& fix_path);
+  bool GetAStarInitialPath(const geometry_msgs::PoseStamped& global_start, const geometry_msgs::PoseStamped& global_goal);
+  bool GetAStarGoal(const geometry_msgs::PoseStamped& cur_pose, double extend_x, double extend_y, int begin_index = 0);
+  bool GetAStarTempGoal(geometry_msgs::PoseStamped& goal_pose, double offset_dis);
+  bool GetAStarStart(double front_safe_check_dis, double extend_x, double extend_y, int obstacle_index = 0);
   bool GetCurrentPosition(geometry_msgs::PoseStamped& current_position);
   unsigned int GetPoseIndexOfPath(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::PoseStamped& pose);
-  bool HandleGoingBack(const geometry_msgs::PoseStamped& current_position, double backward_dis = 0.0);
+  bool HandleGoingBack(geometry_msgs::PoseStamped& current_position, double backward_dis = 0.0);
+  bool HandleSwitchingPath(geometry_msgs::PoseStamped current_position, bool switch_directly = false);
   void PlanThread();
   double PoseStampedDistance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2);
 
@@ -209,14 +212,14 @@ class AStarController : public BaseController {
   void PublishMovebaseStatus(unsigned int status_index);
   void PublishHeadingGoal(void);
   void PublishGoalReached(geometry_msgs::PoseStamped goal_pose);
+  void PublishAStarExtendPose(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal);
   // rotate recovery
   void UpdateRecoveryYaw(geometry_msgs::PoseStamped current_position);
   bool CanRotate(double x, double y, double yaw, int dir);
   bool RotateToYaw(double target_yaw);
   bool RotateRecovery();
-  bool HandleRecovery(geometry_msgs::PoseStamped current_pos);
-  bool HandleLocalizationRecovery(void);
-  bool HandleSwitchingPath(geometry_msgs::PoseStamped current_position);
+  bool EscapeRecovery(geometry_msgs::PoseStamped current_pos);
+  bool LocalizationRecovery(void);
   // forward
   bool GoingForward(double distance);
   bool CanForward(double distance);
@@ -273,6 +276,7 @@ class AStarController : public BaseController {
   bool switch_path_;
   unsigned int origin_path_safe_cnt_;
   unsigned int astar_planner_timeout_cnt_;
+  unsigned int local_planner_timeout_cnt_;
   unsigned int local_planner_error_cnt_;
   unsigned int fix_local_planner_error_cnt_;
   unsigned int goal_not_safe_cnt_;
@@ -302,7 +306,7 @@ class AStarController : public BaseController {
 
   bool first_run_controller_flag_;
   bool localization_valid_;
-  bool localization_start_;
+  bool using_static_costmap_; 
 
   AStarControlOption* co_;
   ControlEnvironment* env_;
@@ -315,6 +319,7 @@ class AStarController : public BaseController {
   ros::Publisher astar_start_pub_;
   ros::Publisher astar_goal_pub_;
   ros::Publisher sbpl_goal_pub_;
+  ros::Publisher astar_extend_pose_pub_;
   ros::Publisher move_base_status_pub_;
   ros::Subscriber set_init_sub_;
   ros::Subscriber localization_sub_;
