@@ -207,6 +207,8 @@ class FixPatternTrajectoryPlannerROS {
   double min_in_place_rotational_vel_; 
   double acc_lim_x_, acc_lim_y_, acc_lim_theta_;
   double sim_period_;
+  double final_goal_dis_th_; 
+  double final_vel_ratio_;
   bool rotating_to_goal_;
   bool reached_goal_;
   bool rotating_to_goal_done_;

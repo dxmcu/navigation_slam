@@ -466,6 +466,7 @@ void AStarController::PlanThread() {
               state_ = A_PLANNING;
               GAUSSIAN_WARN("[FIX CONTROLLER] taking global goal as astar_goal_ and replan!");
             } else {
+              ++astar_planner_timeout_cnt_;
               gotPlan = false;
               runPlanner_ = false;
               switch_path_ = false;
