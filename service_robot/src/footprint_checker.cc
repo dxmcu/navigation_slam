@@ -228,7 +228,6 @@ double FootprintChecker::LineCost(int x0, int x1, int y0, int y1) {
     if (line_cost < point_cost)
       line_cost = point_cost;
   }
-
   return line_cost;
 }
 
@@ -239,7 +238,6 @@ double FootprintChecker::PointCost(int x, int y) {
   if (cost == costmap_2d::LETHAL_OBSTACLE || cost == costmap_2d::NO_INFORMATION) {
     return -1.0;
   }
-
   return cost;
 }
 

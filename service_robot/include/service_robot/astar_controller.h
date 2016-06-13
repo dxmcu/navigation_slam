@@ -67,12 +67,13 @@ typedef enum {
 typedef enum {
   E_NULL = 0,
   E_LOCATION_INVALID,
-  E_GOAL_UNREACHABLE,
+  E_GOAL_NOT_SAFE,
   E_PATH_NOT_SAFE,
+  I_GOAL_UNREACHABLE,
   I_GOAL_HEADING,
+  I_GOAL_PLANNING,
   I_GOAL_REACHED,
   I_GOAL_UNREACHED,
-  E_GOAL_NOT_SAFE,
   MAX_RET,
 } StatusIndex;
 
@@ -144,6 +145,7 @@ class AStarController : public BaseController {
 
   bool Control(BaseControlOption* option, ControlEnvironment* environment);
   std::vector<geometry_msgs::Point> footprint_spec_;
+  std::vector<geometry_msgs::Point> unpadded_footrpint_spec_;
 
  private:
   /**

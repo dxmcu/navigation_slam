@@ -131,6 +131,14 @@ class FootprintChecker {
     return FootprintCost(robot_position, oriented_footprint, inscribed_radius, circumscribed_radius);
   }
 
+  double FootprintCost(const geometry_msgs::PoseStamped& current_position, const std::vector<geometry_msgs::Point>& footprint_spec,
+                       double inscribed_radius, double circumscribed_radius) {
+    double x = current_position.pose.position.x;
+    double y = current_position.pose.position.y;
+    double yaw = tf::getYaw(current_position.pose.orientation);
+    return BroaderFootprintCost(x, y, yaw, footprint_spec, inscribed_radius, circumscribed_radius);
+  }
+
   double BroaderFootprintCost(double x, double y, double theta, const std::vector<geometry_msgs::Point>& footprint_spec,
                         double broader_delta_x, double broader_delta_y);
 
@@ -151,7 +159,6 @@ class FootprintChecker {
    */
   double FootprintCost(const geometry_msgs::Point& position, const std::vector<geometry_msgs::Point>& footprint,
                        double inscribed_radius, double circumscribed_radius);
-
  private:
   /**
    * @brief  Rasterizes a line in the costmap grid and checks for collisions
