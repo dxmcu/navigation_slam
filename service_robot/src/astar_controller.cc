@@ -411,6 +411,7 @@ void AStarController::PlanThread() {
         lock.lock();
         front_path_.set_path(co_->fixpattern_path->path(), false, false);
         front_goal_ = temp_goal;
+        // TODO(lizhen) final path but middle state?
         if (taken_global_goal_ || planning_state_ == P_INSERTING_NONE) {
           if (using_sbpl_directly_) {
             co_->fixpattern_path->set_sbpl_path(start, astar_path_.path(), true);
@@ -432,7 +433,7 @@ void AStarController::PlanThread() {
           footprint_checker_->setStaticCostmap(controller_costmap_ros_, false);
         } else if (planning_state_ == P_INSERTING_BEGIN) {
           double corner_yaw_diff = state_ == A_PLANNING ? M_PI / 36.0 : M_PI / 3.0;
-          co_->fixpattern_path->insert_begin_path(astar_path_.path(), start, temp_goal, false, corner_yaw_diff);
+          co_->fixpattern_path->insert_begin_path(astar_path_.path(), start, temp_goal, false, corner_yaw_diff, using_sbpl_directly_);
           first_run_controller_flag_ = true;
           switch_path_ = true;
           origin_path_safe_cnt_ = 0;
@@ -513,7 +514,8 @@ void AStarController::PlanThread() {
 //        GetAStarGoal(start, 0.0, 0.0);
       }
       lock.unlock();
-    } else if (state_ == FIX_CONTROLLING && planning_state_ == P_INSERTING_MIDDLE) { 
+//    } else if (state_ == FIX_CONTROLLING && planning_state_ == P_INSERTING_MIDDLE) { 
+    } else if (state_ == FIX_CONTROLLING) { 
       GAUSSIAN_WARN("[ASTAR PLANNER] Plan middle path failed, just return!");
       lock.lock();
       runPlanner_ = false;
@@ -1199,6 +1201,7 @@ bool AStarController::ExecuteCycle() {
       }
 */
       // check if swtich to origin path needed
+			// TODO(lizhen) check bug here
       HandleSwitchingPath(current_position);
 
       t2 = GetTimeInSeconds();
@@ -1350,7 +1353,8 @@ bool AStarController::ExecuteCycle() {
               PublishZeroVelocity();
               controller_costmap_ros_->getRobotPose(global_pose);
               tf::poseStampedTFToMsg(global_pose, current_position);
-              if (HandleGoingBack(current_position) || !switch_path_) {
+              if ((switch_path_ && PoseStampedDistance(current_position, co_->fixpattern_path->GeometryPath().front()) > 0.07)
+                  || HandleGoingBack(current_position) || !switch_path_) {
                 GAUSSIAN_ERROR("[FIXPATTERN CONTROLLER] !IsPathFrontSafe dis = %lf, stop and switch to CLEARING", front_safe_dis);
                 state_ = FIX_CLEARING;
                 recovery_trigger_ = FIX_GETNEWGOAL_R;
@@ -1526,6 +1530,8 @@ bool AStarController::ExecuteCycle() {
         PublishMovebaseStatus(E_PATH_NOT_SAFE);
         HandleGoingBack(current_position, co_->backward_check_dis + 0.08);
 //        GoingBackward(0.15);
+        controller_costmap_ros_->getRobotPose(global_pose);
+        tf::poseStampedTFToMsg(global_pose, current_position);
         PublishZeroVelocity();
         state_ = FIX_CLEARING;
         recovery_trigger_ = FIX_GETNEWGOAL_R;
@@ -1552,6 +1558,8 @@ bool AStarController::ExecuteCycle() {
         // we will try Going Back first
         HandleGoingBack(current_position, co_->backward_check_dis + 0.05);
         // check if oboscal in footprint, yes - recovery; no - get new goal and replan
+        controller_costmap_ros_->getRobotPose(global_pose);
+        tf::poseStampedTFToMsg(global_pose, current_position);
         if (footprint_checker_->FootprintCost(current_position, unpadded_footrpint_spec_, 0.0, 0.0) < 0.0 ||
             footprint_checker_->BroaderFootprintCost(current_position, footprint_spec_, co_->recovery_footprint_extend_x, co_->recovery_footprint_extend_y) < 0.0) {
         // if (footprint_checker_->BroaderFootprintCost(current_position, footprint_spec_, co_->recovery_footprint_extend_x, co_->recovery_footprint_extend_y) < 0.0) {
@@ -1916,6 +1924,7 @@ void AStarController::PublishGoalReached(geometry_msgs::PoseStamped goal_pose) {
 void AStarController::SampleInitialPath(std::vector<geometry_msgs::PoseStamped>* planner_plan,
                                         std::vector<fixpattern_path::PathPoint>& fix_path) {
     geometry_msgs::PoseStamped pre_pose = planner_plan->front();
+    fix_path.clear();
     fix_path.push_back(fixpattern_path::GeometryPoseToPathPoint(planner_plan->front().pose));
     double yaw_diff;
     double acc_dis = 0.0;
