@@ -73,7 +73,7 @@ AStarController::AStarController(tf::TransformListener* tf,
   start_rotate_client_ = device_nh.serviceClient<autoscrubber_services::StartRotate>("start_rotate");
   stop_rotate_client_ = device_nh.serviceClient<autoscrubber_services::StopRotate>("stop_rotate");
   check_rotate_client_ = device_nh.serviceClient<autoscrubber_services::CheckRotate>("check_rotate");
-
+  check_protector_client_ = device_nh.serviceClient<autoscrubber_services::CheckProtectorStatus>("check_protector_status");
   check_goal_srv_ = n.advertiseService("check_goal", &AStarController::CheckGoalIsSafe, this);
 }
 
@@ -1323,11 +1323,12 @@ bool AStarController::ExecuteCycle() {
             bool front_safe = false;
             unsigned int front_safe_cnt = 0;
             unsigned int waiting_cnt = 0;
-
+            bool protector_status = CheckProtector();
+            GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] check protector status = %d", protector_status);
             switch_path_ = false;
             controller_costmap_ros_->getRobotPose(global_pose);
             tf::poseStampedTFToMsg(global_pose, current_position);
-            while (ros::Time::now() < end_time) {
+            while (ros::Time::now() < end_time && !protector_status) {
               front_safe_dis = CheckFixPathFrontSafe(fix_path, co_->front_safe_check_dis, 0.0, 0.0);
               PublishMovebaseStatus(E_PATH_NOT_SAFE);
               if (front_safe_dis > 1.0) {
@@ -1353,8 +1354,8 @@ bool AStarController::ExecuteCycle() {
               PublishZeroVelocity();
               controller_costmap_ros_->getRobotPose(global_pose);
               tf::poseStampedTFToMsg(global_pose, current_position);
-              if ((switch_path_ && PoseStampedDistance(current_position, co_->fixpattern_path->GeometryPath().front()) > 0.07)
-                  || HandleGoingBack(current_position) || !switch_path_) {
+              if (HandleGoingBack(current_position) || !switch_path_ || 
+                  (switch_path_ && PoseStampedDistance(current_position, co_->fixpattern_path->GeometryPath().front()) > 0.07)) {
                 GAUSSIAN_ERROR("[FIXPATTERN CONTROLLER] !IsPathFrontSafe dis = %lf, stop and switch to CLEARING", front_safe_dis);
                 state_ = FIX_CLEARING;
                 recovery_trigger_ = FIX_GETNEWGOAL_R;
@@ -2069,6 +2070,11 @@ bool AStarController::HandleSwitchingPath(geometry_msgs::PoseStamped current_pos
     }
   }
   return true;
+}
+bool AStarController::CheckProtector() {
+  autoscrubber_services::CheckProtectorStatus protector_status;
+  check_protector_client_.call(protector_status);
+  return protector_status.response.protector_status.protect_status;
 }
 
 bool AStarController::LocalizationRecovery() {

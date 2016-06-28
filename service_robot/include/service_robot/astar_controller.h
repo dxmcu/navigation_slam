@@ -26,6 +26,8 @@
 #include <autoscrubber_services/StopRotate.h>
 #include <autoscrubber_services/CheckRotate.h>
 #include <autoscrubber_services/CheckGoal.h>
+#include <autoscrubber_services/CheckProtectorStatus.h>
+#include <autoscrubber_services/ProtectorStatus.h>
 #include <fixpattern_path/path.h>
 #include <search_based_global_planner/search_based_global_planner.h>
 #include <fixpattern_local_planner/trajectory_planner_ros.h>
@@ -232,6 +234,7 @@ class AStarController : public BaseController {
 
   void LocalizationCallBack(const std_msgs::Int8::ConstPtr& param);
   bool CheckGoalIsSafe(autoscrubber_services::CheckGoal::Request& req, autoscrubber_services::CheckGoal::Response& res); // NOLINT
+  bool CheckProtector();
 
  private:
   tf::TransformListener& tf_;
@@ -329,6 +332,7 @@ class AStarController : public BaseController {
   ros::ServiceClient start_rotate_client_;
   ros::ServiceClient stop_rotate_client_;
   ros::ServiceClient check_rotate_client_;
+  ros::ServiceClient check_protector_client_;
 };
 
 };  // namespace service_robot
