@@ -1323,12 +1323,10 @@ bool AStarController::ExecuteCycle() {
             bool front_safe = false;
             unsigned int front_safe_cnt = 0;
             unsigned int waiting_cnt = 0;
-            bool protector_status = CheckProtector();
-            GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] check protector status = %d", protector_status);
             switch_path_ = false;
             controller_costmap_ros_->getRobotPose(global_pose);
             tf::poseStampedTFToMsg(global_pose, current_position);
-            while (ros::Time::now() < end_time && !protector_status) {
+            while (ros::Time::now() < end_time && !CheckProtector()) {
               front_safe_dis = CheckFixPathFrontSafe(fix_path, co_->front_safe_check_dis, 0.0, 0.0);
               PublishMovebaseStatus(E_PATH_NOT_SAFE);
               if (front_safe_dis > 1.0) {
@@ -2074,7 +2072,9 @@ bool AStarController::HandleSwitchingPath(geometry_msgs::PoseStamped current_pos
 bool AStarController::CheckProtector() {
   autoscrubber_services::CheckProtectorStatus protector_status;
   check_protector_client_.call(protector_status);
-  return protector_status.response.protector_status.protect_status;
+  bool b_protector_status = protector_status.response.protector_status.protect_status;
+  GAUSSIAN_WARN("[FIXPATTERN CONTROLLER] check protector status = %d", b_protector_status);
+  return b_protector_status;
 }
 
 bool AStarController::LocalizationRecovery() {
