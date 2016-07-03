@@ -699,7 +699,7 @@ Trajectory TrajectoryPlanner::createTrajectories(double x, double y, double thet
   if (final_goal_dist < final_goal_dis_th_) {
     final_vel_ratio = final_vel_ratio_;
   }
-  max_vel_x = std::min(max_vel_x, final_goal_dist / sim_time_ * final_vel_ratio_);
+  max_vel_x = std::min(max_vel_x, final_goal_dist / sim_time_ * final_vel_ratio);
 
   max_vel_x = std::max(std::min(max_vel_x, vx + acc_x * sim_time_), min_vel_x_);
   min_vel_x = std::max(min_vel_x_, vx - acc_x * sim_time_);

@@ -72,19 +72,25 @@ ServiceRobot::ServiceRobot(tf::TransformListener* tf)
   private_nh.param("p30", recovery_footprint_extend_x_, 0.03);
   private_nh.param("p31", recovery_footprint_extend_y_, 0.03);
 
+  if (!ReadConfigFromParams(private_nh, &front_protector_list_)) {
+    GAUSSIAN_ERROR("[SERVICEROBOT] read front_protector_list failed");
+  }
+
   if (!ReadCircleCenterFromParams(private_nh, &circle_center_points_)) {
     GAUSSIAN_ERROR("[SERVICEROBOT] read circle_center_point failed");
     exit(1);
   }
 
   if (!ReadBackwardCenterFromParams(private_nh, &backward_center_points_)) {
+    backward_center_points_ = circle_center_points_;
     GAUSSIAN_ERROR("[SERVICEROBOT] read backward_center_points_ failed");
-    exit(1);
+//    exit(1);
   }
 
   if (!ReadFootprintCenterFromParams(private_nh, &footprint_center_points_)) {
+    footprint_center_points_ = circle_center_points_;
     GAUSSIAN_ERROR("[SERVICEROBOT] read footprint_center_point failed");
-    exit(1);
+//    exit(1);
   }
   // for comanding the base
   vel_pub_ = nh.advertise<geometry_msgs::Twist>("cmd_vel", 1);
@@ -162,6 +168,7 @@ ServiceRobot::ServiceRobot(tf::TransformListener* tf)
   reinterpret_cast<AStarControlOption*>(options_)->circle_center_points = circle_center_points_;
   reinterpret_cast<AStarControlOption*>(options_)->backward_center_points = backward_center_points_;
   reinterpret_cast<AStarControlOption*>(options_)->footprint_center_points = footprint_center_points_;
+  reinterpret_cast<AStarControlOption*>(options_)->front_protector_list = front_protector_list_;
   reinterpret_cast<AStarControlOption*>(options_)->sbpl_footprint_padding = sbpl_footprint_padding_;
   reinterpret_cast<AStarControlOption*>(options_)->use_farther_planner = use_farther_planner_;
   reinterpret_cast<AStarControlOption*>(options_)->init_path_sample_dis = init_path_sample_dis_;
@@ -320,6 +327,46 @@ bool ServiceRobot::LoadLocalPlanner() {
       new fixpattern_local_planner::FixPatternTrajectoryPlannerROS());
   fixpattern_local_planner_->initialize("PF", &tf_, controller_costmap_ros_);
   return true;
+}
+
+void ReadConfigFromXMLRPC(XmlRpc::XmlRpcValue& config_xmlrpc, const std::string& full_param_name, std::vector<unsigned int>* config_list) {
+  unsigned int config;
+/*
+  config_list->push_back(0);
+  config_list->push_back(1);
+  config_list->push_back(5);
+*/
+  for (int i = 0; i < config_xmlrpc.size(); ++i) {
+    // Make sure each element of the list is an array of size 2. (x and y coordinates)
+    XmlRpc::XmlRpcValue value = config_xmlrpc[ i ];
+    if (value.getType() != XmlRpc::XmlRpcValue::TypeInt) {
+      ROS_FATAL("The config (parameter %s) must be specified as list of parameter server eg: [1, 2, ..., n], but this spec is not of that form.", full_param_name.c_str());
+      throw std::runtime_error( "The config must be specified as list of parameter server eg: [1, 2, ..., n],, but this spec is not of that form");
+    }
+    config = static_cast<int>(value);
+    GAUSSIAN_INFO("[SERVICEROBOT] get config[%d] px = %d", i, config);
+    config_list->push_back(config);
+  }
+}
+
+bool ServiceRobot::ReadConfigFromParams(ros::NodeHandle& nh, std::vector<unsigned int>* config_list) {
+  std::string full_param_name;
+
+  if (nh.searchParam("p32", full_param_name)) {
+    XmlRpc::XmlRpcValue config_xmlrpc;
+    nh.getParam(full_param_name, config_xmlrpc);
+    GAUSSIAN_INFO("[SERVICEROBOT] config_list size = %zu", config_xmlrpc.size());
+    if (config_xmlrpc.getType() == XmlRpc::XmlRpcValue::TypeArray && config_xmlrpc.size() > 0) {
+      ReadConfigFromXMLRPC(config_xmlrpc, full_param_name, config_list);
+      for (int i = 0; i < config_list->size(); ++i) {
+        GAUSSIAN_INFO("[SERVICEROBOT] config_list[%d/%zu] = %d", i, config_list->size(), config_list->at(i));
+      }
+      return true;
+    } else {
+      GAUSSIAN_ERROR("[SERVICEROBOT] config_list param's type is not Array!");
+      return false;
+    }
+  }
 }
 
 double GetNumberFromXMLRPC(XmlRpc::XmlRpcValue& value, const std::string& full_param_name) {

@@ -127,6 +127,7 @@ class ServiceRobot {
   bool ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>* points);
   bool ReadBackwardCenterFromParams(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>* points);
   bool ReadFootprintCenterFromParams(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>* points);
+  bool ReadConfigFromParams(ros::NodeHandle& nh, std::vector<unsigned int>* config_list);
 
  private:
   tf::TransformListener& tf_;
@@ -189,6 +190,7 @@ class ServiceRobot {
   std::vector<geometry_msgs::Point> circle_center_points_;
   std::vector<geometry_msgs::Point> backward_center_points_;
   std::vector<geometry_msgs::Point> footprint_center_points_;
+  std::vector<unsigned int> front_protector_list_;
 
   // fixpattern path, share between two controllers
   fixpattern_path::Path* fixpattern_path_;

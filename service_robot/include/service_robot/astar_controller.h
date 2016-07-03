@@ -122,6 +122,7 @@ struct AStarControlOption : BaseControlOption {
   std::vector<geometry_msgs::Point> circle_center_points;
   std::vector<geometry_msgs::Point> backward_center_points;
   std::vector<geometry_msgs::Point> footprint_center_points;
+  std::vector<unsigned int> front_protector_list;
   boost::shared_ptr<nav_core::BaseGlobalPlanner> astar_global_planner;
   boost::shared_ptr<search_based_global_planner::SearchBasedGlobalPlanner> sbpl_global_planner;
   boost::shared_ptr<fixpattern_local_planner::FixPatternTrajectoryPlannerROS> fixpattern_local_planner;
@@ -246,7 +247,7 @@ class AStarController : public BaseController {
 
   void LocalizationCallBack(const std_msgs::Int8::ConstPtr& param);
   bool CheckGoalIsSafe(autoscrubber_services::CheckGoal::Request& req, autoscrubber_services::CheckGoal::Response& res); // NOLINT
-  bool CheckProtector();
+  bool CheckProtector(geometry_msgs::PoseStamped& current_position, bool detect_front_protector = true);
 
  private:
   tf::TransformListener& tf_;
