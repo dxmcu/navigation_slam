@@ -28,6 +28,7 @@
 #include <autoscrubber_services/CheckGoal.h>
 #include <autoscrubber_services/CheckProtectorStatus.h>
 #include <autoscrubber_services/ProtectorStatus.h>
+#include <autoscrubber_services/MovebaseGoal.h>
 #include <fixpattern_path/path.h>
 #include <search_based_global_planner/search_based_global_planner.h>
 #include <fixpattern_local_planner/trajectory_planner_ros.h>
@@ -79,6 +80,12 @@ typedef enum {
   MAX_RET,
 } StatusIndex;
 
+typedef enum {
+  NORMAL = 0,
+  ORIGIN,
+  CHARGING 
+} MovebaseGoalTypeIndex;
+
 struct AStarControlOption : BaseControlOption {
   double stop_duration;
   double localization_duration;
@@ -109,6 +116,9 @@ struct AStarControlOption : BaseControlOption {
   int* fixpattern_reached_goal;
   fixpattern_path::Path* fixpattern_path;
   geometry_msgs::PoseStamped* global_planner_goal;
+  unsigned int* global_planner_goal_type;
+  autoscrubber_services::MovebaseGoal* movebase_goal;
+
   std::vector<geometry_msgs::Point> circle_center_points;
   std::vector<geometry_msgs::Point> backward_center_points;
   std::vector<geometry_msgs::Point> footprint_center_points;
@@ -148,6 +158,7 @@ class AStarController : public BaseController {
   bool Control(BaseControlOption* option, ControlEnvironment* environment);
   std::vector<geometry_msgs::Point> footprint_spec_;
   std::vector<geometry_msgs::Point> unpadded_footrpint_spec_;
+  double inscribed_radius_, circumscribed_radius_;
 
  private:
   /**
@@ -208,6 +219,7 @@ class AStarController : public BaseController {
   bool GetCurrentPosition(geometry_msgs::PoseStamped& current_position);
   unsigned int GetPoseIndexOfPath(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::PoseStamped& pose);
   bool HandleGoingBack(geometry_msgs::PoseStamped& current_position, double backward_dis = 0.0);
+  bool HeadingChargingGoal(const geometry_msgs::PoseStamped& charging_goal);
   bool HandleSwitchingPath(geometry_msgs::PoseStamped current_position, bool switch_directly = false);
   void PlanThread();
   double PoseStampedDistance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2);
@@ -296,11 +308,13 @@ class AStarController : public BaseController {
   geometry_msgs::PoseStamped planner_start_;
   geometry_msgs::PoseStamped planner_goal_;
   geometry_msgs::PoseStamped global_goal_;
+  geometry_msgs::PoseStamped charging_goal_;
   geometry_msgs::PoseStamped front_goal_;
   geometry_msgs::PoseStamped sbpl_planner_goal_;
   geometry_msgs::PoseStamped init_pose_;
   geometry_msgs::PoseStamped success_broader_goal_;
   boost::thread* planner_thread_;
+  unsigned int global_goal_type_;
   unsigned int planner_start_index_;
   bool new_global_plan_;
   bool using_sbpl_directly_;

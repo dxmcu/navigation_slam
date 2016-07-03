@@ -73,14 +73,14 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
     private_nh.param("prune_plan", prune_plan_, true); //
 
     private_nh.param("p14", latch_xy_goal_tolerance_, false);
-    private_nh.param("p13", yaw_goal_tolerance_, 0.05);
-    GAUSSIAN_INFO("[LOCAL PLANNER] yaw_goal_tolerance: %lf", yaw_goal_tolerance_);
-    private_nh.param("p12", xy_goal_tolerance_, 0.50);
-    GAUSSIAN_INFO("[LOCAL PLANNER] xy_goal_tolerance: %lf", xy_goal_tolerance_);
+    private_nh.param("p13", p_yaw_goal_tolerance_, 0.05);
+    GAUSSIAN_INFO("[LOCAL PLANNER] yaw_goal_tolerance: %lf", p_yaw_goal_tolerance_);
+    private_nh.param("p12", p_xy_goal_tolerance_, 0.50);
+    GAUSSIAN_INFO("[LOCAL PLANNER] xy_goal_tolerance: %lf", p_xy_goal_tolerance_);
     private_nh.param("p10", acc_lim_x_, 2.5);
     private_nh.param("p11", acc_lim_y_, 2.5);
     private_nh.param("p9", acc_lim_theta_, acc_lim_theta_);
-
+    resetGoalTolerance();
     // Since I screwed up nicely in my documentation, I'm going to add errors
     // informing the user if they've set one of the wrong parameters
     if (private_nh.hasParam("acc_limit_x")) {

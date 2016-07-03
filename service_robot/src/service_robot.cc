@@ -1,4 +1,4 @@
-/* Copyright(C) Gaussian Automation. All rights reserved.
+/* copyright(c) gaussian automation. all rights reserved.
 */
 
 /**
@@ -95,6 +95,7 @@ ServiceRobot::ServiceRobot(tf::TransformListener* tf)
 
   ros::NodeHandle simple_nh("move_base_simple");
   simple_goal_sub_ = simple_nh.subscribe<geometry_msgs::PoseStamped>("goal", 10, boost::bind(&ServiceRobot::SimpleGoalCB, this, _1));
+  movebase_goal_sub_ = simple_nh.subscribe<autoscrubber_services::MovebaseGoal>("movebase_goal", 10, boost::bind(&ServiceRobot::MovebaseGoalCB, this, _1));
   pause_sub_ = simple_nh.subscribe<std_msgs::UInt32>("gaussian_pause", 10, boost::bind(&ServiceRobot::PauseCB, this, _1));
   terminate_sub_ = simple_nh.subscribe<std_msgs::UInt32>("gaussian_cancel", 10, boost::bind(&ServiceRobot::TerminateCB, this, _1));
   goal_reached_pub_ = simple_nh.advertise<std_msgs::UInt32>("/GUI/IS_GOAL_REACHED", 1);
@@ -169,7 +170,10 @@ ServiceRobot::ServiceRobot(tf::TransformListener* tf)
   reinterpret_cast<AStarControlOption*>(options_)->recovery_footprint_extend_x = recovery_footprint_extend_x_;
   reinterpret_cast<AStarControlOption*>(options_)->recovery_footprint_extend_y = recovery_footprint_extend_y_;
   reinterpret_cast<AStarControlOption*>(options_)->fixpattern_footprint_padding = fixpattern_footprint_padding_;
-  reinterpret_cast<AStarControlOption*>(options_)->global_planner_goal = &global_planner_goal_;
+//  reinterpret_cast<AStarControlOption*>(options_)->global_planner_goal = &global_planner_goal_;
+//  reinterpret_cast<AStarControlOption*>(options_)->global_planner_goal_type = &global_planner_goal_type_;
+  reinterpret_cast<AStarControlOption*>(options_)->movebase_goal = &movebase_goal_;
+
   controllers_ = new AStarController(&tf_, controller_costmap_ros_);
 
   // initialize environment_
@@ -193,9 +197,25 @@ ServiceRobot::ServiceRobot(tf::TransformListener* tf)
 void ServiceRobot::SimpleGoalCB(const geometry_msgs::PoseStamped::ConstPtr& goal) {
   ROS_DEBUG_NAMED("move_base", "In ROS goal callback, wrapping the PoseStamped in the action message and start ExecuteCycle.");
   GAUSSIAN_INFO("[SERVICEROBOT] Get Goal!x = %.2f, y = %.2f, yaw = %.2f",goal->pose.position.x, goal->pose.position.y, tf::getYaw(goal->pose.orientation));
-  global_planner_goal_.pose = goal->pose;
-  global_planner_goal_.header.frame_id = global_frame_;
+  movebase_goal_.pose.pose = goal->pose; 
+  movebase_goal_.pose.header.frame_id = global_frame_; 
+  movebase_goal_.type = 0; 
+//  global_planner_goal_.pose = goal->pose;
+//  global_planner_goal_.header.frame_id = global_frame_;
 //  reinterpret_cast<AStarControlOption*>(options_)->settle_planner_goal_ = &astar_planner_goal_;
+  autoscrubber_services::Start::Request req;
+  autoscrubber_services::Start::Response res;
+  Start(req, res);
+}
+
+void ServiceRobot::MovebaseGoalCB(const autoscrubber_services::MovebaseGoal::ConstPtr& goal) {
+  GAUSSIAN_INFO("[SERVICEROBOT] Get Goal!x = %.2f, y = %.2f, yaw = %.2f",goal->pose.pose.position.x, goal->pose.pose.position.y, tf::getYaw(goal->pose.pose.orientation));
+  movebase_goal_.pose.pose = goal->pose.pose; 
+  movebase_goal_.pose.header.frame_id = global_frame_; 
+  movebase_goal_.type = goal->type; 
+//  global_planner_goal_.pose = goal->pose.pose;
+//  global_planner_goal_.header.frame_id = global_frame_;
+//  global_planner_goal_type_ = goal->type;
   autoscrubber_services::Start::Request req;
   autoscrubber_services::Start::Response res;
   Start(req, res);
