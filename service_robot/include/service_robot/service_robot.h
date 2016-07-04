@@ -25,9 +25,8 @@
 #include <autoscrubber_services/Resume.h>
 #include <autoscrubber_services/Terminate.h>
 #include <autoscrubber_services/IsGoalReached.h>
-#include <autoscrubber_services/LaunchScrubber.h>
-#include <autoscrubber_services/StopScrubber.h>
 #include <autoscrubber_services/GetCurrentPose.h>
+#include <autoscrubber_services/MovebaseGoal.h>
 #include <fixpattern_path/path.h>
 #include <global_planner/planner_core.h>
 // #include <sbpl_lattice_planner/sbpl_lattice_planner.h>
@@ -119,6 +118,7 @@ class ServiceRobot {
   void ResetState();
 
   void SimpleGoalCB(const geometry_msgs::PoseStamped::ConstPtr& goal);
+  void MovebaseGoalCB(const autoscrubber_services::MovebaseGoal::ConstPtr& goal);
   void PauseCB(const std_msgs::UInt32::ConstPtr& param);
   void TerminateCB(const std_msgs::UInt32::ConstPtr& param);
   void ControlThread();
@@ -127,6 +127,7 @@ class ServiceRobot {
   bool ReadCircleCenterFromParams(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>* points);
   bool ReadBackwardCenterFromParams(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>* points);
   bool ReadFootprintCenterFromParams(ros::NodeHandle& nh, std::vector<geometry_msgs::Point>* points);
+  bool ReadConfigFromParams(ros::NodeHandle& nh, std::vector<unsigned int>* config_list);
 
  private:
   tf::TransformListener& tf_;
@@ -152,14 +153,12 @@ class ServiceRobot {
   double conservative_reset_dist_, clearing_radius_;
   ros::Publisher vel_pub_, goal_reached_pub_;
   ros::Subscriber simple_goal_sub_, goal_sub_, pause_sub_, terminate_sub_;
+  ros::Subscriber movebase_goal_sub_;
   ros::ServiceServer start_srv_, pause_srv_, resume_srv_, terminate_srv_, is_goal_reached_srv_;
+  ros::ServiceServer set_movebase_goal_srv_;
 
-  ros::ServiceClient launch_scrubber_client_;
-  ros::ServiceClient stop_scrubber_client_;
   bool shutdown_costmaps_;
   double oscillation_timeout_, oscillation_distance_;
-
-  bool enable_scrubber_;
 
   // fixpattern option
   double stop_duration_;
@@ -191,6 +190,7 @@ class ServiceRobot {
   std::vector<geometry_msgs::Point> circle_center_points_;
   std::vector<geometry_msgs::Point> backward_center_points_;
   std::vector<geometry_msgs::Point> footprint_center_points_;
+  std::vector<unsigned int> front_protector_list_;
 
   // fixpattern path, share between two controllers
   fixpattern_path::Path* fixpattern_path_;
@@ -204,6 +204,8 @@ class ServiceRobot {
   ros::Time last_valid_plan_, last_valid_control_, last_oscillation_reset_;
   geometry_msgs::PoseStamped oscillation_pose_;
   geometry_msgs::PoseStamped global_planner_goal_;
+  unsigned int global_planner_goal_type_;
+  autoscrubber_services::MovebaseGoal movebase_goal_;
 
   // set up plan triple buffer
   std::vector<geometry_msgs::PoseStamped>* planner_plan_;

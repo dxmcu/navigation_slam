@@ -73,14 +73,14 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
     private_nh.param("prune_plan", prune_plan_, true); //
 
     private_nh.param("p14", latch_xy_goal_tolerance_, false);
-    private_nh.param("p13", yaw_goal_tolerance_, 0.05);
-    GAUSSIAN_INFO("[LOCAL PLANNER] yaw_goal_tolerance: %lf", yaw_goal_tolerance_);
-    private_nh.param("p12", xy_goal_tolerance_, 0.50);
-    GAUSSIAN_INFO("[LOCAL PLANNER] xy_goal_tolerance: %lf", xy_goal_tolerance_);
+    private_nh.param("p13", p_yaw_goal_tolerance_, 0.05);
+    GAUSSIAN_INFO("[LOCAL PLANNER] yaw_goal_tolerance: %lf", p_yaw_goal_tolerance_);
+    private_nh.param("p12", p_xy_goal_tolerance_, 0.50);
+    GAUSSIAN_INFO("[LOCAL PLANNER] xy_goal_tolerance: %lf", p_xy_goal_tolerance_);
     private_nh.param("p10", acc_lim_x_, 2.5);
     private_nh.param("p11", acc_lim_y_, 2.5);
     private_nh.param("p9", acc_lim_theta_, acc_lim_theta_);
-
+    resetGoalTolerance();
     // Since I screwed up nicely in my documentation, I'm going to add errors
     // informing the user if they've set one of the wrong parameters
     if (private_nh.hasParam("acc_limit_x")) {
@@ -128,6 +128,8 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
     private_nh.param("p22", pdist_scale, 0.6);
     private_nh.param("p23", gdist_scale, 0.8);
     private_nh.param("p24", occdist_scale, 0.01);
+    private_nh.param("p26", final_vel_ratio_, 1.0);
+    private_nh.param("p27", final_goal_dis_th_, 1.0);
 
     private_nh.param("p1", max_vel_x, 0.5);
     private_nh.param("p2", min_vel_x, 0.08);
@@ -164,7 +166,8 @@ void FixPatternTrajectoryPlannerROS::initialize(std::string name, tf::TransformL
                                 sim_time, sim_granularity, front_safe_sim_time, front_safe_sim_granularity,
                                 vtheta_samples,
                                 pdist_scale, gdist_scale, occdist_scale, 
-                                max_vel_x, min_vel_x, max_vel_theta_, min_vel_theta_, min_in_place_rotational_vel_, backup_vel, min_hightlight_dis_);
+                                max_vel_x, min_vel_x, max_vel_theta_, min_vel_theta_, min_in_place_rotational_vel_,
+                                backup_vel, min_hightlight_dis_, final_vel_ratio_, final_goal_dis_th_);
 
     la_ = new LookAheadPlanner(*world_model_, *costmap_, footprint_spec_,
                                sim_granularity, acc_lim_x_, acc_lim_y_, acc_lim_theta_,
@@ -383,7 +386,7 @@ bool FixPatternTrajectoryPlannerROS::setPlan(const std::vector<fixpattern_path::
 
   std::vector<fixpattern_path::PathPoint> new_global_plan = orig_global_plan;
   // if global plan is too short, we will extend it to avoid robot shaking when ariving global goal
-  if (getPlanLength(new_global_plan) < 0.35 && new_global_plan.size() > 2) {
+  if (getPlanLength(new_global_plan) < final_goal_dis_th_ && new_global_plan.size() > 2) {
    // extend path
     double yaw = fixpattern_path::CalculateDirection(new_global_plan.front(), new_global_plan.back());
     for (int i = 0; i < 10; ++i) {
@@ -580,6 +583,7 @@ bool FixPatternTrajectoryPlannerROS::computeVelocityCommands(PlannerType planner
   double traj_vel = fixpattern_path_.front().max_vel;
   double highlight = fixpattern_path_.front().highlight;
   double current_point_dis = getGoalPositionDistance(global_pose, current_point.getOrigin().getX(), current_point.getOrigin().getY());
+  GAUSSIAN_INFO("[FIXPATTERN LOCAL PLANNER] path_front.max_vel = %lf, hightlight = %lf, current_ponit_dis = %lf", traj_vel, highlight, current_point_dis);
   Trajectory path;
   if (planner_type == TRAJECTORY_PLANNER) {
     path = tc_->findBestPath(global_pose, traj_vel, highlight, current_point_dis, robot_vel, drive_cmds, &all_explored);

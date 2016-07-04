@@ -99,6 +99,7 @@ class SearchBasedGlobalPlanner {
   unsigned char inscribed_inflated_cost_;
   unsigned char cost_multiplier_;
   int map_size_;
+  bool using_short_highlight_;
   unsigned int size_dir_;
 
   // for ADStar

@@ -2,27 +2,9 @@
 forked from ros-planning/navigation.git -> indigo-devel
 
 ---
-## CHANGE
-### amcl
-1. add param: init_sigma_k, to control scale of samples when initialize
 
 ### service_robot_control
 This is a new node, we use this to feed params to move_base when it dies
-
-### move_base
-1. first_start: determin whether to continue last path, if needs to, automatically set goal
-2. will not load default global planner now
-3. add param: astar_planner_frequency, as it describes
-4. add param: max_offroad_dis, max distance from fixpattern_path
-5. add param: front_safe_check_dis, used in FIXPATTERN to check if points within distance in fixpattern_path are safe
-6. add param: enable_scrubber, as it describes
-7. add param: goal_safe_dis_a && goal_safe_dis_b, together to determin safe-check range of astar_goal
-8. add FRONTSAFE_R and GOALSAFE_R: FRONTSAFE_R represents front not safe, GOALSAFE_R represents goal not reachable
-9. ASTAR mode and FIXPATTERN mode: as it describes, including mode switch mechanism
-10. some topics used to handle scrub and gui
-
-### stop_recovery
-When stop, we check whether front and astar goal are safe, if safe, continue going
 
 ### fixpattern_path
 lib for fixpattern path management, we use it to calculate attributes of PathPoint:

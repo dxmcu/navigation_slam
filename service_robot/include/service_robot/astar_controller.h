@@ -26,6 +26,9 @@
 #include <autoscrubber_services/StopRotate.h>
 #include <autoscrubber_services/CheckRotate.h>
 #include <autoscrubber_services/CheckGoal.h>
+#include <autoscrubber_services/CheckProtectorStatus.h>
+#include <autoscrubber_services/ProtectorStatus.h>
+#include <autoscrubber_services/MovebaseGoal.h>
 #include <fixpattern_path/path.h>
 #include <search_based_global_planner/search_based_global_planner.h>
 #include <fixpattern_local_planner/trajectory_planner_ros.h>
@@ -67,14 +70,21 @@ typedef enum {
 typedef enum {
   E_NULL = 0,
   E_LOCATION_INVALID,
-  E_GOAL_UNREACHABLE,
+  E_GOAL_NOT_SAFE,
   E_PATH_NOT_SAFE,
+  I_GOAL_UNREACHABLE,
   I_GOAL_HEADING,
+  I_GOAL_PLANNING,
   I_GOAL_REACHED,
   I_GOAL_UNREACHED,
-  E_GOAL_NOT_SAFE,
   MAX_RET,
 } StatusIndex;
+
+typedef enum {
+  NORMAL = 0,
+  ORIGIN,
+  CHARGING 
+} MovebaseGoalTypeIndex;
 
 struct AStarControlOption : BaseControlOption {
   double stop_duration;
@@ -106,9 +116,13 @@ struct AStarControlOption : BaseControlOption {
   int* fixpattern_reached_goal;
   fixpattern_path::Path* fixpattern_path;
   geometry_msgs::PoseStamped* global_planner_goal;
+  unsigned int* global_planner_goal_type;
+  autoscrubber_services::MovebaseGoal* movebase_goal;
+
   std::vector<geometry_msgs::Point> circle_center_points;
   std::vector<geometry_msgs::Point> backward_center_points;
   std::vector<geometry_msgs::Point> footprint_center_points;
+  std::vector<unsigned int> front_protector_list;
   boost::shared_ptr<nav_core::BaseGlobalPlanner> astar_global_planner;
   boost::shared_ptr<search_based_global_planner::SearchBasedGlobalPlanner> sbpl_global_planner;
   boost::shared_ptr<fixpattern_local_planner::FixPatternTrajectoryPlannerROS> fixpattern_local_planner;
@@ -144,6 +158,8 @@ class AStarController : public BaseController {
 
   bool Control(BaseControlOption* option, ControlEnvironment* environment);
   std::vector<geometry_msgs::Point> footprint_spec_;
+  std::vector<geometry_msgs::Point> unpadded_footrpint_spec_;
+  double inscribed_radius_, circumscribed_radius_;
 
  private:
   /**
@@ -204,6 +220,7 @@ class AStarController : public BaseController {
   bool GetCurrentPosition(geometry_msgs::PoseStamped& current_position);
   unsigned int GetPoseIndexOfPath(const std::vector<geometry_msgs::PoseStamped>& path, const geometry_msgs::PoseStamped& pose);
   bool HandleGoingBack(geometry_msgs::PoseStamped& current_position, double backward_dis = 0.0);
+  bool HeadingChargingGoal(const geometry_msgs::PoseStamped& charging_goal);
   bool HandleSwitchingPath(geometry_msgs::PoseStamped current_position, bool switch_directly = false);
   void PlanThread();
   double PoseStampedDistance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2);
@@ -230,6 +247,7 @@ class AStarController : public BaseController {
 
   void LocalizationCallBack(const std_msgs::Int8::ConstPtr& param);
   bool CheckGoalIsSafe(autoscrubber_services::CheckGoal::Request& req, autoscrubber_services::CheckGoal::Response& res); // NOLINT
+  bool CheckProtector(geometry_msgs::PoseStamped& current_position, bool detect_front_protector = true);
 
  private:
   tf::TransformListener& tf_;
@@ -291,11 +309,13 @@ class AStarController : public BaseController {
   geometry_msgs::PoseStamped planner_start_;
   geometry_msgs::PoseStamped planner_goal_;
   geometry_msgs::PoseStamped global_goal_;
+  geometry_msgs::PoseStamped charging_goal_;
   geometry_msgs::PoseStamped front_goal_;
   geometry_msgs::PoseStamped sbpl_planner_goal_;
   geometry_msgs::PoseStamped init_pose_;
   geometry_msgs::PoseStamped success_broader_goal_;
   boost::thread* planner_thread_;
+  unsigned int global_goal_type_;
   unsigned int planner_start_index_;
   bool new_global_plan_;
   bool using_sbpl_directly_;
@@ -327,6 +347,7 @@ class AStarController : public BaseController {
   ros::ServiceClient start_rotate_client_;
   ros::ServiceClient stop_rotate_client_;
   ros::ServiceClient check_rotate_client_;
+  ros::ServiceClient check_protector_client_;
 };
 
 };  // namespace service_robot

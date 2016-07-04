@@ -79,7 +79,8 @@ class TrajectoryPlanner{
                     double pdist_scale = 0.6, double gdist_scale = 0.8, double occdist_scale = 0.2,
                     double max_vel_x = 0.5, double min_vel_x = 0.1,
                     double max_vel_th = 1.0, double min_vel_th = -1.0, double min_in_place_vel_th = 0.4,
-                    double backup_vel = -0.1, double min_hightlight_dis = 0.5);
+                    double backup_vel = -0.1, double min_hightlight_dis = 0.5, 
+                    double final_vel_ratio = 1.0, double final_goal_dis_th = 1.5);
 
   /**
    * @brief  Destructs a trajectory controller
@@ -292,6 +293,9 @@ class TrajectoryPlanner{
 
   double prev_x_, prev_y_; ///< @brief Used to calculate the distance the robot has traveled before reseting oscillation booleans
   double escape_x_, escape_y_, escape_theta_; ///< @brief Used to calculate the distance the robot has traveled before reseting escape booleans
+
+  double final_vel_ratio_; ///< @brief Used to calculate the sample_v(max_vel) when get close to final goal 
+  double final_goal_dis_th_; ///< @brief Used to determine if it's too close to final goal 
 
   Trajectory traj_one, traj_two; ///< @brief Used for scoring trajectories
 

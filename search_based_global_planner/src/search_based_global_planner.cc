@@ -148,6 +148,8 @@ void SearchBasedGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2
     private_nh.param("p12", turn_in_place_cost_mult, 50);
 
     private_nh.param("p13", map_size_, 400);
+    private_nh.param("p15", using_short_highlight_, true);
+		
 
     unsigned int size_x = costmap_->getSizeInCellsX();
     unsigned int size_y = costmap_->getSizeInCellsY();
@@ -551,7 +553,7 @@ void SearchBasedGlobalPlanner::ComputeHighlightAndVelocity(const std::vector<Act
 					sum_highlight = MAX_HIGHLIGHT_DIS;
 					break;
 				}
-				if (path_info->at(j).max_vel == sbpl_min_vel_ || path_info->at(j).max_vel == sbpl_low_vel_) { //corner, cut highlight here
+				if (path_info->at(j).max_vel == sbpl_min_vel_ || (path_info->at(j).max_vel == sbpl_low_vel_ && using_short_highlight_)) { //corner, cut highlight here
 					break;
 				}
         // TODO(lizhen) check break theta

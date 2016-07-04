@@ -121,6 +121,16 @@ class FixPatternTrajectoryPlannerROS {
     return is_footprint_safe_;
   }
 
+  bool setGoalTolerance(double xy_goal_tolerance, double yaw_goal_tolerance) {
+    xy_goal_tolerance_ = xy_goal_tolerance;
+    yaw_goal_tolerance_ = yaw_goal_tolerance; 
+  }
+
+  bool resetGoalTolerance() {
+    xy_goal_tolerance_ = p_xy_goal_tolerance_;
+    yaw_goal_tolerance_ = p_yaw_goal_tolerance_; 
+  }
+
   bool isGoalXYLatched();
   /**
    * @brief reset reached_goal_, xy_tolerance_latch_, last_rotate_to_goal_dir_ and try_rotate_ etc.
@@ -207,10 +217,14 @@ class FixPatternTrajectoryPlannerROS {
   double min_in_place_rotational_vel_; 
   double acc_lim_x_, acc_lim_y_, acc_lim_theta_;
   double sim_period_;
+  double final_goal_dis_th_; 
+  double final_vel_ratio_;
   bool rotating_to_goal_;
   bool reached_goal_;
   bool rotating_to_goal_done_;
   bool latch_xy_goal_tolerance_, xy_tolerance_latch_;
+
+  double p_xy_goal_tolerance_, p_yaw_goal_tolerance_;
 
   ros::Publisher g_plan_pub_, l_plan_pub_;
 //  pcl_ros::Publisher<MapGridCostPoint> traj_cloud_pub_;

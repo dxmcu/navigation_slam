@@ -38,18 +38,20 @@ TrajectoryPlanner::TrajectoryPlanner(WorldModel& world_model,
                                      double pdist_scale, double gdist_scale, double occdist_scale,
                                      double max_vel_x, double min_vel_x,
                                      double max_vel_th, double min_vel_th, double min_in_place_vel_th,
-                                     double backup_vel, double min_hightlight_dis)
+                                     double backup_vel, double min_hightlight_dis, 
+                                     double final_vel_ratio, double final_goal_dis_th)
   : costmap_(costmap),
     world_model_(world_model), footprint_spec_(footprint_spec),
     num_calc_footprint_cost_(num_calc_footprint_cost),
-    sim_time_(sim_time), sim_granularity_(sim_granularity), 
+    sim_time_(sim_time), sim_granularity_(sim_granularity),
     front_safe_sim_time_(front_safe_sim_time), front_safe_sim_granularity_(front_safe_sim_granularity),
     vtheta_samples_(vtheta_samples),
     pdist_scale_(pdist_scale), gdist_scale_(gdist_scale), occdist_scale_(occdist_scale),
     acc_lim_x_(acc_lim_x), acc_lim_y_(acc_lim_y), acc_lim_theta_(acc_lim_theta),
     max_vel_x_(max_vel_x), min_vel_x_(min_vel_x),
     max_vel_th_(max_vel_th), min_vel_th_(min_vel_th), min_in_place_vel_th_(min_in_place_vel_th),
-    backup_vel_(backup_vel), min_hightlight_dis_(min_hightlight_dis) {
+    backup_vel_(backup_vel), min_hightlight_dis_(min_hightlight_dis), 
+    final_vel_ratio_(final_vel_ratio), final_goal_dis_th_(final_goal_dis_th) {
 
   costmap_2d::calculateMinAndMaxDistances(footprint_spec_, inscribed_radius_, circumscribed_radius_);
 }
@@ -693,7 +695,11 @@ Trajectory TrajectoryPlanner::createTrajectories(double x, double y, double thet
   double min_vel_x, min_vel_theta;
 
   double final_goal_dist = hypot(final_goal_x_ - x, final_goal_y_ - y);
-  max_vel_x = std::min(max_vel_x, final_goal_dist / sim_time_);
+  double final_vel_ratio = 1.0;
+  if (final_goal_dist < final_goal_dis_th_) {
+    final_vel_ratio = final_vel_ratio_;
+  }
+  max_vel_x = std::min(max_vel_x, final_goal_dist / sim_time_ * final_vel_ratio);
 
   max_vel_x = std::max(std::min(max_vel_x, vx + acc_x * sim_time_), min_vel_x_);
   min_vel_x = std::max(min_vel_x_, vx - acc_x * sim_time_);
