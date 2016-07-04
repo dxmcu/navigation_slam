@@ -9,7 +9,7 @@
  * @date 2015-08-21
  */
 
-#include "service_robot/service_robot.h"
+#include "service_robot.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/thread.hpp>
 #include <geometry_msgs/Twist.h>

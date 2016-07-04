@@ -9,8 +9,8 @@
  * @date 2015-10-20
  */
 
-#include "service_robot/footprint_checker.h"
-#include <fixpattern_local_planner/line_iterator.h>
+#include "footprint_checker.h"
+#include <line_iterator.h>
 #include <tf/message_filter.h>
 #include <algorithm>
 #include <vector>

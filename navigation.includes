@@ -1,0 +1,5 @@
+fixpattern_local_planner/include/fixpattern_local_planner
+global_planner/include/global_planner
+nav_core/include/nav_core
+search_based_global_planner/include/search_based_global_planner
+service_robot/include/service_robot

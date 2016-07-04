@@ -9,8 +9,8 @@
  * @date 2015-08-21
  */
 
-#include "service_robot/astar_controller.h"
-#include "service_robot/bezier_planner.h"
+#include "astar_controller.h"
+#include "bezier_planner.h"
 #include <nav_msgs/Path.h>
 #include <angles/angles.h>
 #include <std_msgs/UInt32.h>
@@ -768,8 +768,10 @@ void AStarController::ClearFootprintInCostmap(const geometry_msgs::PoseStamped& 
 }
 
 bool AStarController::IsGoalUnreachable(const geometry_msgs::PoseStamped& goal_pose) {
-    if (footprint_checker_->CircleCenterCost(goal_pose.pose.position.x, goal_pose.pose.position.y, tf::getYaw(goal_pose.pose.orientation),
-                                               co_->circle_center_points, 0.0, 0.0) < -100.0) {
+    if (footprint_checker_->CircleCenterCost(goal_pose.pose.position.x,
+                                             goal_pose.pose.position.y,
+                                             tf::getYaw(goal_pose.pose.orientation),
+                                             co_->circle_center_points, 0.0, 0.0) < -100.0) {
       return true;
     } else {
       return false;
